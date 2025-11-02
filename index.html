@@ -281,7 +281,7 @@
               <h4>✅ Step 5: Conferma Prenotazione</h4>
             </div>
             <div id="booking-summary" class="booking-summary">
-              <!-- Riepilogo dinamico -->
+              <!-- Riepilogo dinamico completo -->
             </div>
             <div class="step-actions">
               <button type="button" id="step5-back" class="btn btn-outline">◀️ Indietro</button>
@@ -292,7 +292,7 @@
           </div>
         </div>
 
-        <!-- PROFILO TAB COMPLETO -->
+        <!-- PROFILO TAB COMPLETO - FIX BUG CAMPO DATA INIZIO PATENTE -->
         <div id="profilo-tab" class="tab-content">
           <div class="section-header">
             <h3>👤 Il tuo Profilo</h3>
@@ -327,21 +327,37 @@
             </div>
             
             <!-- Residenza -->
-            <div class="form-group">
-              <label for="profile-indirizzo">Indirizzo Completo:</label>
-              <input type="text" id="profile-indirizzo" placeholder="Via, Numero, CAP, Città" required>
-            </div>
-            
-            <!-- Patente -->
             <div class="form-row">
               <div class="form-group">
-                <label for="profile-patente">Numero Patente:</label>
-                <input type="text" id="profile-patente" required>
+                <label for="profile-comune-residenza">Comune di Residenza:</label>
+                <input type="text" id="profile-comune-residenza" required>
               </div>
               <div class="form-group">
-                <label for="profile-patente-scadenza">Scadenza Patente:</label>
-                <input type="date" id="profile-patente-scadenza" required>
+                <label for="profile-via-residenza">Via di Residenza:</label>
+                <input type="text" id="profile-via-residenza" required>
               </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="profile-civico-residenza">Civico di Residenza:</label>
+              <input type="text" id="profile-civico-residenza" required>
+            </div>
+            
+            <!-- Patente - FIX BUG: AGGIUNTO CAMPO DATA INIZIO VALIDITÀ -->
+            <div class="form-row">
+              <div class="form-group">
+                <label for="profile-numero-patente">Numero Patente:</label>
+                <input type="text" id="profile-numero-patente" required>
+              </div>
+              <div class="form-group">
+                <label for="profile-inizio-validita-patente">🔧 Data Inizio Validità Patente:</label>
+                <input type="date" id="profile-inizio-validita-patente" required>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="profile-scadenza-patente">Scadenza Patente:</label>
+              <input type="date" id="profile-scadenza-patente" required>
             </div>
             
             <div class="form-actions">
