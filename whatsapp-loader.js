@@ -1,6 +1,4 @@
-/* include safe WhatsApp formatter */
-(function(){
-  var s = document.createElement('script');
-  s.src = 'safe-whatsapp-fix.js';
-  document.head.appendChild(s);
-})();
+/* 💬 IMBRIANI NOLEGGIO - WhatsApp Loader */
+'use strict';function loadWhatsAppWidget(){if(document.getElementById('whatsapp-widget')){console.log('WhatsApp widget already exists');return;}const widget=document.createElement('div');widget.id='whatsapp-widget';widget.innerHTML=`<div style="position:fixed;bottom:20px;right:20px;z-index:9999;background:#25d366;border-radius:50px;padding:12px 16px;box-shadow:0 4px 12px rgba(0,0,0,0.2);cursor:pointer;transition:transform .2s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onclick="openWhatsApp()"><span style="color:white;font-weight:bold;font-size:14px;">💬 WhatsApp</span></div>`;document.body.appendChild(widget);console.log('✅ WhatsApp widget loaded');}
+function openWhatsApp(){const phoneNumber='393511234567';const message=encodeURIComponent('Ciao! Vorrei informazioni sui noleggi pulmini.');const whatsappUrl=`https://wa.me/${phoneNumber}?text=${message}`;window.open(whatsappUrl,'_blank');}
+window.loadWhatsAppWidget=loadWhatsAppWidget;window.openWhatsApp=openWhatsApp;
