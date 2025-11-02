@@ -1,154 +1,132 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔧 Admin Dashboard Pro - Imbriani Noleggio</title>
-    <link rel="stylesheet" href="design-system.css">
-    <link rel="stylesheet" href="admin-styles.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.umd.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard Pro</title>
+  <link rel="stylesheet" href="admin-styles.css">
+  <!-- Chart.js UMD for charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- XLSX for Excel export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body class="admin-body">
-    <div class="admin-container">
-        <!-- Header -->
-        <header class="admin-header">
-            <div class="header-content">
-                <h1 class="admin-title">🔧 Admin Dashboard Pro</h1>
-                <div class="header-actions">
-                    <div class="clock" id="current-time">00:00:00</div>
-                    <button id="refresh-btn" class="btn btn-primary btn-sm">🔄 Refresh</button>
-                    <button id="back-to-site" class="btn btn-outline btn-sm">🔙 Torna al Sito</button>
-                </div>
-            </div>
-        </header>
-
-        <!-- Stats Cards -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon">📅</div>
-                <div class="stat-number" id="stat-oggi">0</div>
-                <div class="stat-label">Prenotazioni Oggi</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">📊</div>
-                <div class="stat-number" id="stat-settimana">0</div>
-                <div class="stat-label">Questa Settimana</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">🚐</div>
-                <div class="stat-number" id="stat-pulmini">4</div>
-                <div class="stat-label">Pulmini Attivi</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">💰</div>
-                <div class="stat-number" id="stat-confermare">2</div>
-                <div class="stat-label">Da Confermare</div>
-            </div>
-        </div>
-
-        <!-- Filters -->
-        <div class="filters-section">
-            <h3>🔍 Filtri</h3>
-            <div class="filters-grid">
-                <div class="filter-group">
-                    <label>📅 Data Da:</label>
-                    <input type="date" id="filter-data-da" class="filter-input">
-                </div>
-                <div class="filter-group">
-                    <label>📅 Data A:</label>
-                    <input type="date" id="filter-data-a" class="filter-input">
-                </div>
-                <div class="filter-group">
-                    <label>🔘 Stato:</label>
-                    <select id="filter-stato" class="filter-input">
-                        <option value="">Tutti gli stati</option>
-                        <option value="Da confermare">⏳ Da confermare</option>
-                        <option value="Confermata">✅ Confermata</option>
-                        <option value="Annullata">❌ Annullata</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>🚐 Targa:</label>
-                    <select id="filter-targa" class="filter-input">
-                        <option value="">Tutti i pulmini</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>👤 Cliente:</label>
-                    <input type="text" id="filter-cliente" class="filter-input" placeholder="Nome cliente...">
-                </div>
-            </div>
-            <div class="filters-actions">
-                <button id="apply-filters" class="btn btn-primary">🔍 Applica Filtri</button>
-                <button id="clear-filters" class="btn btn-outline">🗑️ Pulisci</button>
-            </div>
-        </div>
-
-        <!-- Main Content -->
-        <div class="main-section">
-            <div class="section-header">
-                <h3>📋 Gestione Prenotazioni</h3>
-                <div class="section-actions">
-                    <button id="export-excel" class="btn btn-success">📊 Esporta Excel</button>
-                    <button id="export-filtered" class="btn btn-info">📋 Esporta Filtrate</button>
-                </div>
-            </div>
-
-            <!-- Bookings Table -->
-            <div class="table-container">
-                <table class="bookings-table">
-                    <thead>
-                        <tr>
-                            <th><input type="checkbox" id="select-all"> ID</th>
-                            <th>📅 Data Creazione</th>
-                            <th>🔘 Cliente</th>
-                            <th>📞 CF/Telefono</th>
-                            <th>🚐 Targa</th>
-                            <th>📍 Ritiro</th>
-                            <th>📍 Consegna</th>
-                            <th>🎯 Destinazione</th>
-                            <th>📊 Stato</th>
-                            <th>⚙️ Azioni</th>
-                        </tr>
-                    </thead>
-                    <tbody id="bookings-tbody">
-                        <tr>
-                            <td colspan="10" class="loading-row">
-                                <div class="loading-spinner"></div>
-                                Caricamento prenotazioni...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Bulk Actions -->
-            <div class="bulk-actions hidden" id="bulk-actions">
-                <span class="bulk-count">0 selezionate</span>
-                <button id="bulk-confirm" class="btn btn-success btn-sm">✅ Conferma Selezionate</button>
-                <button id="bulk-cancel" class="btn btn-danger btn-sm">❌ Annulla Selezionate</button>
-            </div>
-        </div>
-
-        <!-- Charts Section -->
-        <div class="charts-section">
-            <div class="chart-row">
-                <div class="chart-container">
-                    <h4>📊 Utilizzo Pulmini</h4>
-                    <canvas id="pulmini-chart" width="400" height="200"></canvas>
-                </div>
-                <div class="chart-container">
-                    <h4>📈 Stati Prenotazioni</h4>
-                    <canvas id="stati-chart" width="400" height="200"></canvas>
-                </div>
-            </div>
-        </div>
+  <div class="admin-header">
+    <div class="left">
+      <h1>Admin Dashboard Pro</h1>
+      <div id="current-time">00:00:00</div>
     </div>
+    <div class="right">
+      <button id="refresh-btn" class="btn btn-secondary">Refresh</button>
+      <button id="back-to-site" class="btn btn-outline">Torna al Sito</button>
+    </div>
+  </div>
 
-    <!-- Scripts -->
-    <script src="config.js"></script>
-    <script src="shared-utils.js"></script>
-    <script src="admin-scripts.js"></script>
+  <main class="admin-main">
+    <section class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">📅</div>
+        <div class="stat-content">
+          <div class="stat-number" id="stat-oggi">0</div>
+          <div class="stat-label">Prenotazioni Oggi</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📊</div>
+        <div class="stat-content">
+          <div class="stat-number" id="stat-settimana">0</div>
+          <div class="stat-label">Questa Settimana</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🚐</div>
+        <div class="stat-content">
+          <div class="stat-number" id="stat-pulmini">0</div>
+          <div class="stat-label">Pulmini Attivi</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">💰</div>
+        <div class="stat-content">
+          <div class="stat-number" id="stat-confermare">0</div>
+          <div class="stat-label">Da Confermare</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="filters">
+      <h2>Filtri</h2>
+      <div class="filters-grid">
+        <div class="form-group"><label>Data Da:</label><input id="filter-data-da" type="date"></div>
+        <div class="form-group"><label>Data A:</label><input id="filter-data-a" type="date"></div>
+        <div class="form-group"><label>Stato:</label>
+          <select id="filter-stato">
+            <option value="">Tutti gli stati</option>
+            <option>Da confermare</option>
+            <option>Confermata</option>
+            <option>Annullata</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Targa:</label><select id="filter-targa"><option value="">Tutti i pulmini</option></select></div>
+        <div class="form-group"><label>Cliente:</label><input id="filter-cliente" type="text" placeholder="Nome cliente..."></div>
+      </div>
+      <div class="filters-actions">
+        <button id="apply-filters" class="btn btn-primary">Applica Filtri</button>
+        <button id="clear-filters" class="btn btn-outline">Pulisci</button>
+      </div>
+    </section>
+
+    <section class="bookings">
+      <div class="bookings-header">
+        <h2>Gestione Prenotazioni</h2>
+        <div class="bookings-actions">
+          <button id="export-excel" class="btn btn-success">Esporta Excel</button>
+          <button id="export-filtered" class="btn btn-success">Esporta Filtrate</button>
+        </div>
+      </div>
+
+      <table class="bookings-table">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="select-all"></th>
+            <th>ID</th>
+            <th>Data Creazione</th>
+            <th>Cliente</th>
+            <th>CF/Telefono</th>
+            <th>Targa</th>
+            <th>Ritiro</th>
+            <th>Consegna</th>
+            <th>Destinazione</th>
+            <th>Stato</th>
+            <th>Azioni</th>
+          </tr>
+        </thead>
+        <tbody id="bookings-tbody">
+          <tr><td colspan="11" class="empty-row">Caricamento prenotazioni...</td></tr>
+        </tbody>
+      </table>
+
+      <div id="bulk-actions" class="bulk-actions hidden">
+        <span class="bulk-count">0 selezionate</span>
+        <button id="bulk-confirm" class="btn btn-sm btn-success">Conferma</button>
+        <button id="bulk-cancel" class="btn btn-sm btn-danger">Annulla</button>
+      </div>
+    </section>
+
+    <section class="charts">
+      <div class="chart-card">
+        <h3>Pulmini</h3>
+        <canvas id="pulmini-chart"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Stati Prenotazioni</h3>
+        <canvas id="stati-chart"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="shared-utils.js"></script>
+  <script src="admin-scripts.js"></script>
 </body>
 </html>
