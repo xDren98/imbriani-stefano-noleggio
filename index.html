@@ -1,265 +1,685 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="it" class="h-100">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Imbriani Noleggio - Pulmini 9 Posti</title>
-    <link rel="stylesheet" href="styles.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-<body>
-    <!-- Navbar -->
-    <nav class="navbar navbar-dark">
-        <div class="container">
-            <span class="navbar-brand">🚐 Imbriani Noleggio</span>
-            <div class="navbar-nav ms-auto">
-                <span class="text-light">Sistema Prenotazioni v6.0</span>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Container principale -->
-    <div class="container mt-4" id="app">
+    <title>🚐 Imbriani Noleggio - Premium Transport Solutions</title>
+    
+    <!-- 🚀 Modern Meta Tags -->
+    <meta name="description" content="Noleggio pulmini 9 posti premium. Sistema di prenotazione moderno e sicuro.">
+    <meta name="theme-color" content="#0066FF">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚐</text></svg>">
+    
+    <!-- 🎨 Premium CSS Libraries -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- ✨ Modern Styles -->
+    <link rel="stylesheet" href="styles-modern.css">
+    
+    <style>
+        /* 🎨 GLASSMORPHISM HERO SECTION */
+        .hero-section {
+            min-height: 100vh;
+            background: linear-gradient(135deg, 
+                rgba(102, 126, 234, 0.1) 0%, 
+                rgba(118, 75, 162, 0.15) 50%, 
+                rgba(240, 147, 251, 0.1) 100%);
+            position: relative;
+            overflow: hidden;
+        }
         
-        <!-- Sezione Login -->
-        <div id="login-section" class="row justify-content-center">
-            <div class="col-md-6">
-                <div class="card shadow">
-                    <div class="card-header text-center">
-                        <h3 class="mb-0">🔐 Accesso Area Personale</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label for="cf-input" class="form-label">Codice Fiscale</label>
-                            <input type="text" class="form-control" id="cf-input" 
-                                   placeholder="Inserisci il tuo codice fiscale" 
-                                   maxlength="16" 
-                                   autocomplete="off"
-                                   style="text-transform: uppercase;">
-                            <div class="form-text">Inserisci i 16 caratteri del tuo codice fiscale</div>
-                        </div>
-                        <button class="btn btn-primary w-100" id="login-btn" type="button">
-                            <span class="spinner-border spinner-border-sm d-none" id="spinner" role="status"></span>
-                            <span id="login-text">Accedi</span>
-                        </button>
-                    </div>
-                    <div class="card-footer text-center text-muted">
-                        <small>🔒 I tuoi dati sono protetti</small>
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><g fill="none" fill-rule="evenodd"><g fill="%236366f1" fill-opacity="0.05"><circle cx="30" cy="30" r="4"/></g></g></svg>');
+            opacity: 0.3;
+        }
+        
+        /* 📱 Glass Card Premium */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            box-shadow: 
+                0 8px 32px rgba(31, 38, 135, 0.12),
+                0 2px 16px rgba(31, 38, 135, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.5);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .glass-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 
+                0 25px 50px rgba(31, 38, 135, 0.15),
+                0 10px 40px rgba(31, 38, 135, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        }
+        
+        /* 🔥 Premium Buttons */
+        .btn-premium {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+            padding: 14px 28px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-premium::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.6s;
+        }
+        
+        .btn-premium:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 8px 30px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+        
+        .btn-premium:hover::before {
+            left: 100%;
+        }
+        
+        .btn-premium:active {
+            transform: translateY(-1px) scale(1.02);
+        }
+        
+        /* 🎯 Input Fields Ultra-Modern */
+        .form-control-modern {
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid rgba(99, 102, 241, 0.1);
+            border-radius: 12px;
+            padding: 16px 20px;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .form-control-modern:focus {
+            border-color: #667eea;
+            box-shadow: 
+                0 0 0 4px rgba(102, 126, 234, 0.1),
+                0 4px 20px rgba(102, 126, 234, 0.15);
+            background: rgba(255, 255, 255, 0.95);
+            transform: scale(1.02);
+            outline: none;
+        }
+        
+        /* 🏆 Status Badges Premium */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        /* 📊 Micro-interactions */
+        .card-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-4px) rotate(-1deg);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        /* 🚐 Vehicle Cards Premium */
+        .vehicle-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        
+        .vehicle-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+        
+        .vehicle-card:hover::before {
+            transform: scaleX(1);
+        }
+        
+        .vehicle-card:hover {
+            transform: translateY(-8px);
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 
+                0 20px 40px rgba(102, 126, 234, 0.15),
+                0 8px 25px rgba(118, 75, 162, 0.1);
+        }
+        
+        .vehicle-card.selected {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            border-color: #667eea;
+            box-shadow: 
+                0 0 0 3px rgba(102, 126, 234, 0.2),
+                0 15px 35px rgba(102, 126, 234, 0.2);
+        }
+        
+        /* 🎆 Floating Elements */
+        .floating-header {
+            position: sticky;
+            top: 0;
+            background: rgba(250, 251, 252, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+            z-index: 1000;
+        }
+        
+        /* 💡 Premium Loading */
+        .loader-premium {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(250, 251, 252, 0.95);
+            backdrop-filter: blur(20px);
+            z-index: 9999;
+        }
+        
+        .loader-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(102, 126, 234, 0.2);
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loader-text {
+            color: #0F172A;
+            font-weight: 600;
+            font-size: 18px;
+            opacity: 0.8;
+        }
+        
+        /* 🏆 Typography Premium */
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #FAFBFC;
+            color: #0F172A;
+            line-height: 1.6;
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 700;
+            letter-spacing: -0.025em;
+        }
+        
+        .display-1-modern {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+        }
+        
+        .lead-modern {
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: #64748B;
+        }
+        
+        /* 🚀 Micro-animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .animate-fade-in-up {
+            animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        
+        .animation-delay-100 { animation-delay: 0.1s; }
+        .animation-delay-200 { animation-delay: 0.2s; }
+        .animation-delay-300 { animation-delay: 0.3s; }
+        .animation-delay-400 { animation-delay: 0.4s; }
+        
+        /* 📱 Responsive Optimizations */
+        @media (max-width: 768px) {
+            .glass-card {
+                margin: 16px;
+                padding: 20px;
+            }
+            
+            .btn-premium {
+                padding: 12px 24px;
+                font-size: 15px;
+            }
+        }
+        
+        /* 🌌 Dark Mode Ready */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: linear-gradient(135deg, 
+                    rgba(10, 11, 13, 0.95) 0%, 
+                    rgba(20, 22, 24, 0.98) 50%, 
+                    rgba(31, 32, 36, 0.95) 100%);
+                color: white;
+            }
+            
+            .hero-section {
+                background: linear-gradient(135deg, 
+                    rgba(10, 11, 13, 0.95) 0%, 
+                    rgba(20, 22, 24, 0.98) 50%, 
+                    rgba(31, 32, 36, 0.95) 100%);
+            }
+            
+            .glass-card {
+                background: rgba(20, 22, 24, 0.85);
+                border-color: rgba(99, 102, 241, 0.3);
+                color: white;
+            }
+        }
+    </style>
+</head>
+
+<body class="d-flex flex-column h-100">
+    <!-- 🚀 FLOATING HEADER PREMIUM -->
+    <header class="floating-header py-3">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h1 class="h4 mb-0 d-flex align-items-center">
+                        <span class="me-2" style="font-size: 1.5rem;">🚐</span>
+                        <span class="fw-bold text-primary">Imbriani</span>
+                        <span class="fw-light ms-2">Noleggio</span>
+                    </h1>
+                </div>
+                <div class="col-auto">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="badge bg-success rounded-pill px-3 py-2">
+                            <i class="fas fa-circle text-light me-1" style="font-size: 8px;"></i>
+                            Sistema Online
+                        </span>
+                        <span class="text-muted small">v7.0</span>
                     </div>
                 </div>
             </div>
         </div>
+    </header>
 
-        <!-- Area Personale -->
-        <div id="area-personale" class="d-none">
-            
-            <!-- Welcome Header -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="alert alert-success border-0" role="alert">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-user-check fa-2x me-3"></i>
-                            <div>
-                                <h4 class="alert-heading mb-1">👋 Benvenuto nella tua area personale!</h4>
-                                <p class="mb-0">Gestisci le tue prenotazioni e creane di nuove facilmente.</p>
-                            </div>
-                        </div>
+    <!-- ✨ HERO SECTION GLASSMORPHISM -->
+    <main class="hero-section d-flex align-items-center flex-grow-1">
+        <div class="container">
+            <div class="row justify-content-center">
+                <!-- 🔐 LOGIN SECTION -->
+                <div class="col-lg-10 col-xl-8" id="login-section">
+                    <div class="text-center mb-5 animate-fade-in-up">
+                        <h1 class="display-1-modern mb-4">Noleggio Pulmini Premium</h1>
+                        <p class="lead-modern mx-auto" style="max-width: 600px;">
+                            Prenota il tuo pulmino 9 posti con il sistema più moderno e sicuro d'Italia. 
+                            Gestione digitale completa, supporto 24/7.
+                        </p>
                     </div>
-                </div>
-            </div>
-            
-            <!-- Le mie prenotazioni -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card shadow-sm">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h4 class="mb-0">
-                                <i class="fas fa-calendar-alt me-2"></i>
-                                Le mie prenotazioni
-                            </h4>
-                            <button class="btn btn-outline-primary btn-sm" onclick="window.location.reload()">
-                                <i class="fas fa-sync-alt"></i> Aggiorna
-                            </button>
-                        </div>
-                        <div class="card-body">
-                            <div id="lista-prenotazioni" class="list-group list-group-flush">
-                                <div class="d-flex justify-content-center py-4">
-                                    <div class="spinner-border text-primary" role="status">
-                                        <span class="visually-hidden">Caricamento...</span>
+                    
+                    <div class="row justify-content-center">
+                        <div class="col-md-8 col-lg-6">
+                            <div class="glass-card p-5 animate-fade-in-up animation-delay-200">
+                                <div class="text-center mb-4">
+                                    <div class="d-inline-flex align-items-center justify-content-center" 
+                                         style="width: 80px; height: 80px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; margin-bottom: 24px;">
+                                        <i class="fas fa-id-card text-white" style="font-size: 2rem;"></i>
                                     </div>
+                                    <h3 class="h4 fw-bold">Accedi alla tua Area</h3>
+                                    <p class="text-muted mb-0">Inserisci il tuo codice fiscale per continuare</p>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Nuova prenotazione -->
-            <div class="row">
-                <div class="col-lg-8">
-                    <div class="card shadow-sm">
-                        <div class="card-header">
-                            <h4 class="mb-0">
-                                <i class="fas fa-plus-circle me-2"></i>
-                                Nuova prenotazione
-                            </h4>
-                        </div>
-                        <div class="card-body">
-                            <!-- Date e orari -->
-                            <div class="row mb-4">
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-calendar me-1"></i>
-                                        Data ritiro
-                                    </label>
-                                    <input type="date" class="form-control" id="data-ritiro" required>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-clock me-1"></i>
-                                        Ora ritiro
-                                    </label>
-                                    <select class="form-select" id="ora-ritiro">
-                                        <option value="08:00">08:00</option>
-                                        <option value="12:00">12:00</option>
-                                        <option value="16:00">16:00</option>
-                                        <option value="20:00">20:00</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-calendar me-1"></i>
-                                        Data consegna
-                                    </label>
-                                    <input type="date" class="form-control" id="data-consegna" required>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">
-                                        <i class="fas fa-clock me-1"></i>
-                                        Ora consegna
-                                    </label>
-                                    <select class="form-select" id="ora-consegna">
-                                        <option value="08:00">08:00</option>
-                                        <option value="12:00">12:00</option>
-                                        <option value="16:00">16:00</option>
-                                        <option value="20:00" selected>20:00</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <!-- Destinazione -->
-                            <div class="mb-4">
-                                <label class="form-label">
-                                    <i class="fas fa-map-marker-alt me-1"></i>
-                                    Destinazione
-                                </label>
-                                <input type="text" class="form-control" id="destinazione" 
-                                       placeholder="Inserisci la destinazione del viaggio" 
-                                       required>
-                            </div>
-
-                            <!-- Veicoli disponibili -->
-                            <div class="mb-4">
-                                <label class="form-label">
-                                    <i class="fas fa-van-shuttle me-1"></i>
-                                    Seleziona pulmino
-                                </label>
-                                <div class="row" id="lista-veicoli">
-                                    <div class="col-12 text-center py-4">
-                                        <div class="spinner-border text-primary" role="status">
-                                            <span class="visually-hidden">Caricamento veicoli...</span>
+                                
+                                <form class="needs-validation" novalidate>
+                                    <div class="mb-4">
+                                        <label for="cf-input" class="form-label fw-semibold">Codice Fiscale</label>
+                                        <div class="position-relative">
+                                            <input type="text" 
+                                                   class="form-control form-control-modern" 
+                                                   id="cf-input" 
+                                                   placeholder="RSSMRA85M01H501Z" 
+                                                   maxlength="16"
+                                                   autocomplete="off"
+                                                   style="padding-left: 50px;">
+                                            <i class="fas fa-user position-absolute" 
+                                               style="left: 18px; top: 50%; transform: translateY(-50%); color: #94A3B8;"></i>
+                                        </div>
+                                        <div class="form-text">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            16 caratteri alfanumerici del tuo CF
                                         </div>
                                     </div>
+                                    
+                                    <div class="d-grid">
+                                        <button type="button" id="login-btn" class="btn btn-premium">
+                                            <i class="fas fa-sign-in-alt me-2"></i>
+                                            Accedi all'Area Personale
+                                        </button>
+                                    </div>
+                                </form>
+                                
+                                <div class="mt-4 pt-4 border-top border-light text-center">
+                                    <p class="small text-muted mb-2">
+                                        <i class="fas fa-shield-alt me-1 text-success"></i>
+                                        Connessione sicura crittografata
+                                    </p>
+                                    <div class="d-flex justify-content-center gap-3">
+                                        <span class="badge bg-light text-dark px-3 py-2">
+                                            <i class="fas fa-mobile-alt me-1"></i>
+                                            Mobile Ready
+                                        </span>
+                                        <span class="badge bg-light text-dark px-3 py-2">
+                                            <i class="fas fa-clock me-1"></i>
+                                            24/7
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
-
-                            <!-- Autisti -->
-                            <div class="mb-4">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <label class="form-label mb-0">
-                                        <i class="fas fa-users me-1"></i>
-                                        Autisti (massimo 3)
-                                    </label>
-                                    <button type="button" class="btn btn-outline-primary btn-sm" id="add-driver">
-                                        <i class="fas fa-user-plus me-1"></i>
-                                        Aggiungi autista
-                                    </button>
-                                </div>
-                                <div id="drivers-container">
-                                    <!-- Popolato da JavaScript -->
-                                </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 🏆 FEATURES PREVIEW -->
+                    <div class="row mt-5 animate-fade-in-up animation-delay-400">
+                        <div class="col-md-4 text-center mb-4">
+                            <div class="d-inline-flex align-items-center justify-content-center mb-3" 
+                                 style="width: 60px; height: 60px; background: rgba(16, 185, 129, 0.1); border-radius: 50%;">
+                                <i class="fas fa-calendar-check text-success" style="font-size: 1.5rem;"></i>
                             </div>
-
-                            <!-- Bottone conferma -->
-                            <div class="d-grid">
-                                <button class="btn btn-success btn-lg" id="conferma">
-                                    <i class="fas fa-paper-plane me-2"></i>
-                                    Invia prenotazione
+                            <h5 class="fw-semibold">Prenotazione Immediata</h5>
+                            <p class="text-muted small">Sistema di prenotazione real-time con conferma istantanea</p>
+                        </div>
+                        <div class="col-md-4 text-center mb-4">
+                            <div class="d-inline-flex align-items-center justify-content-center mb-3" 
+                                 style="width: 60px; height: 60px; background: rgba(99, 102, 241, 0.1); border-radius: 50%;">
+                                <i class="fas fa-route text-primary" style="font-size: 1.5rem;"></i>
+                            </div>
+                            <h5 class="fw-semibold">Tracking Completo</h5>
+                            <p class="text-muted small">Monitora stato, veicolo assegnato e documenti in tempo reale</p>
+                        </div>
+                        <div class="col-md-4 text-center mb-4">
+                            <div class="d-inline-flex align-items-center justify-content-center mb-3" 
+                                 style="width: 60px; height: 60px; background: rgba(139, 92, 246, 0.1); border-radius: 50%;">
+                                <i class="fas fa-headset text-secondary" style="font-size: 1.5rem;"></i>
+                            </div>
+                            <h5 class="fw-semibold">Supporto Dedicato</h5>
+                            <p class="text-muted small">Assistenza WhatsApp e telefonica per ogni necessità</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 📄 AREA PERSONALE (nascosta inizialmente) -->
+                <div class="col-12 d-none" id="area-personale">
+                    <div class="glass-card p-4 mb-4">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h2 class="h4 mb-0 d-flex align-items-center">
+                                    <i class="fas fa-user-circle me-3 text-primary" style="font-size: 2rem;"></i>
+                                    <span>Area Personale</span>
+                                </h2>
+                                <p class="text-muted mb-0" id="welcome-message">Gestisci le tue prenotazioni</p>
+                            </div>
+                            <div class="col-auto">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="logout()">
+                                    <i class="fas fa-sign-out-alt me-1"></i>
+                                    Esci
                                 </button>
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- Riepilogo -->
-                <div class="col-lg-4">
-                    <div class="sticky-top" style="top: 1rem;">
-                        <div class="card shadow-sm">
-                            <div class="card-header">
-                                <h5 class="mb-0">
-                                    <i class="fas fa-clipboard-list me-2"></i>
-                                    Riepilogo prenotazione
-                                </h5>
+                    
+                    <!-- TABS NAVIGATION -->
+                    <div class="glass-card p-0 mb-4">
+                        <nav>
+                            <div class="nav nav-tabs border-0" id="nav-tab" role="tablist"
+                                 style="background: rgba(99, 102, 241, 0.05); border-radius: 16px 16px 0 0;">
+                                <button class="nav-link active fw-semibold" id="nav-prenotazioni-tab" data-bs-toggle="tab" data-bs-target="#nav-prenotazioni">
+                                    <i class="fas fa-list me-2"></i>Le mie Prenotazioni
+                                </button>
+                                <button class="nav-link fw-semibold" id="nav-nuova-tab" data-bs-toggle="tab" data-bs-target="#nav-nuova">
+                                    <i class="fas fa-plus me-2"></i>Nuova Prenotazione
+                                </button>
                             </div>
-                            <div class="card-body">
-                                <div id="riepilogo">
-                                    <div class="text-center text-muted py-3">
-                                        <i class="fas fa-info-circle fa-2x mb-2"></i>
-                                        <p class="mb-0">Compila il modulo per vedere il riepilogo</p>
-                                    </div>
+                        </nav>
+                        
+                        <div class="tab-content p-4" id="nav-tabContent">
+                            <!-- TAB PRENOTAZIONI ESISTENTI -->
+                            <div class="tab-pane fade show active" id="nav-prenotazioni">
+                                <div class="d-flex justify-content-between align-items-center mb-4">
+                                    <h5 class="fw-bold mb-0">
+                                        <i class="fas fa-calendar-alt me-2 text-primary"></i>
+                                        Le tue Prenotazioni
+                                    </h5>
+                                    <button class="btn btn-outline-primary btn-sm" onclick="loadUserData()">
+                                        <i class="fas fa-sync-alt me-1"></i>
+                                        Aggiorna
+                                    </button>
+                                </div>
+                                
+                                <div id="lista-prenotazioni" class="list-group list-group-flush">
+                                    <!-- Popolato via JavaScript -->
                                 </div>
                             </div>
-                            <div class="card-footer text-center">
-                                <small class="text-muted">
-                                    <i class="fas fa-shield-alt me-1"></i>
-                                    Dati protetti SSL
-                                </small>
+                            
+                            <!-- TAB NUOVA PRENOTAZIONE -->
+                            <div class="tab-pane fade" id="nav-nuova">
+                                <div class="row">
+                                    <div class="col-lg-8">
+                                        <h5 class="fw-bold mb-4">
+                                            <i class="fas fa-plus-circle me-2 text-success"></i>
+                                            Nuova Prenotazione
+                                        </h5>
+                                        
+                                        <!-- FORM PRENOTAZIONE -->
+                                        <form id="booking-form">
+                                            <!-- Date e Orari -->
+                                            <div class="glass-card p-4 mb-4">
+                                                <h6 class="fw-semibold mb-3">📅 Date e Orari</h6>
+                                                <div class="row g-3">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold">Data Ritiro</label>
+                                                        <input type="date" id="data-ritiro" class="form-control form-control-modern" required>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold">Ora Ritiro</label>
+                                                        <select id="ora-ritiro" class="form-select form-control-modern">
+                                                            <option value="08:00">08:00</option>
+                                                            <option value="12:00">12:00</option>
+                                                            <option value="16:00">16:00</option>
+                                                            <option value="20:00">20:00</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold">Data Consegna</label>
+                                                        <input type="date" id="data-consegna" class="form-control form-control-modern" required>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-semibold">Ora Consegna</label>
+                                                        <select id="ora-consegna" class="form-select form-control-modern">
+                                                            <option value="08:00">08:00</option>
+                                                            <option value="12:00">12:00</option>
+                                                            <option value="16:00">16:00</option>
+                                                            <option value="20:00">20:00</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Destinazione -->
+                                            <div class="glass-card p-4 mb-4">
+                                                <h6 class="fw-semibold mb-3">🎯 Destinazione</h6>
+                                                <input type="text" id="destinazione" class="form-control form-control-modern" 
+                                                       placeholder="es. Roma, Milano, Aeroporto di Bari..." required>
+                                            </div>
+                                            
+                                            <!-- Autisti -->
+                                            <div class="glass-card p-4 mb-4">
+                                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                                    <h6 class="fw-semibold mb-0">👥 Autisti</h6>
+                                                    <button type="button" id="add-driver" class="btn btn-outline-primary btn-sm">
+                                                        <i class="fas fa-user-plus me-1"></i>
+                                                        Aggiungi
+                                                    </button>
+                                                </div>
+                                                <div id="drivers-container">
+                                                    <!-- Popolato via JavaScript -->
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Veicoli Disponibili -->
+                                            <div class="glass-card p-4 mb-4">
+                                                <h6 class="fw-semibold mb-3">🚐 Scegli il tuo Pulmino</h6>
+                                                <div class="row" id="lista-veicoli">
+                                                    <!-- Popolato via JavaScript -->
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                    
+                                    <!-- RIEPILOGO STICKY -->
+                                    <div class="col-lg-4">
+                                        <div class="glass-card p-4 sticky-top" style="top: 100px;">
+                                            <h6 class="fw-bold mb-3 d-flex align-items-center">
+                                                <i class="fas fa-clipboard-check me-2 text-primary"></i>
+                                                Riepilogo Prenotazione
+                                            </h6>
+                                            
+                                            <div id="riepilogo" class="mb-4">
+                                                <!-- Popolato via JavaScript -->
+                                            </div>
+                                            
+                                            <div class="d-grid">
+                                                <button type="button" id="conferma" class="btn btn-premium" disabled>
+                                                    <i class="fas fa-paper-plane me-2"></i>
+                                                    Conferma Prenotazione
+                                                </button>
+                                            </div>
+                                            
+                                            <div class="mt-3 text-center">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-lock me-1"></i>
+                                                    I tuoi dati sono protetti e crittografati
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+    </main>
+
+    <!-- 📱 WHATSAPP FLOATING BUTTON -->
+    <div class="position-fixed bottom-0 end-0 p-4" style="z-index: 1040;">
+        <a href="https://wa.me/393333333333" target="_blank" 
+           class="btn btn-success rounded-circle d-flex align-items-center justify-content-center"
+           style="width: 60px; height: 60px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);" 
+           onmouseover="this.style.transform='scale(1.1) rotate(5deg)'" 
+           onmouseout="this.style.transform='scale(1) rotate(0deg)'">
+            <i class="fab fa-whatsapp" style="font-size: 1.5rem;"></i>
+        </a>
     </div>
 
-    <!-- Network Status Banner -->
-    <div id="network-status" class="position-fixed top-0 start-0 end-0 bg-warning text-dark text-center p-2 d-none" style="z-index: 9999;">
-        <i class="fas fa-wifi me-1"></i>
-        <strong>Connessione limitata</strong> - Alcune funzionalità potrebbero non essere disponibili
+    <!-- 💡 LOADING OVERLAY PREMIUM -->
+    <div id="spinner" class="loader-premium d-none">
+        <div class="loader-spinner"></div>
+        <div class="loader-text" id="loader-message">Caricamento...</div>
     </div>
 
-    <!-- Loading Overlay -->
-    <div id="loading-overlay" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="background: rgba(0,0,0,0.5); z-index: 10000;">
-        <div class="d-flex align-items-center justify-content-center h-100">
-            <div class="text-center text-white">
-                <div class="spinner-border mb-3" role="status">
-                    <span class="visually-hidden">Caricamento...</span>
-                </div>
-                <div class="loader-message">Caricamento...</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Toast container -->
-    <div id="toast-container" class="position-fixed top-0 end-0 p-3" style="z-index: 11000;"></div>
-
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- 📄 Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="config.js"></script>
     <script src="shared-utils.js"></script>
     <script src="scripts.js"></script>
     <script src="safe-whatsapp-fix.js"></script>
     <script src="whatsapp-loader.js"></script>
+    
+    <!-- ✨ Modern Init Script -->
+    <script>
+        // Logout function
+        function logout() {
+            if (confirm('💪 Sei sicuro di voler uscire?')) {
+                clearStorage();
+                location.reload();
+            }
+        }
+        
+        // Enhanced animations on load
+        window.addEventListener('load', () => {
+            document.querySelectorAll('.animate-fade-in-up').forEach((el, index) => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(30px)';
+                setTimeout(() => {
+                    el.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+                    el.style.opacity = '1';
+                    el.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        });
+        
+        // Smooth scroll for links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
 </body>
 </html>
