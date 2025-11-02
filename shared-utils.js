@@ -1,4 +1,4 @@
-// Shared utilities aligned with backend API actions
+// 🛠️ Shared utilities v2.1.0 - Backend aligned
 'use strict';
 
 window.qsId = function(id) { return document.getElementById(id); };
@@ -13,11 +13,12 @@ window.showLoader = function(show = true) {
   if (loader) loader.classList.toggle('hidden', !show);
 };
 
+// 🎨 TOAST SYSTEM with proper emoji
 window.showToast = function(message, type = 'info', duration = 3000) {
   const container = qsId('toast-container') || createToastContainer();
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
-  toast.innerHTML = `${getToastIcon(type)} ${message}`;
+  toast.innerHTML = message; // Message already contains emoji
   container.appendChild(toast);
   
   setTimeout(() => {
@@ -34,19 +35,16 @@ function createToastContainer() {
   return container;
 }
 
-function getToastIcon(type) {
-  const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
-  return icons[type] || 'ℹ️';
-}
-
-// API call wrapper aligned with backend actions
+// 🔗 API wrapper - usa le action del TUO backend
 window.callAPI = async function(action, payload = {}) {
   const params = { ...payload, action, token: FRONTEND_CONFIG.TOKEN };
   const url = `${FRONTEND_CONFIG.API_URL}?${new URLSearchParams(params).toString()}`;
   
   try {
+    console.log(`📡 API Call: ${action}`, params);
     const response = await fetch(url);
     const result = await response.json();
+    console.log(`📨 API Response:`, result);
     return result;
   } catch (error) {
     console.error('API Error:', error);
@@ -54,13 +52,20 @@ window.callAPI = async function(action, payload = {}) {
   }
 };
 
+// 📅 DATE FORMATTING - Italian format
 window.formattaDataIT = function(dateStr) {
   if (!dateStr) return '';
-  if (typeof dateStr === 'string' && dateStr.includes('-')) {
-    const [year, month, day] = dateStr.split('-');
-    return `${day}/${month}/${year}`;
+  
+  // Clean any time part
+  let cleanDate = String(dateStr).split('T')[0];
+  
+  // yyyy-MM-dd to dd/MM/yyyy
+  const match = cleanDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    return `${match[3]}/${match[2]}/${match[1]}`;
   }
+  
   return dateStr;
 };
 
-console.log('✅ shared-utils.js loaded');
+console.log('✅ shared-utils.js v2.1.0 loaded - Backend aligned');

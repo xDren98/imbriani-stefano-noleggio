@@ -1,6 +1,11 @@
-// 🚀 Frontend scripts - BACKEND ALIGNED + Auto-fill completo
+/* ================================================================================
+   🚐 IMBRIANI STEFANO NOLEGGIO - scripts.js v7.1.0 BACKEND ALIGNED
+   + Complete auto-fill system + Date formatting + Real API calls
+   ================================================================================ */
+
 'use strict';
 
+const VERSION = '7.1.0';
 let clienteCorrente = null;
 let ultimoAutista = null;
 let prenotazioniUtente = [];
@@ -9,6 +14,48 @@ let stepAttuale = 1;
 let bookingData = {};
 let preventivoRequested = false;
 
+console.log(`🚐 Imbriani Stefano Noleggio v${VERSION} loaded`);
+
+// =====================
+// BACKEND ALIGNED API CALLS
+// =====================
+async function callAPIAligned(action, payload = {}) {
+  const params = { ...payload, action, token: FRONTEND_CONFIG.TOKEN };
+  const url = `${FRONTEND_CONFIG.API_URL}?${new URLSearchParams(params).toString()}`;
+  
+  try {
+    console.log(`📡 API Call: ${action}`, params);
+    const response = await fetch(url);
+    const result = await response.json();
+    console.log(`📨 API Response:`, result);
+    return result;
+  } catch (error) {
+    console.error('API Error:', error);
+    return { success: false, message: error.message };
+  }
+}
+
+// =====================
+// DATE UTILITIES
+// =====================
+function formattaDataIT(dateStr) {
+  if (!dateStr) return '';
+  
+  // Handle various date formats
+  let cleanDate = String(dateStr).split('T')[0]; // Remove time part
+  
+  // yyyy-MM-dd to dd/MM/yyyy
+  const match = cleanDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    return `${match[3]}/${match[2]}/${match[1]}`;
+  }
+  
+  return dateStr;
+}
+
+// =====================
+// INITIALIZATION
+// =====================
 document.addEventListener('DOMContentLoaded', function() {
   console.log('✅ DOM loaded');
   
@@ -46,8 +93,15 @@ document.addEventListener('DOMContentLoaded', function() {
   const whatsappBtn = qsId('whatsapp-btn');
   if (callBtn) callBtn.addEventListener('click', handleCallPreventivo);
   if (whatsappBtn) whatsappBtn.addEventListener('click', handleWhatsAppPreventivo);
+  
+  // Profile form
+  const profileForm = qsId('profile-form');
+  if (profileForm) profileForm.addEventListener('submit', handleProfileSave);
 });
 
+// =====================
+// LOGIN with COMPLETE AUTO-FILL
+// =====================
 async function handleLogin(e) {
   e.preventDefault();
   console.log('🚀 Login clicked');
@@ -63,16 +117,16 @@ async function handleLogin(e) {
   showLoader(true);
   
   try {
-    // 1) Login base
-    const response = await callAPI('login', { cf });
+    // 1) Login usando l'action del TUO backend
+    const response = await callAPIAligned('login', { cf });
     console.log('📡 Login response:', response);
     
     if (response.success) {
       clienteCorrente = response.data;
       localStorage.setItem(FRONTEND_CONFIG.storage.CF, cf);
       
-      // 2) Carica ultimo autista dalle prenotazioni storiche
-      await loadUltimoAutista(cf);
+      // 2) 🎯 CARICA ULTIMO AUTISTA DALLE PRENOTAZIONI STORICHE
+      await loadUltimoAutistaCompleto(cf);
       
       showToast('✅ Login riuscito!', 'success');
       
@@ -85,6 +139,9 @@ async function handleLogin(e) {
       // Update user name
       const userName = qsId('user-name');
       if (userName) userName.textContent = clienteCorrente.Nome || 'Cliente';
+      
+      // 3) 📋 POPOLA PROFILO CON DATI COMPLETI
+      populateProfileFromData();
       
       // Load user bookings
       await loadUserBookings();
@@ -99,45 +156,72 @@ async function handleLogin(e) {
   }
 }
 
-// 🎯 Carica dati ultimo autista dalle prenotazioni storiche
-async function loadUltimoAutista(cf) {
+// 🎯 CARICA DATI COMPLETI ULTIMO AUTISTA
+async function loadUltimoAutistaCompleto(cf) {
   try {
-    const response = await callAPI('recuperaPrenotazioni', { cf });
+    const response = await callAPIAligned('recuperaPrenotazioni', { cf });
     
     if (response.success && response.data && response.data.length > 0) {
-      // Prendi l'ultima prenotazione (più recente)
-      const ultimaPrenotazione = response.data[response.data.length - 1];
+      // Ultima prenotazione (più recente)
+      const ultima = response.data[response.data.length - 1];
       
-      // Costruisci oggetto ultimoAutista dai campi del backend
+      // Costruisci ultimoAutista con MAPPING ESATTO del tuo backend
       ultimoAutista = {
-        Nome: ultimaPrenotazione.Nome || clienteCorrente.Nome || '',
+        Nome: ultima.Nome || clienteCorrente.Nome || '',
         CF: cf,
-        Email: ultimaPrenotazione.Email || clienteCorrente.Email || '',
-        Cellulare: ultimaPrenotazione.Cellulare || clienteCorrente.Cellulare || '',
-        DataNascita: ultimaPrenotazione['Data di nascita'] || '',
-        LuogoNascita: ultimaPrenotazione['Luogo di nascita'] || '',
-        ComuneResidenza: ultimaPrenotazione['Comune di residenza'] || '',
-        ViaResidenza: ultimaPrenotazione['Via di residenza'] || '',
-        CivicoResidenza: ultimaPrenotazione['Civico di residenza'] || '',
-        NumeroPatente: ultimaPrenotazione['Numero di patente'] || '',
-        InizioPatente: ultimaPrenotazione['Data inizio validità patente'] || '',
-        ScadenzaPatente: ultimaPrenotazione['Scadenza patente'] || ''
+        Email: ultima.Email || clienteCorrente.Email || '',
+        Cellulare: ultima.Cellulare || clienteCorrente.Cellulare || '',
+        // Dal tuo backend - colonne esatte
+        DataNascita: ultima['Data di nascita'] || '',
+        LuogoNascita: ultima['Luogo di nascita'] || '',
+        ComuneResidenza: ultima['Comune di residenza'] || '',
+        ViaResidenza: ultima['Via di residenza'] || '',
+        CivicoResidenza: ultima['Civico di residenza'] || '',
+        NumeroPatente: ultima['Numero di patente'] || '',
+        InizioPatente: ultima['Data inizio validità patente'] || '',
+        ScadenzaPatente: ultima['Scadenza patente'] || ''
       };
       
       console.log('🎯 Ultimo autista caricato:', ultimoAutista);
+      
     } else {
-      // Fallback: usa solo i dati base del login
+      // Fallback: dati base
       ultimoAutista = {
         Nome: clienteCorrente.Nome || '',
         CF: cf,
         Email: clienteCorrente.Email || '',
         Cellulare: clienteCorrente.Cellulare || ''
       };
+      
+      console.log('📝 Nessuno storico - dati base:', ultimoAutista);
     }
   } catch (error) {
     console.error('Error loading ultimo autista:', error);
     ultimoAutista = null;
   }
+}
+
+// 📋 POPOLA PROFILO CLIENTE
+function populateProfileFromData() {
+  if (!ultimoAutista) return;
+  
+  const fields = {
+    'profile-nome-completo': ultimoAutista.Nome || '',
+    'profile-email': ultimoAutista.Email || '',
+    'profile-telefono': ultimoAutista.Cellulare || '',
+    'profile-data-nascita': ultimoAutista.DataNascita || '',
+    'profile-luogo-nascita': ultimoAutista.LuogoNascita || '',
+    'profile-indirizzo': composeAddress(ultimoAutista.ViaResidenza, ultimoAutista.CivicoResidenza, ultimoAutista.ComuneResidenza),
+    'profile-patente': ultimoAutista.NumeroPatente || '',
+    'profile-patente-scadenza': ultimoAutista.ScadenzaPatente || ''
+  };
+  
+  Object.entries(fields).forEach(([id, value]) => {
+    const input = qsId(id);
+    if (input && value) input.value = value;
+  });
+  
+  console.log('📋 Profilo popolato con dati completi');
 }
 
 function handleLogout() {
@@ -158,7 +242,6 @@ function handleLogout() {
 }
 
 function handleNewCustomerCTA() {
-  // Pre-fill tomorrow dates
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = tomorrow.toISOString().split('T')[0];
@@ -167,16 +250,13 @@ function handleNewCustomerCTA() {
   dayAfter.setDate(dayAfter.getDate() + 1);
   const dayAfterStr = dayAfter.toISOString().split('T')[0];
   
-  // Show dashboard without login
   const homepage = qsId('homepage-sections');
   const dashboard = qsId('user-dashboard');
   if (homepage) homepage.classList.add('hidden');
   if (dashboard) dashboard.classList.remove('hidden');
   
-  // Switch to new booking tab
   switchTab('nuovo');
   
-  // Pre-fill dates
   setTimeout(() => {
     const dataRitiro = qsId('data-ritiro');
     const dataConsegna = qsId('data-consegna');
@@ -192,18 +272,18 @@ function handleNewCustomerCTA() {
   showToast('🚀 Date preimpostate per domani!', 'info');
 }
 
+// =====================
+// TABS
+// =====================
 function switchTab(tabName) {
-  // Update tab buttons
   document.querySelectorAll('.tab-button').forEach(btn => {
     btn.classList.toggle('active', btn.getAttribute('data-tab') === tabName);
   });
   
-  // Update tab contents
   document.querySelectorAll('.tab-content').forEach(content => {
     content.classList.toggle('active', content.id === `${tabName}-tab`);
   });
   
-  // Load data based on tab
   if (tabName === 'prenotazioni') {
     loadUserBookings();
   } else if (tabName === 'nuovo') {
@@ -212,6 +292,9 @@ function switchTab(tabName) {
   }
 }
 
+// =====================
+// BOOKINGS
+// =====================
 async function loadUserBookings() {
   const bookingsList = qsId('prenotazioni-list');
   const emptyState = qsId('empty-bookings');
@@ -225,7 +308,7 @@ async function loadUserBookings() {
   }
   
   try {
-    const response = await callAPI('recuperaPrenotazioni', { cf: clienteCorrente.CF });
+    const response = await callAPIAligned('recuperaPrenotazioni', { cf: clienteCorrente.CF });
     
     if (response.success) {
       prenotazioniUtente = response.data || [];
@@ -250,6 +333,7 @@ function renderUserBookings() {
   const bookingsList = qsId('prenotazioni-list');
   if (!bookingsList) return;
   
+  // 🔧 DATE FORMAT FIX
   bookingsList.innerHTML = prenotazioniUtente.map(booking => `
     <div class="booking-card">
       <div class="booking-header">
@@ -258,7 +342,7 @@ function renderUserBookings() {
       </div>
       <div class="booking-details">
         <p><strong>📅 Periodo:</strong> ${formattaDataIT(booking.DataRitiro)} ${booking.OraRitiro} → ${formattaDataIT(booking.DataConsegna)} ${booking.OraConsegna}</p>
-        <p><strong>🎯 Destinazione:</strong> ${booking.Destinazione}</p>
+        <p><strong>🎯 Destinazione:</strong> ${booking.Destinazione || 'Non specificata'}</p>
         <p><strong>🚐 Pulmino:</strong> ${booking.Targa || 'Da assegnare'}</p>
         <p><strong>📅 Creata:</strong> ${formattaDataIT(booking.DataCreazione)}</p>
       </div>
@@ -266,12 +350,15 @@ function renderUserBookings() {
   `).join('');
 }
 
+// =====================
+// VEHICLES
+// =====================
 async function loadAvailableVehicles() {
   const vehiclesList = qsId('veicoli-list');
   if (!vehiclesList) return;
   
   try {
-    const response = await callAPI('disponibilita');
+    const response = await callAPIAligned('disponibilita');
     
     if (response.success) {
       availableVehicles = response.data || [];
@@ -324,6 +411,9 @@ function selectVehicle(targa, element) {
   showToast('✅ Pulmino selezionato: ' + targa, 'success');
 }
 
+// =====================
+// WIZARD NAVIGATION
+// =====================
 function setupWizardNavigation() {
   const nav = {
     'step1-next': () => validateAndGoToStep(2),
@@ -347,29 +437,26 @@ function setupWizardNavigation() {
 function goToStep(step) {
   stepAttuale = step;
   
-  // Show/hide steps
   for (let i = 1; i <= 5; i++) {
     const stepEl = qsId(`step-${i}`);
     if (stepEl) stepEl.classList.toggle('active', i === step);
   }
   
-  // Update progress
   document.querySelectorAll('.progress-step').forEach((el, idx) => {
     el.classList.toggle('active', idx + 1 === step);
     el.classList.toggle('completed', idx + 1 < step);
   });
   
-  // Step-specific logic
   if (step === 2) {
     loadAvailableVehicles();
   } else if (step === 3) {
     updatePreventivoSummary();
   } else if (step === 4) {
-    // 🎯 AUTO-FILL AUTISTA 1 se loggato
-    if (clienteCorrente && ultimoAutista && (!bookingData.drivers || bookingData.drivers.length === 0)) {
-      addDriver(true); // true = auto-fill primo autista
+    // 🎯 AUTO-FILL COMPLETO PRIMO AUTISTA
+    if (ultimoAutista && (!bookingData.drivers || bookingData.drivers.length === 0)) {
+      addDriverWithData(ultimoAutista, true); // Primo autista auto-compilato
     } else if (!bookingData.drivers || bookingData.drivers.length === 0) {
-      addDriver(); // Autista vuoto per nuovi clienti
+      addDriver(); // Primo autista vuoto
     }
     renderDrivers();
   }
@@ -404,53 +491,21 @@ function validateAndGoToStep(targetStep) {
     return;
   }
   
-  if (stepAttuale === 4) {
-    if (!bookingData.drivers || bookingData.drivers.length === 0) {
-      showToast('⚠️ Aggiungi almeno un autista', 'warning');
-      return;
-    }
-    
-    // Validazione CF duplicati
-    const cfs = bookingData.drivers.map(d => d.CF).filter(cf => cf);
-    const uniqueCfs = [...new Set(cfs)];
-    if (cfs.length !== uniqueCfs.length) {
-      showToast('⚠️ Codici Fiscali duplicati non ammessi', 'warning');
-      return;
-    }
-    
-    // Validazione campi obbligatori
-    for (const driver of bookingData.drivers) {
-      if (!driver.Nome || !driver.CF || !driver.DataNascita || !driver.NumeroPatente) {
-        showToast('⚠️ Completa i dati di tutti gli autisti', 'warning');
-        return;
-      }
-    }
-  }
-  
   goToStep(targetStep);
 }
 
+// =====================
+// PREVENTIVO
+// =====================
 function updatePreventivoSummary() {
   const container = qsId('preventivo-details');
   if (!container || !bookingData.targa) return;
-  
-  const startDate = new Date(`${bookingData.dataRitiro}T${bookingData.oraRitiro}`);
-  const endDate = new Date(`${bookingData.dataConsegna}T${bookingData.oraConsegna}`);
-  const diffHours = Math.round((endDate - startDate) / (1000 * 60 * 60));
-  const days = Math.floor(diffHours / 24);
-  const hours = diffHours % 24;
-  
-  let duration = '';
-  if (days > 0 && hours > 0) duration = `${days}g ${hours}h`;
-  else if (days > 0) duration = `${days} giorni`;
-  else duration = `${hours} ore`;
   
   container.innerHTML = `
     <div class="summary-row"><span>🚐 Pulmino:</span> <strong>${bookingData.targa}</strong></div>
     <div class="summary-row"><span>📅 Ritiro:</span> <strong>${formattaDataIT(bookingData.dataRitiro)} alle ${bookingData.oraRitiro}</strong></div>
     <div class="summary-row"><span>📅 Consegna:</span> <strong>${formattaDataIT(bookingData.dataConsegna)} alle ${bookingData.oraConsegna}</strong></div>
     <div class="summary-row"><span>🎯 Destinazione:</span> <strong>${bookingData.destinazione}</strong></div>
-    <div class="summary-row"><span>⏱️ Durata:</span> <strong>${duration}</strong></div>
   `;
 }
 
@@ -477,8 +532,10 @@ function markPreventivoRequested() {
   showToast('✅ Preventivo richiesto! Ora puoi continuare', 'success');
 }
 
-// 🎯 AUTO-FILL INTELLIGENTE - Solo Autista 1 se loggato
-function addDriver(autoFill = false) {
+// =====================
+// DRIVERS MANAGEMENT - AUTO-FILL COMPLETO
+// =====================
+function addDriver() {
   if (!bookingData.drivers) bookingData.drivers = [];
   
   if (bookingData.drivers.length >= 3) {
@@ -486,7 +543,7 @@ function addDriver(autoFill = false) {
     return;
   }
   
-  let newDriver = {
+  const newDriver = {
     Nome: '',
     CF: '',
     Email: '',
@@ -497,17 +554,28 @@ function addDriver(autoFill = false) {
     ViaResidenza: '',
     CivicoResidenza: '',
     NumeroPatente: '',
-    InizioPatente: '',
     ScadenzaPatente: ''
   };
   
-  // 🎯 AUTO-FILL SOLO per il primo autista E solo se loggato
-  if (autoFill && bookingData.drivers.length === 0 && ultimoAutista) {
-    newDriver = { ...ultimoAutista };
-    showToast('✅ Dati autista precompilati dall\'ultima prenotazione', 'info');
+  bookingData.drivers.push(newDriver);
+  renderDrivers();
+}
+
+// 🎯 AGGIUNGI AUTISTA CON DATI COMPLETI (per auto-fill)
+function addDriverWithData(driverData, showMessage = false) {
+  if (!bookingData.drivers) bookingData.drivers = [];
+  
+  if (bookingData.drivers.length >= 3) {
+    showToast('⚠️ Massimo 3 autisti', 'warning');
+    return;
   }
   
-  bookingData.drivers.push(newDriver);
+  bookingData.drivers.push({ ...driverData });
+  
+  if (showMessage) {
+    showToast('✅ Primo autista precompilato dalle tue prenotazioni', 'success');
+  }
+  
   renderDrivers();
 }
 
@@ -526,33 +594,33 @@ function renderDrivers() {
       <div class="form-row">
         <div class="form-group">
           <label>Nome:</label>
-          <input type="text" class="driver-nome" value="${driver.Nome}" data-index="${index}" onchange="updateDriverField(${index}, 'Nome', this.value)">
+          <input type="text" value="${driver.Nome}" data-index="${index}" data-field="Nome" onchange="updateDriverField(${index}, 'Nome', this.value)">
         </div>
         <div class="form-group">
           <label>CF (16 caratteri):</label>
-          <input type="text" class="driver-cf" value="${driver.CF}" data-index="${index}" maxlength="16" onchange="updateDriverField(${index}, 'CF', this.value)">
+          <input type="text" value="${driver.CF}" data-index="${index}" data-field="CF" maxlength="16" onchange="updateDriverField(${index}, 'CF', this.value)">
         </div>
       </div>
       
       <div class="form-row">
         <div class="form-group">
           <label>Email:</label>
-          <input type="email" class="driver-email" value="${driver.Email}" data-index="${index}" onchange="updateDriverField(${index}, 'Email', this.value)">
+          <input type="email" value="${driver.Email}" data-index="${index}" data-field="Email" onchange="updateDriverField(${index}, 'Email', this.value)">
         </div>
         <div class="form-group">
           <label>Cellulare:</label>
-          <input type="tel" class="driver-cellulare" value="${driver.Cellulare}" data-index="${index}" onchange="updateDriverField(${index}, 'Cellulare', this.value)">
+          <input type="tel" value="${driver.Cellulare}" data-index="${index}" data-field="Cellulare" onchange="updateDriverField(${index}, 'Cellulare', this.value)">
         </div>
       </div>
       
       <div class="form-row">
         <div class="form-group">
           <label>Data di Nascita:</label>
-          <input type="date" class="driver-nascita" value="${driver.DataNascita}" data-index="${index}" onchange="updateDriverField(${index}, 'DataNascita', this.value)">
+          <input type="date" value="${driver.DataNascita}" data-index="${index}" data-field="DataNascita" onchange="updateDriverField(${index}, 'DataNascita', this.value)">
         </div>
         <div class="form-group">
           <label>Luogo di Nascita:</label>
-          <input type="text" class="driver-luogo" value="${driver.LuogoNascita}" data-index="${index}" onchange="updateDriverField(${index}, 'LuogoNascita', this.value)">
+          <input type="text" value="${driver.LuogoNascita}" data-index="${index}" data-field="LuogoNascita" onchange="updateDriverField(${index}, 'LuogoNascita', this.value)">
         </div>
       </div>
       
@@ -560,18 +628,18 @@ function renderDrivers() {
       <div class="form-row">
         <div class="form-group">
           <label>Comune di Residenza:</label>
-          <input type="text" class="driver-comune" value="${driver.ComuneResidenza}" data-index="${index}" onchange="updateDriverField(${index}, 'ComuneResidenza', this.value)">
+          <input type="text" value="${driver.ComuneResidenza}" data-index="${index}" data-field="ComuneResidenza" onchange="updateDriverField(${index}, 'ComuneResidenza', this.value)">
         </div>
         <div class="form-group">
           <label>Via:</label>
-          <input type="text" class="driver-via" value="${driver.ViaResidenza}" data-index="${index}" onchange="updateDriverField(${index}, 'ViaResidenza', this.value)">
+          <input type="text" value="${driver.ViaResidenza}" data-index="${index}" data-field="ViaResidenza" onchange="updateDriverField(${index}, 'ViaResidenza', this.value)">
         </div>
       </div>
       
       <div class="form-row">
         <div class="form-group">
           <label>Civico:</label>
-          <input type="text" class="driver-civico" value="${driver.CivicoResidenza}" data-index="${index}" onchange="updateDriverField(${index}, 'CivicoResidenza', this.value)">
+          <input type="text" value="${driver.CivicoResidenza}" data-index="${index}" data-field="CivicoResidenza" onchange="updateDriverField(${index}, 'CivicoResidenza', this.value)">
         </div>
       </div>
       
@@ -579,11 +647,11 @@ function renderDrivers() {
       <div class="form-row">
         <div class="form-group">
           <label>Numero Patente:</label>
-          <input type="text" class="driver-patente" value="${driver.NumeroPatente}" data-index="${index}" onchange="updateDriverField(${index}, 'NumeroPatente', this.value)">
+          <input type="text" value="${driver.NumeroPatente}" data-index="${index}" data-field="NumeroPatente" onchange="updateDriverField(${index}, 'NumeroPatente', this.value)">
         </div>
         <div class="form-group">
           <label>Scadenza Patente:</label>
-          <input type="date" class="driver-scadenza" value="${driver.ScadenzaPatente}" data-index="${index}" onchange="updateDriverField(${index}, 'ScadenzaPatente', this.value)">
+          <input type="date" value="${driver.ScadenzaPatente}" data-index="${index}" data-field="ScadenzaPatente" onchange="updateDriverField(${index}, 'ScadenzaPatente', this.value)">
         </div>
       </div>
     </div>
@@ -594,13 +662,43 @@ function renderDrivers() {
   if (nextBtn) nextBtn.disabled = bookingData.drivers.length === 0;
 }
 
-// Update driver field (chiamata dagli input onchange)
 function updateDriverField(index, field, value) {
   if (bookingData.drivers && bookingData.drivers[index]) {
     bookingData.drivers[index][field] = value;
   }
 }
 
+// =====================
+// PROFILE MANAGEMENT
+// =====================
+async function handleProfileSave(e) {
+  e.preventDefault();
+  
+  const profileData = {
+    nome: qsId('profile-nome-completo')?.value || '',
+    email: qsId('profile-email')?.value || '',
+    telefono: qsId('profile-telefono')?.value || '',
+    dataNascita: qsId('profile-data-nascita')?.value || '',
+    luogoNascita: qsId('profile-luogo-nascita')?.value || '',
+    indirizzo: qsId('profile-indirizzo')?.value || '',
+    numeroPatente: qsId('profile-patente')?.value || '',
+    scadenzaPatente: qsId('profile-patente-scadenza')?.value || ''
+  };
+  
+  // Save in localStorage for future use
+  localStorage.setItem('USER_PROFILE', JSON.stringify(profileData));
+  
+  // Update ultimoAutista if available
+  if (ultimoAutista) {
+    ultimoAutista = { ...ultimoAutista, ...profileData };
+  }
+  
+  showToast('💾 Profilo salvato localmente', 'success');
+}
+
+// =====================
+// BOOKING SUBMISSION
+// =====================
 async function submitBooking() {
   if (!bookingData.targa || !bookingData.drivers || bookingData.drivers.length === 0) {
     showToast('❌ Dati mancanti per prenotazione', 'error');
@@ -621,14 +719,13 @@ async function submitBooking() {
       drivers: encodeURIComponent(JSON.stringify(bookingData.drivers))
     };
     
-    const response = await callAPI('creaPrenotazione', payload);
+    const response = await callAPIAligned('creaPrenotazione', payload);
     
     if (response.success) {
       showToast('🎉 Prenotazione creata con ID: ' + response.data.id, 'success');
       switchTab('prenotazioni');
       loadUserBookings();
       
-      // Reset
       bookingData = {};
       preventivoRequested = false;
       
@@ -653,15 +750,29 @@ function getStatusEmoji(status) {
   return FRONTEND_CONFIG.statiEmoji[status] || '❓';
 }
 
+function composeAddress(via, civico, comune) {
+  const parts = [via, civico, comune].filter(p => p && String(p).trim());
+  return parts.join(' ');
+}
+
+// Helper per validazione CF
+function isValidCF(cf) {
+  const cfUpper = String(cf || '').toUpperCase().trim();
+  return cfUpper.length === 16 && /^[A-Z0-9]+$/.test(cfUpper);
+}
+
 // Funzioni globali
 window.selectVehicle = selectVehicle;
 window.updateDriverField = updateDriverField;
 window.removeDriver = function(index) {
-  if (bookingData.drivers && index > 0) { // Non rimuovere mai Autista 1
+  if (bookingData.drivers && index > 0) {
     bookingData.drivers.splice(index, 1);
     renderDrivers();
     showToast('❌ Autista rimosso', 'info');
   }
 };
 
-console.log('✅ scripts.js loaded - Backend aligned + Auto-fill completo');
+// Usa callAPIAligned globalmente
+window.callAPI = callAPIAligned;
+
+console.log('✅ scripts.js v7.1.0 loaded - BACKEND ALIGNED + AUTO-FILL COMPLETO');
