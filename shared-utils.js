@@ -1,4 +1,4 @@
-/* 🚀 IMBRIANI NOLEGGIO - Shared Utilities v6.1 COMPLETO - CORS-Safe Enhanced */
+/* 🚀 IMBRIANI NOLEGGIO - Shared Utilities v6.2 COMPLETO - CORS-Safe Enhanced */
 
 'use strict';
 
@@ -409,6 +409,19 @@ function getErrorMessage(error, fallback = 'Errore sconosciuto') {
   return fallback;
 }
 
+// Debounce utility
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
 // Make globally available
 if (typeof window !== 'undefined') {
   window.APP_CONFIG = APP_CONFIG;
@@ -432,9 +445,10 @@ if (typeof window !== 'undefined') {
   window.isOnline = isOnline;
   window.onNetworkChange = onNetworkChange;
   window.getErrorMessage = getErrorMessage;
+  window.debounce = debounce;
 
   if (APP_CONFIG.DEBUG) {
-    console.log('%c🚀 Shared Utils v6.1 loaded (CORS via config API_URL)', 'color: #22c55e; font-weight: bold;');
+    console.log('%c🚀 Shared Utils v6.2 loaded (CORS via config API_URL)', 'color: #22c55e; font-weight: bold;');
     console.log('API Base URL:', APP_CONFIG.API_BASE_URL);
   }
 }
