@@ -4,39 +4,136 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Imbriani Stefano Noleggi</title>
-    
-    <!-- 🚀 Modern Meta Tags -->
-    <meta name="description" content="Imbriani Stefano Noleggi - Prenotazione pulmini 9 posti. Sistema moderno, sicuro e supporto 24/7.">
+    <meta name="description" content="Imbriani Stefano Noleggi - Prenotazione pulmini 9 posti. Sistema moderno e sicuro, supporto 24/7.">
     <meta name="theme-color" content="#0066FF">
     <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚐</text></svg>">
-    
-    <!-- 🎨 Premium CSS Libraries -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    
-    <!-- ✨ Modern Styles with cache buster -->
     <link rel="stylesheet" href="styles.css?v=711">
-    
     <style>
-        .hero-section { min-height: 100svh; min-height: 100vh; display: grid; align-items: start; padding-top: clamp(24px, 6vh, 72px); padding-bottom: clamp(16px, 4vh, 56px); }
-        .display-1-modern { font-size: clamp(2rem, 4vw, 3rem); }
-        @media (max-width: 992px){ .display-1-modern{ font-size: clamp(1.8rem, 6vw, 2.6rem);} }
-        .hero-title { color: #E5E7EB; letter-spacing: -0.02em; }
+      .hero-section { min-height: 100svh; min-height: 100vh; display: grid; align-items: start; padding-top: clamp(24px, 6vh, 72px); padding-bottom: clamp(16px, 4vh, 56px); }
+      .display-1-modern { font-size: clamp(2rem, 4vw, 3rem); }
+      @media (max-width: 992px){ .display-1-modern{ font-size: clamp(1.8rem, 6vw, 2.6rem);} }
+      .hero-title { color: #E5E7EB; letter-spacing: -0.02em; }
     </style>
 </head>
-
 <body class="d-flex flex-column h-100">
-    <!-- ✨ HERO SECTION GLASSMORPHISM (no top bar) -->
-    <main class="hero-section flex-grow-1">
-        <div class="container">
-            <div class="row justify-content-center">
-                <!-- 🔐 LOGIN SECTION -->
-                <div class="col-lg-10 col-xl-8" id="login-section">
-                    <div class="text-center mb-5 animate-fade-in-up">
-                        <h1 class="display-1-modern hero-title mb-3">Imbriani Stefano Noleggi</h1>
-                        <p class="lead-modern mx-auto" style="max-width: 700px;">
-                            Prenota il tuo pulmino 9 posti con il sistema più moderno e sicuro d'Italia.
-                            Gestione digitale completa, supporto 24/7.
-                        </p>
+  <main class="hero-section flex-grow-1">
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-lg-10 col-xl-8" id="login-section">
+          <div class="text-center mb-5 animate-fade-in-up">
+            <h1 class="display-1-modern hero-title mb-3">Imbriani Stefano Noleggi</h1>
+            <p class="lead-modern mx-auto" style="max-width: 700px;">Prenota il tuo pulmino 9 posti con il sistema più moderno e sicuro d'Italia. Gestione digitale completa, supporto 24/7.</p>
+          </div>
+
+          <!-- 🔎 Verifica disponibilità per nuovi clienti -->
+          <div class="glass-card p-4 mb-5 animate-fade-in-up animation-delay-100">
+            <h5 class="fw-bold mb-3 d-flex align-items-center"><i class="fas fa-search me-2 text-primary"></i>Verifica disponibilità</h5>
+            <div class="row g-3 align-items-end">
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Data Ritiro</label>
+                <input type="date" id="new-data-ritiro" class="form-control form-control-modern">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Data Consegna</label>
+                <input type="date" id="new-data-consegna" class="form-control form-control-modern">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fw-semibold">Posti</label>
+                <select id="new-posti" class="form-select form-control-modern">
+                  <option value="9" selected>9 posti</option>
+                  <option value=">=9">9+ posti</option>
+                </select>
+              </div>
+              <div class="col-md-3 d-grid">
+                <button type="button" id="check-disponibilita" class="btn btn-premium">
+                  <i class="fas fa-search me-2"></i>Verifica
+                </button>
+              </div>
+            </div>
+            <div id="risultati-disponibilita" class="mt-3"></div>
+          </div>
+
+          <!-- Login card esistente -->
+          <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+              <div class="glass-card p-5 animate-fade-in-up animation-delay-200">
+                <div class="text-center mb-4">
+                  <div class="d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; margin-bottom: 24px;">
+                    <i class="fas fa-id-card text-white" style="font-size: 2rem;"></i>
+                  </div>
+                  <h3 class="h4 fw-bold">Accedi alla tua Area</h3>
+                  <p class="text-muted mb-0">Inserisci il tuo codice fiscale per continuare</p>
+                </div>
+                <form class="needs-validation" novalidate>
+                  <div class="mb-4">
+                    <label for="cf-input" class="form-label fw-semibold">Codice Fiscale</label>
+                    <div class="position-relative">
+                      <input type="text" class="form-control form-control-modern" id="cf-input" placeholder="RSSMRA85M01H501Z" maxlength="16" autocomplete="off" style="padding-left: 50px;">
+                      <i class="fas fa-user position-absolute" style="left: 18px; top: 50%; transform: translateY(-50%); color: #94A3B8;"></i>
                     </div>
+                    <div class="form-text"><i class="fas fa-info-circle me-1"></i>16 caratteri alfanumerici del tuo CF</div>
+                  </div>
+                  <div class="d-grid">
+                    <button type="button" id="login-btn" class="btn btn-premium"><i class="fas fa-sign-in-alt me-2"></i>Accedi all'Area Personale</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <!-- features preview resta invariata -->
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="position-fixed bottom-0 end-0 p-4" style="z-index: 1040;">
+    <a href="https://wa.me/393333333333" target="_blank" class="btn btn-success rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);" onmouseover="this.style.transform='scale(1.1) rotate(5deg)'" onmouseout="this.style.transform='scale(1) rotate(0deg)'">
+      <i class="fab fa-whatsapp" style="font-size: 1.5rem;"></i>
+    </a>
+  </div>
+
+  <div id="spinner" class="loader-premium d-none"><div class="loader-spinner"></div><div class="loader-text" id="loader-message">Caricamento...</div></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="config.js"></script>
+  <script src="shared-utils.js"></script>
+  <script src="scripts.js"></script>
+  <script src="safe-whatsapp-fix.js"></script>
+  <script src="whatsapp-loader.js"></script>
+  <script>
+    // Verifica disponibilità per nuovi clienti (senza login)
+    document.getElementById('check-disponibilita')?.addEventListener('click', async () => {
+      const dataRitiro = document.getElementById('new-data-ritiro')?.value;
+      const dataConsegna = document.getElementById('new-data-consegna')?.value;
+      const posti = document.getElementById('new-posti')?.value || '9';
+      const out = document.getElementById('risultati-disponibilita');
+      if (!dataRitiro || !dataConsegna) {
+        showToast('Seleziona date di ritiro e consegna', 'warning');
+        return;
+      }
+      showLoader(true, 'Verifica disponibilità...');
+      try {
+        const resp = await callAPI('disponibilita', { dataInizio: dataRitiro, dataFine: dataConsegna });
+        if (resp.success && Array.isArray(resp.data)) {
+          const disponibili = resp.data.filter(v => (v.Posti ?? 9) >= 9 && (v.Disponibile === true || v.Stato === 'Disponibile'));
+          if (disponibili.length === 0) {
+            out.innerHTML = '<div class="alert alert-warning mt-2">Nessun veicolo disponibile nelle date selezionate.</div>';
+          } else {
+            out.innerHTML = '<div class="alert alert-success mt-2">' + disponibili.length + ' veicolo/i disponibili. Puoi accedere o continuare con la richiesta.</div>';
+          }
+        } else {
+          out.innerHTML = '<div class="alert alert-warning mt-2">Impossibile recuperare la disponibilità al momento.</div>';
+        }
+      } catch (e) {
+        out.innerHTML = '<div class="alert alert-danger mt-2">Errore di rete. Riprova.</div>';
+      } finally {
+        showLoader(false);
+      }
+    });
+  </script>
+</body>
+</html>
