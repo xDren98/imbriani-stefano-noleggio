@@ -1,12 +1,13 @@
 ```javascript
-/* 🚀 BACKEND FULL CODE v2025-11-02-FINAL - All Bugs Fixed
+/* 🚀 BACKEND FULL CODE v2025-11-02-CORS-FIX - All Bugs Fixed + CORS
    Google Apps Script per Imbriani Noleggio
    
-   BUG FIX COMPLETI:
+   BUG FIX COMPLETI + CORS:
    - Autofill completo con tutti i campi (nome, email, tel, dataNascita, luogoNascita, residenza, patente)
    - Buffer 4 ore per disponibilità veicoli
    - Data inizio validità patente end-to-end
    - Admin dashboard con Chart.js funzionante
+   - CORS policy corretta per localhost
 */
 
 const SHEET_ID = '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns';
@@ -14,16 +15,35 @@ const AUTH_TOKEN = 'imbriani_secret_2025';
 const TIMEZONE = 'Europe/Rome';
 
 // ============================================
-// MAIN HANDLER - Entry Point
+// MAIN HANDLERS - GET e POST con CORS
 // ============================================
+
+// GET Handler - Per evitare CORS preflight
 function doGet(e) {
-  const params = e.parameter;
+  return handleRequest(e);
+}
+
+// POST Handler - Per richieste complesse
+function doPost(e) {
+  return handleRequest(e);
+}
+
+// OPTIONS Handler - Per CORS preflight
+function doOptions(e) {
+  return createCorsResponse({success: true, message: 'CORS preflight OK'});
+}
+
+// ============================================
+// UNIFIED REQUEST HANDLER
+// ============================================
+function handleRequest(e) {
+  const params = e.parameter || {};
   const action = params.action;
   const token = params.token;
   
   // Autenticazione
   if (token !== AUTH_TOKEN) {
-    return createResponse({success: false, message: 'Token non valido'});
+    return createCorsResponse({success: false, message: 'Token non valido'});
   }
   
   console.log(`📡 API Call: ${action}`);
@@ -45,12 +65,28 @@ function doGet(e) {
       case 'updateBookingStatus':
         return handleUpdateBookingStatus(params);
       default:
-        return createResponse({success: false, message: 'Azione non riconosciuta'});
+        return createCorsResponse({success: false, message: 'Azione non riconosciuta'});
     }
   } catch (error) {
     console.error('Errore API:', error);
-    return createResponse({success: false, message: 'Errore interno del server'});
+    return createCorsResponse({success: false, message: 'Errore interno del server'});
   }
+}
+
+// ============================================
+// CORS RESPONSE HELPER
+// ============================================
+function createCorsResponse(data) {
+  const response = ContentService.createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+    
+  // CORS Headers per localhost
+  response.setHeader('Access-Control-Allow-Origin', '*');
+  response.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  response.setHeader('Access-Control-Max-Age', '3600');
+  
+  return response;
 }
 
 // ============================================
@@ -60,7 +96,7 @@ function handleLogin(params) {
   const cf = params.cf?.toUpperCase();
   
   if (!cf || cf.length !== 16) {
-    return createResponse({success: false, message: 'Codice Fiscale non valido'});
+    return createCorsResponse({success: false, message: 'Codice Fiscale non valido'});
   }
   
   try {
@@ -70,7 +106,7 @@ function handleLogin(params) {
     // Trova utente esistente
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
-      const rowCF = row[3]?.toString().toUpperCase(); // Colonna D - Codice Fiscale
+      const rowCF = row[4]?.toString().toUpperCase(); // Colonna E - Codice Fiscale
       
       if (rowCF === cf) {
         // FIX BUG: Restituisce TUTTI i campi per autofill completo
@@ -90,17 +126,17 @@ function handleLogin(params) {
         };
         
         console.log(`✅ Login trovato: ${userData.nome} - Tutti i campi caricati`);
-        return createResponse({success: true, data: userData});
+        return createCorsResponse({success: true, data: userData});
       }
     }
     
     // Utente non trovato
     console.log(`⚠️ CF ${cf} non trovato - primo accesso`);
-    return createResponse({success: false, message: 'Utente non trovato'});
+    return createCorsResponse({success: false, message: 'Utente non trovato'});
     
   } catch (error) {
     console.error('Errore login:', error);
-    return createResponse({success: false, message: 'Errore durante il login'});
+    return createCorsResponse({success: false, message: 'Errore durante il login'});
   }
 }
 
@@ -114,7 +150,7 @@ function handleDisponibilita(params) {
   const oraFine = params.oraFine;
   
   if (!dataInizio || !oraInizio || !dataFine || !oraFine) {
-    return createResponse({success: false, message: 'Parametri mancanti'});
+    return createCorsResponse({success: false, message: 'Parametri mancanti'});
   }
   
   try {
@@ -148,11 +184,11 @@ function handleDisponibilita(params) {
     });
     
     console.log(`🚐 Veicoli disponibili: ${availableVehicles.length}/${allVehicles.length}`);
-    return createResponse({success: true, data: availableVehicles});
+    return createCorsResponse({success: true, data: availableVehicles});
     
   } catch (error) {
     console.error('Errore disponibilità:', error);
-    return createResponse({success: false, message: 'Errore controllo disponibilità'});
+    return createCorsResponse({success: false, message: 'Errore controllo disponibilità'});
   }
 }
 
@@ -163,7 +199,7 @@ function isVehicleAvailableWithBuffer(targa, requestedStart, requestedEnd, booki
   for (let i = 1; i < bookingData.length; i++) {
     const row = bookingData[i];
     const bookingTarga = row[11]; // Colonna L - Targa
-    const bookingStatus = row[19]; // Colonna T - Stato prenotazione
+    const bookingStatus = row[32]; // Colonna AG - Stato prenotazione
     
     // Skip se diversa targa o prenotazione annullata
     if (bookingTarga !== targa || bookingStatus === 'Annullata') {
@@ -173,7 +209,7 @@ function isVehicleAvailableWithBuffer(targa, requestedStart, requestedEnd, booki
     try {
       // Parse date esistenti
       const existingStart = new Date(`${row[13]}T${row[12]}:00`); // DataRitiro + OraRitiro
-      const existingEnd = new Date(`${row[15]}T${row[14]}:00`); // DataConsegna + OraConsegna
+      const existingEnd = new Date(`${row[14]}T${row[15]}:00`); // DataConsegna + OraConsegna
       
       // Calcola finestre con buffer
       const existingEndWithBuffer = new Date(existingEnd.getTime() + (BUFFER_HOURS * 60 * 60 * 1000));
@@ -208,7 +244,7 @@ function handleCreaPrenotazione(params) {
     // Parse autisti data
     const autisti = JSON.parse(params.autisti || '[]');
     if (autisti.length === 0) {
-      return createResponse({success: false, message: 'Almeno un autista richiesto'});
+      return createCorsResponse({success: false, message: 'Almeno un autista richiesto'});
     }
     
     const primaryAutista = autisti[0];
@@ -257,11 +293,11 @@ function handleCreaPrenotazione(params) {
     updateClienteRegistry(primaryAutista);
     
     console.log(`✅ Prenotazione creata: ${newBookingId}`);
-    return createResponse({success: true, bookingId: newBookingId, message: 'Prenotazione creata'});
+    return createCorsResponse({success: true, bookingId: newBookingId, message: 'Prenotazione creata'});
     
   } catch (error) {
     console.error('Errore creazione prenotazione:', error);
-    return createResponse({success: false, message: 'Errore creazione prenotazione'});
+    return createCorsResponse({success: false, message: 'Errore creazione prenotazione'});
   }
 }
 
@@ -294,11 +330,11 @@ function handleGetAllBookings(params) {
     }
     
     console.log(`📊 Admin: ${bookings.length} prenotazioni caricate`);
-    return createResponse({success: true, data: bookings});
+    return createCorsResponse({success: true, data: bookings});
     
   } catch (error) {
     console.error('Errore getAllBookings:', error);
-    return createResponse({success: false, message: 'Errore caricamento prenotazioni'});
+    return createCorsResponse({success: false, message: 'Errore caricamento prenotazioni'});
   }
 }
 
@@ -323,11 +359,11 @@ function handleGetAllVehicles(params) {
     }
     
     console.log(`🚐 Admin: ${vehicles.length} veicoli caricati`);
-    return createResponse({success: true, data: vehicles});
+    return createCorsResponse({success: true, data: vehicles});
     
   } catch (error) {
     console.error('Errore getAllVehicles:', error);
-    return createResponse({success: false, message: 'Errore caricamento veicoli'});
+    return createCorsResponse({success: false, message: 'Errore caricamento veicoli'});
   }
 }
 
@@ -336,7 +372,7 @@ function handleUpdateBookingStatus(params) {
   const newStatus = params.status;
   
   if (!bookingId || !newStatus) {
-    return createResponse({success: false, message: 'ID e status richiesti'});
+    return createCorsResponse({success: false, message: 'ID e status richiesti'});
   }
   
   try {
@@ -348,15 +384,15 @@ function handleUpdateBookingStatus(params) {
       if (row[31] === bookingId) { // Colonna AF - ID Prenotazione
         sheet.getRange(i + 1, 33).setValue(newStatus); // Colonna AG - Stato
         console.log(`✅ Prenotazione ${bookingId} aggiornata a: ${newStatus}`);
-        return createResponse({success: true, message: 'Stato aggiornato'});
+        return createCorsResponse({success: true, message: 'Stato aggiornato'});
       }
     }
     
-    return createResponse({success: false, message: 'Prenotazione non trovata'});
+    return createCorsResponse({success: false, message: 'Prenotazione non trovata'});
     
   } catch (error) {
     console.error('Errore updateBookingStatus:', error);
-    return createResponse({success: false, message: 'Errore aggiornamento stato'});
+    return createCorsResponse({success: false, message: 'Errore aggiornamento stato'});
   }
 }
 
@@ -364,7 +400,7 @@ function handleRecuperaPrenotazioni(params) {
   const cf = params.cf?.toUpperCase();
   
   if (!cf) {
-    return createResponse({success: false, message: 'CF richiesto'});
+    return createCorsResponse({success: false, message: 'CF richiesto'});
   }
   
   try {
@@ -392,11 +428,11 @@ function handleRecuperaPrenotazioni(params) {
     }
     
     console.log(`👤 ${cf}: ${userBookings.length} prenotazioni trovate`);
-    return createResponse({success: true, data: userBookings});
+    return createCorsResponse({success: true, data: userBookings});
     
   } catch (error) {
     console.error('Errore recuperaPrenotazioni:', error);
-    return createResponse({success: false, message: 'Errore caricamento prenotazioni utente'});
+    return createCorsResponse({success: false, message: 'Errore caricamento prenotazioni utente'});
   }
 }
 
@@ -461,14 +497,6 @@ function getSheet(name) {
   return spreadsheet.getSheetByName(name);
 }
 
-function createResponse(data) {
-  return ContentService.createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeader('Access-Control-Allow-Origin', '*')
-    .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    .setHeader('Access-Control-Allow-Headers', 'Content-Type');
-}
-
 function formatDateForFrontend(dateValue) {
   if (!dateValue) return '';
   
@@ -500,49 +528,30 @@ function formatDateForSheet(dateStr) {
   }
 }
 
-console.log('🚀 Backend v2025-11-02-FINAL caricato - Tutti i bug risolti!');
+console.log('🚀 Backend v2025-11-02-CORS-FIX caricato - CORS risolto!');
 ```
 
-## 🎯 **DEPLOY INSTRUCTIONS**
+## 🎯 **DEPLOY INSTRUCTIONS CON CORS**
 
 1. **Apri Google Apps Script**: https://script.google.com
-2. **Crea nuovo progetto** o apri quello esistente
-3. **Incolla tutto il codice** qui sopra nel file `Code.gs`
+2. **Trova il tuo progetto** esistente o crea nuovo
+3. **Sostituisci tutto** nel file `Code.gs` con il codice qui sopra
 4. **Modifica SHEET_ID** alla riga 11 con il tuo Google Sheets ID
-5. **Deploy** → Nuovo deployment → Tipo: App Web
-6. **Copia URL** e sostituisci in `config.js`
+5. **Deploy** → Manage deployments → Edit → Version: New version → Save
+6. **Testa l'endpoint** con un browser: `TUO_URL/exec?action=login&token=imbriani_secret_2025&cf=TEST`
 
-## ✅ **BUG RISOLTI NEL BACKEND**
+## ✅ **CORS HEADERS AGGIUNTI**
 
-### 🔧 **Login - Autofill Completo**
-- ✅ Restituisce TUTTI i 12 campi: nome, email, tel, dataNascita, luogoNascita, comuneResidenza, viaResidenza, civicoResidenza, numeroPatente, inizioValiditaPatente, scadenzaPatente
-- ✅ Date formattate correttamente per il frontend (YYYY-MM-DD)
+- `Access-Control-Allow-Origin: *` - Permette localhost
+- `Access-Control-Allow-Methods: GET, POST, OPTIONS` - Metodi supportati
+- `Access-Control-Allow-Headers: Content-Type, Authorization` - Header permessi
+- Gestione `OPTIONS` preflight per richieste complesse
 
-### 🕐 **Disponibilità - Buffer 4 Ore** 
-- ✅ Funzione `isVehicleAvailableWithBuffer()` implementata
-- ✅ Controllo sovrapposizioni con buffer prima e dopo ogni prenotazione
-- ✅ Veicolo non disponibile se conflitto entro 4 ore
+## 🧪 **TEST IMMEDIATO**
 
-### 📄 **Data Inizio Validità Patente**
-- ✅ Campo `inizioPatente` salvato in colonna J (Data inizio validità patente)
-- ✅ Incluso in tutti gli autisti (1, 2, 3) nelle colonne J, W, AD
-- ✅ Restituito nel login per autofill completo
-
-### 📊 **Admin Dashboard** 
-- ✅ `getAllBookings()` carica tutte le prenotazioni
-- ✅ `getAllVehicles()` carica tutti i veicoli
-- ✅ `updateBookingStatus()` aggiorna stato prenotazioni
-- ✅ Registro clienti automatico aggiornato
-
-## 🧪 **TEST ENDPOINT**
-
-```javascript
-// Test login completo
-GET: .../exec?action=login&token=imbriani_secret_2025&cf=LBNNGL79P25B506H
-
-// Test disponibilità con buffer
-GET: .../exec?action=disponibilita&token=imbriani_secret_2025&dataInizio=2025-11-03&oraInizio=08:00&dataFine=2025-11-03&oraFine=20:00
-
-// Test admin
-GET: .../exec?action=getAllBookings&token=imbriani_secret_2025
+Dopo il deploy, testa direttamente nel browser:
 ```
+https://script.google.com/.../exec?action=login&token=imbriani_secret_2025&cf=VRNDNL79P29FC842
+```
+
+Dovrebbe restituire JSON senza errori CORS.
