@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Dashboard Pro</title>
-  <link rel="stylesheet" href="admin-styles.css">
+  <title>🔧 Admin Dashboard Pro v8.5</title>
+  <link rel="stylesheet" href="styles.css">
   <!-- Chart.js UMD for charts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <!-- XLSX for Excel export -->
@@ -13,12 +13,12 @@
 <body class="admin-body">
   <div class="admin-header">
     <div class="left">
-      <h1>Admin Dashboard Pro</h1>
+      <h1>🔧 Admin Dashboard Pro v8.5</h1>
       <div id="current-time">00:00:00</div>
     </div>
     <div class="right">
-      <button id="refresh-btn" class="btn btn-secondary">Refresh</button>
-      <button id="back-to-site" class="btn btn-outline">Torna al Sito</button>
+      <button id="refresh-all" class="btn btn-secondary">🔄 Refresh</button>
+      <button id="back-to-site" class="btn btn-outline" onclick="window.location.href='index.html'">← Torna al Sito</button>
     </div>
   </div>
 
@@ -27,61 +27,62 @@
       <div class="stat-card">
         <div class="stat-icon">📅</div>
         <div class="stat-content">
-          <div class="stat-number" id="stat-oggi">0</div>
+          <div class="stat-number" id="stat-today">0</div>
           <div class="stat-label">Prenotazioni Oggi</div>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon">📊</div>
         <div class="stat-content">
-          <div class="stat-number" id="stat-settimana">0</div>
+          <div class="stat-number" id="stat-week">0</div>
           <div class="stat-label">Questa Settimana</div>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon">🚐</div>
         <div class="stat-content">
-          <div class="stat-number" id="stat-pulmini">0</div>
-          <div class="stat-label">Pulmini Attivi</div>
+          <div class="stat-number" id="stat-vehicles">0</div>
+          <div class="stat-label">Veicoli Attivi</div>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon">💰</div>
+        <div class="stat-icon">⏳</div>
         <div class="stat-content">
-          <div class="stat-number" id="stat-confermare">0</div>
+          <div class="stat-number" id="stat-pending">0</div>
           <div class="stat-label">Da Confermare</div>
         </div>
       </div>
     </section>
 
     <section class="filters">
-      <h2>Filtri</h2>
+      <h2>🔍 Filtri Avanzati</h2>
       <div class="filters-grid">
-        <div class="form-group"><label>Data Da:</label><input id="filter-data-da" type="date"></div>
-        <div class="form-group"><label>Data A:</label><input id="filter-data-a" type="date"></div>
+        <div class="form-group"><label>Data Da:</label><input id="filter-date-from" type="date"></div>
+        <div class="form-group"><label>Data A:</label><input id="filter-date-to" type="date"></div>
         <div class="form-group"><label>Stato:</label>
-          <select id="filter-stato">
+          <select id="filter-status">
             <option value="">Tutti gli stati</option>
-            <option>Da confermare</option>
-            <option>Confermata</option>
-            <option>Annullata</option>
+            <option value="Da Confermare">Da Confermare</option>
+            <option value="Confermata">Confermata</option>
+            <option value="Annullata">Annullata</option>
+            <option value="Rifiutata">Rifiutata</option>
           </select>
         </div>
-        <div class="form-group"><label>Targa:</label><select id="filter-targa"><option value="">Tutti i pulmini</option></select></div>
-        <div class="form-group"><label>Cliente:</label><input id="filter-cliente" type="text" placeholder="Nome cliente..."></div>
+        <div class="form-group"><label>Veicolo:</label><select id="filter-vehicle"><option value="">Tutti i pulmini</option></select></div>
+        <div class="form-group"><label>Cliente:</label><input id="filter-client" type="text" placeholder="Nome o CF cliente..."></div>
       </div>
       <div class="filters-actions">
-        <button id="apply-filters" class="btn btn-primary">Applica Filtri</button>
-        <button id="clear-filters" class="btn btn-outline">Pulisci</button>
+        <button id="apply-filters" class="btn btn-primary">🔍 Applica Filtri</button>
+        <button id="clear-filters" class="btn btn-outline">🗑️ Pulisci</button>
       </div>
     </section>
 
     <section class="bookings">
       <div class="bookings-header">
-        <h2>Gestione Prenotazioni</h2>
+        <h2>📋 Gestione Prenotazioni</h2>
         <div class="bookings-actions">
-          <button id="export-excel" class="btn btn-success">Esporta Excel</button>
-          <button id="export-filtered" class="btn btn-success">Esporta Filtrate</button>
+          <button id="export-excel" class="btn btn-success">📊 Esporta Excel</button>
+          <button id="export-filtered" class="btn btn-success">📋 Esporta Filtrate</button>
         </div>
       </div>
 
@@ -92,8 +93,8 @@
             <th>ID</th>
             <th>Data Creazione</th>
             <th>Cliente</th>
-            <th>CF/Telefono</th>
-            <th>Targa</th>
+            <th>Contatti</th>
+            <th>Veicolo</th>
             <th>Ritiro</th>
             <th>Consegna</th>
             <th>Destinazione</th>
@@ -102,28 +103,43 @@
           </tr>
         </thead>
         <tbody id="bookings-tbody">
-          <tr><td colspan="11" class="empty-row">Caricamento prenotazioni...</td></tr>
+          <tr><td colspan="11" class="empty-row">🔄 Caricamento prenotazioni...</td></tr>
         </tbody>
       </table>
 
-      <div id="bulk-actions" class="bulk-actions hidden">
-        <span class="bulk-count">0 selezionate</span>
-        <button id="bulk-confirm" class="btn btn-sm btn-success">Conferma</button>
-        <button id="bulk-cancel" class="btn btn-sm btn-danger">Annulla</button>
+      <div id="bulk-actions" class="bulk-actions d-none">
+        <span id="selected-count" class="bulk-count">0 selezionate</span>
+        <button id="bulk-confirm" class="btn btn-sm btn-success">✅ Conferma</button>
+        <button id="bulk-reject" class="btn btn-sm btn-danger">❌ Annulla</button>
       </div>
     </section>
 
     <section class="charts">
       <div class="chart-card">
-        <h3>Pulmini</h3>
-        <canvas id="pulmini-chart"></canvas>
+        <h3>🚐 Utilizzo Veicoli</h3>
+        <canvas id="vehicles-chart"></canvas>
       </div>
       <div class="chart-card">
-        <h3>Stati Prenotazioni</h3>
-        <canvas id="stati-chart"></canvas>
+        <h3>📊 Stati Prenotazioni</h3>
+        <canvas id="status-chart"></canvas>
       </div>
     </section>
   </main>
+
+  <!-- Loading overlay -->
+  <div id="loading-overlay" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="background: rgba(0,0,0,0.5); z-index: 10000;">
+    <div class="d-flex align-items-center justify-content-center h-100">
+      <div class="text-center text-white">
+        <div class="spinner-border mb-3" role="status">
+          <span class="visually-hidden">Caricamento...</span>
+        </div>
+        <div class="loader-message">Caricamento...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast-container" class="position-fixed top-0 end-0 p-3" style="z-index: 11000;"></div>
 
   <script src="config.js"></script>
   <script src="shared-utils.js"></script>
