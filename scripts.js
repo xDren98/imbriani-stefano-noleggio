@@ -1,4 +1,4 @@
-// scripts.js v9.0 - Complete flow: 08-22h slots + real availability + autocomplete + booking
+// scripts.js v9.1 - Complete flow with robust Continue button + info banner
 (function(){
   window.addEventListener('error', (ev)=>{
     try{ if((ev?.filename||'').includes('content_script.js')) { ev.preventDefault?.(); return false; } }catch(e){}
@@ -187,9 +187,48 @@
     info.innerHTML = `<strong>Veicolo selezionato:</strong><br><i class='fas fa-car me-1'></i>${v.Marca} ${v.Modello} (${v.Targa})${badge}`;
     stepPrev.classList.remove('d-none'); 
     stepPrev.scrollIntoView({behavior:'smooth'});
+    
+    // Add info banner and continue button after CTA buttons
+    addContinueBanner();
     setupWhatsAppLink();
     bindContactActions();
   };
+
+  function addContinueBanner(){
+    // Check if banner already exists
+    if(qs('step-continue-banner')) return;
+    
+    const stepPrev = qs('step-preventivo');
+    if(!stepPrev) return;
+    
+    // Find CTA container or create after step content
+    let insertPoint = stepPrev.querySelector('.d-flex.gap-2');
+    if(!insertPoint) insertPoint = stepPrev;
+    
+    const banner = document.createElement('div');
+    banner.id = 'step-continue-banner';
+    banner.className = 'mt-4 text-center';
+    banner.innerHTML = `
+      <div class="alert alert-info py-2 mb-3">
+        <small><i class="fas fa-info-circle me-2"></i>Dopo aver richiesto il preventivo, prosegui con i dati autisti</small>
+      </div>
+      <div class="text-muted small mb-2">Oppure</div>
+      <button id="continue-to-drivers" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-right me-2"></i>Continua allo step Dati autisti
+      </button>
+    `;
+    
+    insertPoint.parentNode.insertBefore(banner, insertPoint.nextSibling);
+    
+    // Bind continue button
+    const continueBtn = qs('continue-to-drivers');
+    if(continueBtn) {
+      continueBtn.addEventListener('click', () => {
+        console.log('[CONTINUE] Manual continue to drivers step');
+        showDriversStep();
+      });
+    }
+  }
 
   function setupWhatsAppLink(){
     const nomeEl=qs('nuovo-nome'); const cognEl=qs('nuovo-cognome'); const wa=qs('cta-whatsapp');
@@ -205,20 +244,64 @@
 
   function bindContactActions(){
     const waBtn = qs('cta-whatsapp'); const telBtn = qs('cta-telefono');
+    
     const unlockDrivers = () => {
       console.log('[CONTACT] Contact made, unlocking drivers');
       localStorage.setItem('CONTACT_DONE', '1');
-      showDriversStep();
+      // Small delay to handle app switching
+      setTimeout(() => {
+        showDriversStep();
+      }, 500);
     };
-    if(waBtn) waBtn.addEventListener('click', unlockDrivers);
-    if(telBtn) telBtn.addEventListener('click', unlockDrivers);
+    
+    // Robust event binding: both click and mousedown
+    if(waBtn) {
+      waBtn.addEventListener('click', unlockDrivers);
+      waBtn.addEventListener('mousedown', unlockDrivers);
+    }
+    if(telBtn) {
+      telBtn.addEventListener('click', unlockDrivers);
+      telBtn.addEventListener('mousedown', unlockDrivers);
+    }
+    
+    // Focus fallback: if window loses focus (app switch), unlock on return
+    let focusLost = false;
+    window.addEventListener('blur', () => {
+      if(localStorage.getItem('CONTACT_DONE') !== '1') {
+        focusLost = true;
+      }
+    });
+    
+    window.addEventListener('focus', () => {
+      if(focusLost && localStorage.getItem('CONTACT_DONE') !== '1') {
+        console.log('[FOCUS] Returned from external app, unlocking drivers');
+        localStorage.setItem('CONTACT_DONE', '1');
+        showDriversStep();
+        focusLost = false;
+      }
+    });
   }
 
   window.showDriversStep = function(){
+    console.log('[DRIVERS] Showing drivers step');
     const stepDrivers = qs('step-autisti');
-    if(!stepDrivers) return; 
+    if(!stepDrivers) {
+      console.error('[DRIVERS] step-autisti element not found in DOM');
+      return;
+    }
+    
     stepDrivers.classList.remove('d-none');
     stepDrivers.scrollIntoView({behavior:'smooth'});
+    
+    // Update continue button state
+    const continueBtn = qs('continue-to-drivers');
+    if(continueBtn) {
+      continueBtn.innerHTML = '<i class="fas fa-check me-2"></i>Step Dati autisti attivo';
+      continueBtn.disabled = true;
+      continueBtn.classList.remove('btn-outline-secondary');
+      continueBtn.classList.add('btn-success');
+    }
+    
     ['cf-driver1', 'cf-driver2', 'cf-driver3'].forEach(bindAutocomplete);
     const confirmBtn = qs('confirm-booking');
     if(confirmBtn) confirmBtn.onclick = handleBookingConfirm;
@@ -236,12 +319,12 @@
           const d = resp.data; const prefix = fieldId.replace('cf-', '');
           const fields = {[`nome-${prefix}`]: d.Nome,[`data-nascita-${prefix}`]: d.DataNascita,[`luogo-nascita-${prefix}`]: d.LuogoNascita,[`comune-${prefix}`]: d.ComuneResidenza,[`via-${prefix}`]: d.ViaResidenza,[`civico-${prefix}`]: d.CivicoResidenza,[`patente-${prefix}`]: d.NumeroPatente,[`inizio-patente-${prefix}`]: d.DataInizioPatente,[`scadenza-patente-${prefix}`]: d.ScadenzaPatente,[`telefono-${prefix}`]: d.Cellulare,[`email-${prefix}`]: d.Email};
           Object.entries(fields).forEach(([id, value]) => { const el = qs(id); if(el && value) el.value = value; });
-          window.showToast?.('Cliente trovato e dati compilati automaticamente', 'success');
+          window.showToast?.('✅ Cliente trovato e dati compilati automaticamente', 'success');
         } else {
-          window.showToast?.('Cliente non trovato - compila manualmente', 'info');
+          window.showToast?.('ℹ️ Cliente non trovato - compila manualmente', 'info');
         }
       } catch(e) {
-        window.showToast?.('Errore ricerca cliente', 'error');
+        window.showToast?.('❌ Errore ricerca cliente', 'error');
       } finally {
         window.showLoader?.(false);
       }
@@ -254,15 +337,15 @@
     const patente1 = qs('patente-driver1')?.value?.trim();
     
     if(!cf1 || cf1.length !== 16) {
-      window.showToast?.('CF primo autista non valido', 'error');
+      window.showToast?.('❌ CF primo autista non valido', 'error');
       qs('cf-driver1')?.focus(); return;
     }
     if(!nome1) {
-      window.showToast?.('Nome primo autista obbligatorio', 'error');
+      window.showToast?.('❌ Nome primo autista obbligatorio', 'error');
       qs('nome-driver1')?.focus(); return;
     }
     if(!patente1) {
-      window.showToast?.('Numero patente primo autista obbligatorio', 'error');
+      window.showToast?.('❌ Numero patente primo autista obbligatorio', 'error');
       qs('patente-driver1')?.focus(); return;
     }
     
@@ -274,7 +357,7 @@
     });
     
     if(drivers.length === 0) {
-      window.showToast?.('Inserire almeno un autista', 'error'); return;
+      window.showToast?.('❌ Inserire almeno un autista', 'error'); return;
     }
     
     const payload = {targa: window.selectedVehicle?.Targa,dataInizio: window.searchParams?.dataInizio,dataFine: window.searchParams?.dataFine,oraInizio: window.searchParams?.oraInizio,oraFine: window.searchParams?.oraFine,destinazione: window.searchParams?.destinazione};
@@ -307,7 +390,9 @@
           try {
             const emailResp = await callAPI('inviaRiepilogo', {idPrenotazione: bookingId,email: email1});
             if(emailResp.success) window.showToast?.('📧 Email riepilogo inviata con link area personale', 'info');
-          } catch(e) {}
+          } catch(e) {
+            console.warn('[EMAIL] Send failed:', e);
+          }
         }
         setTimeout(() => location.reload(), 3000);
       } else {
@@ -331,5 +416,5 @@
     if(loginBtn) loginBtn.addEventListener('click', (e)=>{ e.preventDefault(); try{ doLogin(); }catch(err){ console.error(err); } });
   });
   
-  console.log('[SCRIPTS] v9.0 loaded - Complete step-by-step flow');
+  console.log('[SCRIPTS] v9.1 loaded - Complete flow with Continue button');
 })();
