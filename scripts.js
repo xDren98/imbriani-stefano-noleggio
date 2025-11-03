@@ -1,113 +1,134 @@
-/**
- * IMBRIANI STEFANO NOLEGGIO - SCRIPTS v8.4
- * Homepage: percorsi Nuovi Clienti (5 step) e Clienti Esistenti
- */
+// scripts.js v8.5 - robust event binding + unified login + safe guards
+(function(){
+  // Global safe guard for noisy extensions
+  window.addEventListener('error', (ev)=>{
+    try{ if((ev?.filename||'').includes('content_script.js')) { ev.preventDefault?.(); return false; } }catch(e){}
+  }, true);
 
-// Preserve existing variables/flows
-let selectedVehicle = window.selectedVehicle || null;
-let searchParams = window.searchParams || {};
-let vehicleModal = window.vehicleModal || null;
-let contactVerified = window.contactVerified || false;
-
-// Public hooks used by index.html
-window.startNewCustomerFlow = function(){
-  const modalEl = document.getElementById('newFlowModal');
-  if(!modalEl){ console.warn('newFlowModal mancante'); return; }
-  const modal = new bootstrap.Modal(modalEl);
-  let step = 0; // 0:disponibilità,1:veicolo,2:preventivo,3:autisti,4:conferma
-  const title = document.getElementById('newFlowTitle');
-  const body = document.getElementById('newFlowBody');
-  const prevBtn = document.getElementById('newPrev');
-  const nextBtn = document.getElementById('newNext');
-  const emailWrap = document.getElementById('emailOptinWrap');
-
-  function render(){
-    prevBtn.disabled = step===0;
-    emailWrap.classList.toggle('d-none', step!==4);
-    nextBtn.textContent = step===4? 'Conferma' : 'Avanti';
-    if(step===0){
-      title.textContent='Verifica disponibilità';
-      body.innerHTML=`
-        <div class="row g-3">
-          <div class="col-md-6"><label class="form-label">Data inizio</label><input id="nfStart" type="date" class="form-control" required></div>
-          <div class="col-md-6"><label class="form-label">Data fine</label><input id="nfEnd" type="date" class="form-control" required></div>
-          <div class="col-12"><label class="form-label">Destinazione</label><input id="nfDest" class="form-control" placeholder="Es. Bari → Lecce"></div>
-        </div>`;
-    }
-    if(step===1){
-      title.textContent='Seleziona pulmino';
-      body.innerHTML=`<div id="vehiclesContainer" class="row g-3"></div>`;
-      loadVehiclesForModal();
-    }
-    if(step===2){
-      title.textContent='Richiesta preventivo';
-      body.innerHTML=`<div class="alert alert-info">Verrà generato un riepilogo per la richiesta di preventivo.</div>`;
-    }
-    if(step===3){
-      title.textContent='Dati autisti (1–3)';
-      body.innerHTML=`
-        <div id="driversContainer"></div>
-        <button id="addDriver" class="btn btn-outline-primary btn-sm mt-2" type="button">Aggiungi Autista</button>`;
-      initDriversModal();
-    }
-    if(step===4){
-      title.textContent='Conferma';
-      body.innerHTML=`<p>Controlla i dati e conferma l'invio della richiesta.</p>`;
-    }
+  // Helpers
+  function qs(id){ return document.getElementById(id); }
+  async function callAPI(action, params={}){
+    if(typeof window.secureGet==='function') return await window.secureGet(action, params);
+    return { success:false, message:'secureGet missing' };
   }
 
-  async function loadVehiclesForModal(){
+  // Unified login (home + modal)
+  window.doLogin = function(){
+    const input = qs('cf-input') || qs('codiceFiscale');
+    const cf = (input?.value||'').toUpperCase();
+    if(cf.length!==16){ window.showToast?.('CF non valido','danger'); return; }
+    localStorage.setItem('USER_CF', cf);
+    try{ bootstrap.Modal.getInstance(qs('loginModal'))?.hide(); }catch(e){}
+    window.openPersonalArea?.();
+  };
+
+  // Open personal area
+  window.openPersonalArea = function(){
+    const cf = (localStorage.getItem('USER_CF')||'').trim();
+    if(!cf){ try{ new bootstrap.Modal('#loginModal').show(); }catch(e){} return; }
+    qs('personalArea')?.classList.remove('d-none');
+  };
+
+  // Availability flow
+  window.handleCheckAvailability = async function(){
+    const dr=qs('new-data-ritiro')?.value, dc=qs('new-data-consegna')?.value;
+    const or=qs('new-ora-ritiro')?.value||'08:00', oc=qs('new-ora-consegna')?.value||'20:00';
+    const de=qs('new-destinazione')?.value?.trim()||''; const posti=qs('new-posti')?.value||'9';
+    if(!dr||!dc){ window.showToast?.('Seleziona date ritiro e consegna','warning'); return; }
+    window.searchParams={dataInizio:dr,dataFine:dc,oraInizio:or,oraFine:oc,destinazione:de,posti};
     try{
-      const res = await callAPI('disponibilita', searchParams||{});
-      const cont = document.getElementById('vehiclesContainer');
-      if(!res||!Array.isArray(res?.veicoli)){ cont.innerHTML='<div class="col-12 text-muted">Nessun veicolo disponibile</div>'; return; }
-      cont.innerHTML = res.veicoli.map(v=>`<div class='col-md-6'><div class='card h-100 p-3'><h6 class='fw-bold'>${v.nome||v.modello}</h6><button class='btn btn-outline-primary btn-sm mt-2 selV' data-id='${v.id}'>Seleziona</button></div></div>`).join('');
-      cont.querySelectorAll('.selV').forEach(b=>b.onclick=()=>{ window._selectedVehicle=b.dataset.id; step=2; render(); });
+      const modal = new bootstrap.Modal(qs('vehicleModal'));
+      modal.show(); await loadVehicles();
+    }catch(e){ console.error(e); }
+  };
+
+  async function loadVehicles(){
+    try{
+      window.selectedVehicle=null;
+      const grid = document.getElementById('vehicles-grid'); if(!grid) return;
+      grid.innerHTML = '<div class="col-12 text-white-50">Caricamento veicoli…</div>';
+      const [flottaResp, dispResp] = await Promise.all([
+        callAPI('flotta',{method:'get'}), callAPI('disponibilita', window.searchParams||{})
+      ]);
+      const flotta=flottaResp?.success?flottaResp.data:[];
+      const disponibili=dispResp?.success?(dispResp.data?.disponibili||dispResp.data||[]):[];
+      const targhe=new Set(disponibili.map(v=>v.Targa));
+      flotta.forEach(v=>v.DisponibileDate=targhe.has(v.Targa));
+      renderVehicles(flotta);
     }catch(e){ console.error(e); }
   }
 
-  function initDriversModal(){
-    const cont = document.getElementById('driversContainer');
-    const add=(i)=>cont.insertAdjacentHTML('beforeend',`<div class='border rounded p-2 mb-2'>Autista ${i}<div class='row g-2 mt-1'><div class='col-md-6'><input class='form-control' placeholder='Nome Cognome' required></div><div class='col-md-6'><input class='form-control' placeholder='Codice Fiscale' maxlength='16' style='text-transform:uppercase' required></div></div></div>`);
-    add(1);
-    document.getElementById('addDriver').onclick=()=>{ const n=cont.querySelectorAll('.border.rounded').length; if(n<3) add(n+1); };
+  function renderVehicles(list){
+    const grid = document.getElementById('vehicles-grid'); if(!grid) return;
+    if(!list?.length){ grid.innerHTML='<div class="col-12 text-white-50">Nessun veicolo disponibile</div>'; bindContinue(false); return; }
+    grid.innerHTML = list.map(v=>{
+      const available=v.DisponibileDate&&v.Disponibile;
+      const badges=[available?'<span class="badge bg-success">Disponibile</span>':'<span class="badge bg-secondary">Manutenzione</span>'];
+      return `<div class='col-md-6 col-xl-4'><div class='vehicle-card glass-card p-3 h-100 ${!available?'disabled':''}' data-targa='${v.Targa}' data-vehicle='${encodeURIComponent(JSON.stringify(v))}'>
+        <div class='d-flex justify-content-between align-items-start mb-2'><h6 class='fw-bold mb-0'>${v.Marca} ${v.Modello}</h6><div class='d-flex flex-wrap gap-1'>${badges.join('')}</div></div>
+        <div class='text-muted small mb-2'><i class='fas fa-id-badge me-1'></i>Targa: ${v.Targa}</div>
+        <div class='text-muted small mb-3'><i class='fas fa-users me-1'></i>${v.Posti} posti</div>
+        <div class='d-grid'><button class='btn ${available?'btn-outline-primary':'btn-outline-secondary'} btn-sm vehicle-select' ${!available?'disabled':''}>${available?'Seleziona':'Non disponibile'}</button></div>
+      </div></div>`;
+    }).join('');
+    grid.querySelectorAll('.vehicle-card .vehicle-select').forEach(btn=>{
+      btn.addEventListener('click', (ev)=>{
+        const card = ev.target.closest('.vehicle-card'); if(!card||card.classList.contains('disabled')) return;
+        grid.querySelectorAll('.vehicle-card').forEach(c=>c.classList.remove('selected'));
+        card.classList.add('selected');
+        try{ window.selectedVehicle = JSON.parse(decodeURIComponent(card.dataset.vehicle)); }catch(e){ window.selectedVehicle=null; }
+        bindContinue(true);
+      });
+    });
+    bindContinue(false);
   }
 
-  prevBtn.onclick = ()=>{ if(step>0){ step--; render(); }};
-  nextBtn.onclick = async ()=>{
-    if(step===0){
-      const dr=document.getElementById('nfStart').value; const dc=document.getElementById('nfEnd').value; const de=document.getElementById('nfDest').value||'';
-      if(!dr||!dc){ showToast?.('Seleziona le date','warning'); return; }
-      searchParams={...(searchParams||{}), dataInizio:dr, dataFine:dc, destinazione:de};
-      step=1; render(); return;
-    }
-    if(step<4){ step++; render(); return; }
-    // Conferma
-    const emailOptin = document.getElementById('emailOptin').checked;
-    await callAPI('creaPrenotazione',{ vehicle: window._selectedVehicle, emailOptin });
-    modal.hide(); showToast?.('Richiesta inviata','success');
+  function bindContinue(enable){
+    const btn = document.getElementById('continue-selection'); if(!btn) return;
+    btn.disabled = !enable;
+    btn.onclick = ()=>{
+      if(!window.selectedVehicle) return;
+      try{ bootstrap.Modal.getInstance(qs('vehicleModal'))?.hide(); }catch(e){}
+      showQuoteStep();
+    };
+  }
+
+  window.showQuoteStep = function(){
+    const info = qs('veicolo-selezionato'); const stepPrev=qs('step-preventivo');
+    if(!window.selectedVehicle||!info||!stepPrev) return;
+    const v=window.selectedVehicle; const badge = (v.PassoLungo||v.Targa==='EC787NM')? ' <span class="badge bg-warning">Passo Lungo</span>':'';
+    info.innerHTML = `<strong>Veicolo selezionato:</strong><br><i class='fas fa-car me-1'></i>${v.Marca} ${v.Modello} (${v.Targa})${badge}`;
+    stepPrev.classList.remove('d-none'); stepPrev.scrollIntoView({behavior:'smooth'});
+    setupWhatsAppLink();
   };
 
-  render(); modal.show();
-};
+  function setupWhatsAppLink(){
+    const nomeEl=qs('nuovo-nome'); const cognEl=qs('nuovo-cognome'); const wa=qs('cta-whatsapp');
+    if(!nomeEl||!cognEl||!wa||!window.selectedVehicle) return;
+    const update=()=>{
+      const v=window.selectedVehicle; const phone='393286589618';
+      const ritiro = (window.formatItalianDateTime)? formatItalianDateTime(window.searchParams?.dataInizio, window.searchParams?.oraInizio): `${window.searchParams?.dataInizio} ${window.searchParams?.oraInizio}`;
+      const consegna = (window.formatItalianDateTime)? formatItalianDateTime(window.searchParams?.dataFine, window.searchParams?.oraFine): `${window.searchParams?.dataFine} ${window.searchParams?.oraFine}`;
+      const lines=[
+        'Richiesta preventivo — Imbriani Stefano Noleggio',
+        `Nome: ${nomeEl.value||''} ${cognEl.value||''}`,
+        `Ritiro: ${ritiro}`,
+        `Consegna: ${consegna}`,
+        `Destinazione: ${window.searchParams?.destinazione||''}`,
+        `Veicolo: ${v.Marca} ${v.Modello} (${v.Targa})${(v.PassoLungo||v.Targa==='EC787NM')?' - Passo Lungo':''}`
+      ];
+      wa.setAttribute('href', `https://wa.me/${phone}?text=${encodeURIComponent(lines.join('\n'))}`);
+    };
+    nomeEl.oninput = update; cognEl.oninput = update; update();
+  }
 
-window.openPersonalArea = function(){
-  const cf = (localStorage.getItem('USER_CF')||'').trim();
-  if(!cf){ new bootstrap.Modal('#loginModal').show(); return; }
-  document.getElementById('personalArea')?.classList.remove('d-none');
-};
-
-window.doLogin = async function(){
-  const cf=(document.getElementById('codiceFiscale')?.value||'').toUpperCase();
-  if(cf.length!==16){ showToast?.('CF non valido','danger'); return; }
-  localStorage.setItem('USER_CF', cf);
-  bootstrap.Modal.getInstance(document.getElementById('loginModal'))?.hide();
-  openPersonalArea();
-};
-
-// Shared secured API (delegates to shared-utils.js)
-async function callAPI(action, params){
-  if(typeof window.secureGet==='function') return await window.secureGet(action, params);
-  const url = `${window.API_URL}?action=${encodeURIComponent(action)}`;
-  return fetch(url).then(r=>r.json());
-}
+  // Bind events on DOM ready (robust)
+  document.addEventListener('DOMContentLoaded', ()=>{
+    // Inputs: reduce 3rd-party interference
+    ['new-data-ritiro','new-data-consegna','new-destinazione','nuovo-nome','nuovo-cognome','cf-input'].forEach(id=>{
+      const el=qs(id); if(el){ el.setAttribute('autocomplete','off'); el.setAttribute('autocorrect','off'); el.setAttribute('autocapitalize','off'); el.setAttribute('spellcheck','false'); }
+    });
+    qs('check-disponibilita')?.addEventListener('click', (e)=>{ e.preventDefault(); try{ handleCheckAvailability(); }catch(err){ console.error(err); } });
+    qs('login-btn')?.addEventListener('click', (e)=>{ e.preventDefault(); try{ doLogin(); }catch(err){ console.error(err); } });
+  });
+})();
