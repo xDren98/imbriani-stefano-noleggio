@@ -4,298 +4,176 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Imbriani Stefano Noleggio</title>
-  <meta name="description" content="Imbriani Stefano Noleggio - Sistema di prenotazione pulmini 9 posti. Percorsi per nuovi clienti e clienti esistenti.">
+  <meta name="description" content="Imbriani Stefano Noleggio - Prenotazione e accesso clienti. Verifica disponibilità e richiesta preventivo.">
   <meta name="theme-color" content="#0066FF">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚐</text></svg>">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=8006">
+  <link rel="stylesheet" href="styles.css?v=8007">
+  <style>
+    .hero-section{min-height:100svh;min-height:100vh;display:grid;align-items:start;padding-top:clamp(24px,6vh,56px);padding-bottom:clamp(16px,4vh,40px)}
+    .display-1-modern{font-size:clamp(2rem,4vw,3rem)}
+    .card-sep-title{font-weight:800;letter-spacing:-0.02em}
+    .card-sub{color:#94A3B8}
+    .v-sep{position:relative}
+    .v-sep::before{content:"";position:absolute;top:0;bottom:0;left:50%;width:2px;background:linear-gradient(180deg,rgba(99,102,241,.25),rgba(139,92,246,.25));filter:blur(.2px);transition:box-shadow .35s cubic-bezier(.4,0,.2,1)}
+    .v-sep:hover::before{box-shadow:0 0 16px 0 rgba(118,75,162,.18),0 0 32px 0 #6457fa33,0 0 8px 0 #fff6}
+    @media (max-width: 991.98px){.v-sep::before{display:none}}
+    .vehicle-card{cursor:pointer;transition:all .3s cubic-bezier(.4,0,.2,1)}
+    .vehicle-card:hover{transform:translateY(-4px)}
+    .vehicle-card.selected{border-color:#0066FF !important;box-shadow:0 0 0 3px rgba(0,102,255,.1)}
+    .vehicle-card.disabled{opacity:.5;cursor:not-allowed}
+    .modal-vehicle-select{backdrop-filter:blur(20px);background:rgba(0,0,0,.7)}
+  </style>
 </head>
 <body class="d-flex flex-column h-100">
-
-<!-- Hero Section con Due Percorsi -->
-<main class="flex-shrink-0">
-  <div class="hero-section bg-gradient position-relative overflow-hidden">
-    <div class="container position-relative z-2 py-5">
-      <!-- Header -->
+  <main class="hero-section flex-grow-1">
+    <div class="container">
       <div class="text-center mb-5 animate-fade-in-up">
-        <div class="d-flex align-items-center justify-content-center mb-4">
-          <div class="bg-white rounded-circle p-3 shadow-sm me-3" style="width: 80px; height: 80px;">
-            <i class="fas fa-van-shuttle text-primary" style="font-size: 2.5rem;"></i>
-          </div>
-          <div class="text-start">
-            <h1 class="display-1-modern hero-title mb-1">Imbriani Stefano</h1>
-            <p class="lead-modern mb-0">Noleggio Pulmini Professionale</p>
-          </div>
-        </div>
-        <p class="lead text-white-50 lh-base">
-          Scegli il percorso più adatto alle tue esigenze
-        </p>
+        <h1 class="display-1-modern hero-title mb-3">Imbriani Stefano Noleggio</h1>
+        <p class="lead-modern mx-auto" style="max-width:720px">Prenota il tuo pulmino 9 posti con il sistema più moderno e sicuro d'Italia. Gestione digitale completa, supporto 24/7.</p>
       </div>
-      
-      <!-- Due Sezioni Principali -->
-      <div class="row g-5 justify-content-center">
-        <!-- NUOVI CLIENTI -->
-        <div class="col-lg-5">
-          <div class="glass-card p-5 h-100 text-center animate-fade-in-up">
-            <div class="mb-4">
-              <div class="bg-success bg-gradient rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
-                <i class="fas fa-user-plus text-white fs-1"></i>
-              </div>
-              <h3 class="fw-bold mb-3">Nuovi Clienti</h3>
-              <p class="text-white-50 mb-4 lh-base">
-                Prima volta con noi? Ti guidiamo step-by-step per trovare la soluzione perfetta.
-              </p>
-            </div>
-            
-            <div class="mb-4">
-              <h6 class="fw-semibold mb-3 text-success">
-                <i class="fas fa-route me-2"></i>
-                Il tuo percorso in 5 step:
-              </h6>
-              <div class="text-start">
-                <div class="d-flex align-items-center mb-2">
-                  <span class="badge bg-success me-3" style="width: 24px; height: 24px; border-radius: 50%; font-size: 0.75rem;">1</span>
-                  <small class="text-white-75">Verifica disponibilità</small>
-                </div>
-                <div class="d-flex align-items-center mb-2">
-                  <span class="badge bg-success me-3" style="width: 24px; height: 24px; border-radius: 50%; font-size: 0.75rem;">2</span>
-                  <small class="text-white-75">Scegli il pulmino</small>
-                </div>
-                <div class="d-flex align-items-center mb-2">
-                  <span class="badge bg-success me-3" style="width: 24px; height: 24px; border-radius: 50%; font-size: 0.75rem;">3</span>
-                  <small class="text-white-75">Richiedi preventivo</small>
-                </div>
-                <div class="d-flex align-items-center mb-2">
-                  <span class="badge bg-success me-3" style="width: 24px; height: 24px; border-radius: 50%; font-size: 0.75rem;">4</span>
-                  <small class="text-white-75">Dati autisti (1-3)</small>
-                </div>
-                <div class="d-flex align-items-center mb-3">
-                  <span class="badge bg-success me-3" style="width: 24px; height: 24px; border-radius: 50%; font-size: 0.75rem;">5</span>
-                  <small class="text-white-75">Conferma (email opzionale)</small>
-                </div>
+
+      <div class="row g-4 align-items-stretch v-sep">
+        <div class="col-lg-6">
+          <div class="glass-card h-100 p-4">
+            <h3 class="card-sep-title d-flex align-items-center mb-2"><i class="fas fa-user-plus me-2 text-success"></i>Nuovo Cliente</h3>
+            <p class="card-sub mb-4">Verifica disponibilità e richiedi il preventivo.</p>
+
+            <div class="mb-3">
+              <h6 class="fw-bold mb-2"><span class="badge bg-primary me-2">1</span> Verifica disponibilità</h6>
+              <div class="row g-3">
+                <div class="col-md-6"><label class="form-label fw-semibold">Data Ritiro</label><input type="date" id="new-data-ritiro" class="form-control form-control-modern"></div>
+                <div class="col-md-6"><label class="form-label fw-semibold">Ora Ritiro</label><select id="new-ora-ritiro" class="form-select form-control-modern"><option>08:00</option><option>12:00</option><option>16:00</option><option>20:00</option></select></div>
+                <div class="col-md-6"><label class="form-label fw-semibold">Data Consegna</label><input type="date" id="new-data-consegna" class="form-control form-control-modern"></div>
+                <div class="col-md-6"><label class="form-label fw-semibold">Ora Consegna</label><select id="new-ora-consegna" class="form-select form-control-modern"><option>08:00</option><option>12:00</option><option>16:00</option><option>20:00</option></select></div>
+                <div class="col-12"><label class="form-label fw-semibold">Destinazione</label><input type="text" id="new-destinazione" class="form-control form-control-modern" placeholder="es. Aeroporto di Bari, Roma..."></div>
+                <div class="col-md-6"><label class="form-label fw-semibold">Posti</label><select id="new-posti" class="form-select form-control-modern"><option value="9" selected>9 posti</option></select></div>
+                <div class="col-md-6 d-grid align-self-end"><button type="button" id="check-disponibilita" class="btn btn-premium"><i class="fas fa-search me-2"></i>Verifica e Seleziona Veicolo</button></div>
               </div>
             </div>
-            
-            <div class="d-grid">
-              <button type="button" class="btn-premium" id="startNewFlow">
-                <i class="fas fa-play me-2"></i>
-                Inizia Verifica Disponibilità
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <!-- CLIENTI ESISTENTI -->
-        <div class="col-lg-5">
-          <div class="glass-card p-5 h-100 text-center animate-fade-in-up animation-delay-100">
-            <div class="mb-4">
-              <div class="bg-primary bg-gradient rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
-                <i class="fas fa-users text-white fs-1"></i>
+
+            <div id="step-preventivo" class="d-none">
+              <h6 class="fw-bold mb-2"><span class="badge bg-success me-2">2</span> Richiedi il preventivo (obbligatorio)</h6>
+              <div id="veicolo-selezionato" class="alert alert-info mb-3"></div>
+              <div class="row g-3">
+                <div class="col-md-6"><label class="form-label fw-semibold">Nome</label><input type="text" id="nuovo-nome" class="form-control form-control-modern" placeholder="Mario"></div>
+                <div class="col-md-6"><label class="form-label fw-semibold">Cognome</label><input type="text" id="nuovo-cognome" class="form-control form-control-modern" placeholder="Rossi"></div>
               </div>
-              <h3 class="fw-bold mb-3">Clienti Esistenti</h3>
-              <p class="text-white-50 mb-4 lh-base">
-                Hai già prenotato con noi? Accedi rapidamente alla tua area riservata.
-              </p>
-            </div>
-            
-            <div class="mb-4">
-              <div class="alert alert-info border-0" style="background: rgba(0, 102, 255, 0.15); border-radius: 12px;">
-                <i class="fas fa-info-circle me-2"></i>
-                <small>Dopo l'accesso potrai creare nuove prenotazioni a tuo nome e gestire quelle esistenti.</small>
-              </div>
-            </div>
-            
-            <div class="d-grid gap-3">
-              <button type="button" class="btn btn-outline-light btn-lg" style="border-radius: 12px; font-weight: 600;" data-bs-toggle="modal" data-bs-target="#loginModal">
-                <i class="fas fa-user-circle me-2"></i>
-                Accedi con Codice Fiscale
-              </button>
-              
-              <div class="text-center mt-3">
-                <small class="text-white-50">
-                  <i class="fas fa-shield-alt me-1"></i>
-                  Accesso sicuro e protetto
-                </small>
+              <div class="d-flex flex-wrap gap-2 mt-3">
+                <a id="cta-whatsapp" target="_blank" class="btn btn-success"><i class="fab fa-whatsapp me-2"></i>Richiedi preventivo su WhatsApp</a>
+                <a href="tel:3286589618" class="btn btn-outline-light"><i class="fas fa-phone me-2"></i>Chiama 328 658 9618</a>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-    
-    <!-- Decorazioni di sfondo -->
-    <div class="position-absolute top-0 end-0 w-50 h-100 opacity-10">
-      <svg width="100%" height="100%" viewBox="0 0 400 400" fill="none">
-        <defs>
-          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" stroke-width="1" opacity="0.3"/>
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" />
-      </svg>
-    </div>
-  </div>
-</main>
 
-<!-- Modal Login Clienti Esistenti -->
-<div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content shadow">
-      <div class="modal-header border-0 pb-0">
-        <h1 class="modal-title fs-4 fw-bold text-white" id="loginModalLabel">
-          <i class="fas fa-user-circle text-primary me-2"></i>
-          Accesso Clienti Esistenti
-        </h1>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        <div class="col-lg-6">
+          <div class="glass-card h-100 p-4">
+            <h3 class="card-sep-title d-flex align-items-center mb-2"><i class="fas fa-user-check me-2 text-primary"></i>Cliente Esistente</h3>
+            <p class="card-sub mb-4">Accedi alla tua area riservata per gestire le prenotazioni.</p>
+
+            <div class="text-center mb-4">
+              <div class="d-inline-flex align-items-center justify-content-center" style="width:80px;height:80px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border-radius:50%;margin-bottom:24px">
+                <i class="fas fa-id-card text-white" style="font-size:2rem"></i>
+              </div>
+            </div>
+            <form class="needs-validation" novalidate>
+              <div class="mb-3">
+                <label for="cf-input" class="form-label fw-semibold">Codice Fiscale</label>
+                <div class="position-relative">
+                  <input type="text" class="form-control form-control-modern" id="cf-input" placeholder="RSSMRA85M01H501Z" maxlength="16" autocomplete="off" style="padding-left:50px">
+                  <i class="fas fa-user position-absolute" style="left:18px;top:50%;transform:translateY(-50%);color:#94A3B8"></i>
+                </div>
+                <div class="form-text"><i class="fas fa-info-circle me-1"></i>16 caratteri alfanumerici del tuo CF</div>
+              </div>
+              <div class="d-grid">
+                <button type="button" id="login-btn" class="btn btn-premium"><i class="fas fa-sign-in-alt me-2"></i>Accedi all'Area Personale</button>
+              </div>
+            </form>
+
+            <hr class="my-4"/>
+            <div class="small text-muted">Hai bisogno di aiuto? <a href="https://wa.me/393286589618" target="_blank" class="link-primary">WhatsApp</a> oppure chiama <a href="tel:3286589618" class="link-primary">328 658 9618</a>.</div>
+          </div>
+        </div>
       </div>
-      <div class="modal-body px-4 py-4">
-        <form id="loginForm">
-          <div class="mb-4">
-            <label for="codiceFiscale" class="form-label fw-semibold text-white">Codice Fiscale</label>
-            <input type="text" class="form-control-modern" id="codiceFiscale" maxlength="16" 
-                   placeholder="RSSMRA80A01H501Z" style="text-transform: uppercase;" required>
-            <div class="form-text">
-              <i class="fas fa-info-circle me-1"></i>
-              Inserisci il tuo CF per accedere all'area personale
+    </div>
+  </main>
+
+  <!-- Modale selezione veicoli -->
+  <div class="modal fade" id="vehicleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen">
+      <div class="modal-content modal-vehicle-select">
+        <div class="modal-header border-0 pb-0">
+          <div class="container">
+            <div class="row">
+              <div class="col">
+                <h4 class="modal-title text-white fw-bold"><i class="fas fa-car me-2"></i>Seleziona il tuo veicolo</h4>
+                <p class="text-white-50 mb-0">Scegli il pulmino perfetto per il tuo viaggio</p>
+              </div>
+              <div class="col-auto">
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+              </div>
             </div>
           </div>
-          
-          <div class="d-grid gap-3">
-            <button type="submit" class="btn-premium" id="loginBtn">
-              <span class="spinner-border spinner-border-sm me-2 d-none" id="loginSpinner" role="status"></span>
-              <i class="fas fa-sign-in-alt me-2" id="loginIcon"></i>
-              <span id="loginText">Accedi all'Area Personale</span>
-            </button>
-          </div>
-        </form>
-        
-        <div class="text-center mt-4 pt-3" style="border-top: 1px solid rgba(255, 255, 255, 0.1);">
-          <p class="text-white-50 small mb-0">
-            <i class="fas fa-shield-alt me-1"></i>
-            I tuoi dati sono protetti con crittografia SSL
-          </p>
         </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Stepper Modal per Nuovi Clienti -->
-<div class="modal fade" id="newFlowModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content shadow">
-      <div class="modal-header border-0">
-        <h1 class="modal-title fs-4 fw-bold text-white" id="newFlowTitle">Verifica Disponibilità</h1>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button>
-      </div>
-      <div class="modal-body p-4" id="newFlowBody">
-        <!-- Content dinamico step-by-step -->
-      </div>
-      <div class="modal-footer border-0">
-        <button type="button" class="btn btn-outline-light" id="newPrev" disabled>
-          <i class="fas fa-arrow-left me-2"></i>Indietro
-        </button>
-        <div class="d-flex align-items-center gap-3">
-          <div class="form-check me-2 d-none" id="emailOptinWrap">
-            <input class="form-check-input" type="checkbox" id="emailOptin">
-            <label class="form-check-label text-white" for="emailOptin">
-              <i class="fas fa-envelope me-1"></i>
-              Ricevi aggiornamenti via email
-            </label>
-          </div>
-          <button type="button" class="btn-premium" id="newNext">
-            Avanti
-            <i class="fas fa-arrow-right ms-2"></i>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Area Personale (inizialmente nascosta) -->
-<div id="personalArea" class="d-none">
-  <div class="container-fluid px-3 px-lg-4 py-4">
-    <!-- Area personale content will be dynamically loaded -->
-    <div class="glass-card p-4">
-      <h3 class="fw-bold mb-3 text-white">
-        <i class="fas fa-user-circle text-primary me-2"></i>
-        Area Personale
-      </h3>
-      <p class="text-white-50">Benvenuto nella tua area riservata.</p>
-      <div class="d-flex gap-3 mt-4">
-        <button class="btn-premium" id="newBookingForClient">
-          <i class="fas fa-plus me-2"></i>
-          Nuova Prenotazione
-        </button>
-        <button class="btn btn-outline-light" id="viewMyBookings">
-          <i class="fas fa-list me-2"></i>
-          Le Mie Prenotazioni
-        </button>
-        <button class="btn btn-outline-secondary" id="logoutBtn">
-          <i class="fas fa-sign-out-alt me-2"></i>
-          Esci
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Footer -->
-<footer class="bg-dark text-white py-4 mt-auto" style="background: var(--dark-card) !important; border-top: 1px solid rgba(255, 255, 255, 0.1);">
-  <div class="container">
-    <div class="row align-items-center">
-      <div class="col-md-6">
-        <div class="d-flex align-items-center">
-          <i class="fas fa-van-shuttle text-primary me-3 fs-4"></i>
-          <div>
-            <h6 class="mb-0 fw-bold text-white">Imbriani Stefano Noleggio</h6>
-            <small class="text-white-50">Il tuo partner per la mobilità in Puglia</small>
+        <div class="modal-body">
+          <div class="container">
+            <div class="glass-card p-3 mb-4">
+              <div class="row g-3 align-items-center">
+                <div class="col-md-3">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="filter-disponibili" checked>
+                    <label class="form-check-label fw-semibold" for="filter-disponibili">Solo disponibili</label>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="filter-manutenzione">
+                    <label class="form-check-label fw-semibold" for="filter-manutenzione">Includi manutenzione</label>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <input type="text" id="filter-search" class="form-control form-control-modern" placeholder="🔍 Cerca per marca, modello, targa...">
+                </div>
+                <div class="col-md-2">
+                  <select id="filter-posti" class="form-select form-control-modern">
+                    <option value="">Tutti i posti</option>
+                    <option value="9">9 posti</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div id="vehicles-grid" class="row g-4 mb-4"></div>
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <span id="vehicles-count" class="text-white-50">Caricamento...</span>
+              </div>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Annulla</button>
+                <button type="button" id="continue-selection" class="btn btn-premium" disabled>Continua con questo veicolo</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-      <div class="col-md-6 text-md-end mt-3 mt-md-0">
-        <div class="d-flex flex-column align-items-md-end">
-          <div class="mb-2">
-            <a href="tel:+393286589618" class="text-white text-decoration-none me-3 link-primary">
-              <i class="fas fa-phone me-1"></i> +39 328 658 9618
-            </a>
-            <a href="mailto:info@imbrianinoleggio.it" class="text-white text-decoration-none link-primary">
-              <i class="fas fa-envelope me-1"></i> info@imbrianinoleggio.it
-            </a>
-          </div>
-          <small class="text-white-50">&copy; 2025 Tutti i diritti riservati</small>
-        </div>
-      </div>
     </div>
   </div>
-</footer>
 
-<!-- Toast Container -->
-<div class="toast-container position-fixed bottom-0 end-0 p-3">
-  <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-    <div class="toast-header">
-      <i class="fas fa-info-circle text-primary me-2" id="toastIcon"></i>
-      <strong class="me-auto" id="toastTitle">Notifica</strong>
-      <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Chiudi"></button>
-    </div>
-    <div class="toast-body" id="toastBody"></div>
-  </div>
-</div>
+  <div class="position-fixed bottom-0 end-0 p-4" style="z-index:1040"><a href="https://wa.me/393286589618" target="_blank" class="btn btn-success rounded-circle d-flex align-items-center justify-content-center" style="width:60px;height:60px;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 10px 10px -5px rgba(0,0,0,.04);transition:all .3s cubic-bezier(.4,0,.2,1)" onmouseover="this.style.transform='scale(1.1) rotate(5deg)'" onmouseout="this.style.transform='scale(1) rotate(0deg)'"><i class="fab fa-whatsapp" style="font-size:1.5rem"></i></a></div>
 
-<!-- Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="config.js"></script>
-<script src="shared-utils.js"></script>
-<script src="format-helpers.js"></script>
-<script src="scripts.js"></script>
-<script src="booking-submit.js"></script>
-<script src="safe-whatsapp-fix.js"></script>
-<script src="whatsapp-loader.js"></script>
-<script src="loader-diagnostics.js?v=8"></script>
-<script>if(window.bindCFHandlers) bindCFHandlers();</script>
+  <div id="spinner" class="loader-premium d-none"><div class="loader-spinner"></div><div class="loader-text" id="loader-message">Caricamento...</div></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="config.js"></script>
+  <script src="shared-utils.js"></script>
+  <script src="format-helpers.js"></script>
+  <script src="scripts.js"></script>
+  <script src="booking-submit.js"></script>
+  <script src="safe-whatsapp-fix.js"></script>
+  <script src="whatsapp-loader.js"></script>
+  <script src="loader-diagnostics.js?v=8"></script>
+  <script>if(window.bindCFHandlers) bindCFHandlers();</script>
 </body>
 </html>
