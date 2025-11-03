@@ -1,31 +1,16 @@
 {
-  "name": "imbriani-noleggio",
-  "version": "8.1.0",
-  "description": "Sistema di prenotazione pulmini 9 posti per Imbriani Stefano Noleggio",
-  "main": "index.html",
+  "name": "imbriani-stefano-noleggio",
+  "version": "8.2.0",
+  "private": true,
   "scripts": {
-    "start": "python -m http.server 8000",
-    "serve": "npx serve .",
-    "dev": "npx serve . --listen 3000",
-    "test": "echo 'Open http://localhost:8000/diagnostics.html for tests'"
+    "apps:login": "npx clasp login --no-localhost",
+    "apps:pull": "npx clasp pull",
+    "apps:push": "npx clasp push -f",
+    "apps:deploy": "npx clasp deploy -d 'Deploy v8.2'",
+    "apps:open": "npx clasp open",
+    "apps:publish": "npm run apps:push && npm run apps:deploy && npm run apps:open"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/xDren98/imbriani-noleggio.git"
-  },
-  "keywords": [
-    "booking",
-    "rental",
-    "pulmini",
-    "noleggio",
-    "imbriani"
-  ],
-  "author": "Antonio Mello <dreenhd@gmail.com>",
-  "license": "MIT",
   "devDependencies": {
-    "serve": "^14.0.0"
-  },
-  "engines": {
-    "node": ">=16.0.0"
+    "@google/clasp": "^2.4.2"
   }
 }
