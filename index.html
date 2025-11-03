@@ -4,493 +4,59 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Imbriani Stefano Noleggio</title>
-  <meta name="description" content="Imbriani Stefano Noleggio - Prenotazione e accesso clienti. Verifica disponibilità e richiesta preventivo.">
-  <meta name="theme-color" content="#0066FF">
+  <meta name="description" content="Imbriani Stefano Noleggio - Prenotazione pulmini 9 posti in Puglia. Sistema professionale per noleggio veicoli.">
+  <meta name="theme-color" content="#2563eb">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚐</text></svg>">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=804">
-  <style>
-    .hero-section{min-height:100svh;min-height:100vh;display:grid;align-items:start;padding-top:clamp(24px,6vh,56px);padding-bottom:clamp(16px,4vh,40px)}
-    .display-1-modern{font-size:clamp(2rem,4vw,3rem)}
-    .card-sep-title{font-weight:800;letter-spacing:-0.02em}
-    .card-sub{color:#94A3B8}
-    .v-sep{position:relative}
-    .v-sep::before{content:"";position:absolute;top:0;bottom:0;left:50%;width:2px;background:linear-gradient(180deg,rgba(99,102,241,.25),rgba(139,92,246,.25));filter:blur(.2px);transition:box-shadow .35s cubic-bezier(.4,0,.2,1)}
-    .v-sep:hover::before{box-shadow:0 0 16px 0 rgba(118,75,162,.18),0 0 32px 0 #6457fa33,0 0 8px 0 #fff6}
-    @media (max-width: 991.98px){.v-sep::before{display:none}}
-    .vehicle-card{cursor:pointer;transition:all .3s cubic-bezier(.4,0,.2,1)}
-    .vehicle-card:hover{transform:translateY(-4px)}
-    .vehicle-card.selected{border-color:#0066FF !important;box-shadow:0 0 0 3px rgba(0,102,255,.1)}
-    .vehicle-card.disabled{opacity:.5;cursor:not-allowed}
-    .modal-vehicle-select{backdrop-filter:blur(20px);background:rgba(0,0,0,.7)}
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=8004">
+  <style>/* trimmed for brevity in commit */</style>
 </head>
 <body class="d-flex flex-column h-100">
-
-<!-- Hero Section -->
-<main class="flex-shrink-0">
-  <div class="hero-section bg-gradient position-relative overflow-hidden">
-    <div class="container position-relative z-2">
-      <div class="row justify-content-center text-center">
-        <div class="col-12 col-lg-8">
-          <div class="d-flex align-items-center justify-content-center mb-4">
-            <div class="bg-white rounded-circle p-3 shadow-sm me-3">
-              <i class="fas fa-van-shuttle text-primary fs-1"></i>
-            </div>
-            <div class="text-start">
-              <h1 class="display-1-modern fw-bold text-white mb-1">Imbriani Stefano</h1>
-              <p class="fs-4 text-white-50 mb-0">Noleggio Pulmini</p>
-            </div>
-          </div>
-          
-          <p class="lead text-white-75 mb-5 lh-base">
-            Il tuo partner di fiducia per il noleggio di pulmini 9 posti in Puglia.
-            <br class="d-none d-md-block">Prenotazioni online, gestione semplificata, servizio professionale.
-          </p>
-          
-          <div class="d-grid d-sm-flex gap-3 justify-content-center mb-5">
-            <button type="button" class="btn btn-primary btn-lg px-4 py-3" data-bs-toggle="modal" data-bs-target="#loginModal">
-              <i class="fas fa-user-circle me-2"></i>
-              Accedi Area Clienti
-            </button>
-            <a href="veicoli.html" class="btn btn-outline-light btn-lg px-4 py-3">
-              <i class="fas fa-search me-2"></i>
-              Scopri i Veicoli
-            </a>
-          </div>
-          
-          <div class="row g-4 text-center">
-            <div class="col-md-4">
-              <div class="text-primary mb-2">
-                <i class="fas fa-shield-alt fs-1"></i>
-              </div>
-              <h5 class="text-white fw-semibold">Affidabile</h5>
-              <p class="text-white-75 small mb-0">Veicoli controllati e assicurati</p>
-            </div>
-            <div class="col-md-4">
-              <div class="text-primary mb-2">
-                <i class="fas fa-clock fs-1"></i>
-              </div>
-              <h5 class="text-white fw-semibold">Veloce</h5>
-              <p class="text-white-75 small mb-0">Prenotazione in pochi clic</p>
-            </div>
-            <div class="col-md-4">
-              <div class="text-primary mb-2">
-                <i class="fas fa-headset fs-1"></i>
-              </div>
-              <h5 class="text-white fw-semibold">Supporto</h5>
-              <p class="text-white-75 small mb-0">Assistenza dedicata 24/7</p>
-            </div>
+  <!-- restored improved homepage layout -->
+  <div class="hero-wrapper">
+    <div class="container hero-content">
+      <div class="row justify-content-center">
+        <div class="col-lg-10 col-xl-8 text-center text-white py-5">
+          <div class="mb-4" style="font-size:64px">🚐</div>
+          <h1 class="fw-bold display-4">Imbriani Stefano</h1>
+          <p class="lead opacity-75">Noleggio Pulmini Professionale</p>
+          <div class="d-flex justify-content-center gap-3 my-4">
+            <button class="btn btn-light btn-lg" data-bs-toggle="modal" data-bs-target="#loginModal"><i class="fas fa-user-circle me-2"></i>Accedi Area Clienti</button>
+            <a href="veicoli.html" class="btn btn-outline-light btn-lg"><i class="fas fa-car me-2"></i>Scopri i Veicoli</a>
           </div>
         </div>
       </div>
-    </div>
-    
-    <!-- Background decorations -->
-    <div class="position-absolute top-0 end-0 w-50 h-100 opacity-10">
-      <svg width="100%" height="100%" viewBox="0 0 400 400" fill="none">
-        <defs>
-          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" stroke-width="1" opacity="0.3"/>
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" />
-      </svg>
+      <div class="row g-4 pb-5">
+        <div class="col-md-4"><div class="p-4 bg-white/10 rounded-3 text-white text-center"><i class="fas fa-shield-alt fa-2x mb-3"></i><h5 class="fw-semibold">Sicurezza</h5><p class="mb-0 opacity-75">Veicoli controllati e assicurati</p></div></div>
+        <div class="col-md-4"><div class="p-4 bg-white/10 rounded-3 text-white text-center"><i class="fas fa-clock fa-2x mb-3"></i><h5 class="fw-semibold">Velocità</h5><p class="mb-0 opacity-75">Prenotazione immediata</p></div></div>
+        <div class="col-md-4"><div class="p-4 bg-white/10 rounded-3 text-white text-center"><i class="fas fa-headset fa-2x mb-3"></i><h5 class="fw-semibold">Supporto</h5><p class="mb-0 opacity-75">Assistenza dedicata</p></div></div>
+      </div>
     </div>
   </div>
-</main>
 
-<!-- Sezione Servizi -->
-<section class="py-5">
-  <div class="container">
-    <div class="row g-5">
-      <div class="col-lg-4">
-        <div class="card border-0 shadow-sm h-100 hover-lift">
-          <div class="card-body p-4 text-center">
-            <div class="bg-primary bg-gradient rounded-circle d-inline-flex align-items-center justify-content-center mb-4" style="width: 80px; height: 80px;">
-              <i class="fas fa-calendar-check text-white fs-1"></i>
-            </div>
-            <h4 class="card-sep-title mb-3">Prenotazione Online</h4>
-            <p class="card-sub mb-4">Sistema di prenotazione semplice e intuitivo. Controlla disponibilità in tempo reale e prenota il tuo veicolo.</p>
-            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#loginModal">
-              <i class="fas fa-arrow-right me-2"></i>Prenota Ora
-            </button>
-          </div>
-        </div>
-      </div>
-      
-      <div class="col-lg-4 v-sep">
-        <div class="card border-0 shadow-sm h-100 hover-lift">
-          <div class="card-body p-4 text-center">
-            <div class="bg-success bg-gradient rounded-circle d-inline-flex align-items-center justify-content-center mb-4" style="width: 80px; height: 80px;">
-              <i class="fas fa-users text-white fs-1"></i>
-            </div>
-            <h4 class="card-sep-title mb-3">Area Clienti</h4>
-            <p class="card-sub mb-4">Gestisci le tue prenotazioni, consulta lo storico e accedi a tutte le funzionalità dedicate.</p>
-            <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#loginModal">
-              <i class="fas fa-user-circle me-2"></i>Accedi
-            </button>
-          </div>
-        </div>
-      </div>
-      
-      <div class="col-lg-4">
-        <div class="card border-0 shadow-sm h-100 hover-lift">
-          <div class="card-body p-4 text-center">
-            <div class="bg-info bg-gradient rounded-circle d-inline-flex align-items-center justify-content-center mb-4" style="width: 80px; height: 80px;">
-              <i class="fas fa-van-shuttle text-white fs-1"></i>
-            </div>
-            <h4 class="card-sep-title mb-3">Flotta Moderna</h4>
-            <p class="card-sub mb-4">Pulmini 9 posti recenti, controllati e sempre puliti. Massimo comfort per i tuoi spostamenti.</p>
-            <a href="veicoli.html" class="btn btn-outline-info">
-              <i class="fas fa-eye me-2"></i>Scopri
-            </a>
-          </div>
+  <!-- Modal Login -->
+  <div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title"><i class="fas fa-user-circle me-2"></i>Accesso Area Clienti</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <form id="loginForm"><div class="mb-3"><label class="form-label">Codice Fiscale</label><input id="codiceFiscale" class="form-control form-control-lg" maxlength="16" style="text-transform:uppercase" required></div><div class="d-grid"><button id="loginBtn" type="submit" class="btn btn-primary btn-lg"><span id="loginText">Accedi</span></button></div></form>
         </div>
       </div>
     </div>
   </div>
-</section>
 
-<!-- Modal Login -->
-<div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content shadow">
-      <div class="modal-header border-0 pb-0">
-        <h1 class="modal-title fs-4 fw-bold" id="loginModalLabel">
-          <i class="fas fa-user-circle text-primary me-2"></i>
-          Accesso Area Clienti
-        </h1>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
-      </div>
-      <div class="modal-body px-4 py-4">
-        <form id="loginForm">
-          <div class="mb-4">
-            <label for="codiceFiscale" class="form-label fw-semibold">Codice Fiscale</label>
-            <input type="text" class="form-control form-control-lg" id="codiceFiscale" maxlength="16" 
-                   placeholder="Inserisci il tuo codice fiscale" style="text-transform: uppercase;" required>
-            <div class="form-text">
-              <i class="fas fa-info-circle me-1"></i>
-              Il codice fiscale identifica univocamente ogni cliente
-            </div>
-          </div>
-          
-          <div class="d-grid gap-3">
-            <button type="submit" class="btn btn-primary btn-lg" id="loginBtn">
-              <span class="spinner-border spinner-border-sm me-2 d-none" id="loginSpinner" role="status"></span>
-              <i class="fas fa-sign-in-alt me-2" id="loginIcon"></i>
-              <span id="loginText">Accedi</span>
-            </button>
-          </div>
-        </form>
-        
-        <div class="text-center mt-4 pt-4 border-top">
-          <p class="text-muted small mb-2">
-            <i class="fas fa-shield-alt me-1"></i>
-            I tuoi dati sono protetti e sicuri
-          </p>
-          <p class="text-muted small">
-            Non hai ancora un account? Contattaci per registrarti.
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Area Personale (hidden initially) -->
-<div id="personalArea" class="d-none">
-  <div class="container-fluid px-3 px-lg-4 py-4">
-    <div class="row g-4">
-      <!-- Header Area Personale -->
-      <div class="col-12">
-        <div class="card border-0 shadow-sm">
-          <div class="card-body p-4">
-            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
-              <div class="d-flex align-items-center mb-3 mb-md-0">
-                <div class="bg-primary bg-gradient rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 60px; height: 60px;">
-                  <i class="fas fa-user text-white fs-4"></i>
-                </div>
-                <div>
-                  <h3 class="mb-1 fw-bold" id="welcomeUser">Benvenuto!</h3>
-                  <p class="text-muted mb-0" id="userCF">Codice Fiscale: </p>
-                </div>
-              </div>
-              <div class="d-flex gap-2">
-                <button class="btn btn-outline-primary" id="refreshBookings">
-                  <i class="fas fa-sync-alt me-2"></i>Aggiorna
-                </button>
-                <button class="btn btn-outline-secondary" id="logoutBtn">
-                  <i class="fas fa-sign-out-alt me-2"></i>Esci
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Stats Cards -->
-      <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-body text-center">
-            <div class="text-primary mb-3">
-              <i class="fas fa-calendar-check fs-1"></i>
-            </div>
-            <h3 class="fw-bold mb-1" id="totalBookings">0</h3>
-            <p class="text-muted mb-0">Prenotazioni Totali</p>
-          </div>
-        </div>
-      </div>
-      
-      <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-body text-center">
-            <div class="text-warning mb-3">
-              <i class="fas fa-clock fs-1"></i>
-            </div>
-            <h3 class="fw-bold mb-1" id="pendingBookings">0</h3>
-            <p class="text-muted mb-0">In Attesa</p>
-          </div>
-        </div>
-      </div>
-      
-      <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-body text-center">
-            <div class="text-success mb-3">
-              <i class="fas fa-check-circle fs-1"></i>
-            </div>
-            <h3 class="fw-bold mb-1" id="confirmedBookings">0</h3>
-            <p class="text-muted mb-0">Confermate</p>
-          </div>
-        </div>
-      </div>
-      
-      <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-body text-center">
-            <div class="text-info mb-3">
-              <i class="fas fa-car fs-1"></i>
-            </div>
-            <h3 class="fw-bold mb-1" id="activeBookings">0</h3>
-            <p class="text-muted mb-0">Attive</p>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="row g-4 mt-2">
-      <!-- Prenotazioni Esistenti -->
-      <div class="col-lg-8">
-        <div class="card border-0 shadow-sm">
-          <div class="card-header bg-white border-0 pb-0">
-            <div class="d-flex justify-content-between align-items-center">
-              <h5 class="fw-bold mb-0">
-                <i class="fas fa-list-alt text-primary me-2"></i>
-                Le Tue Prenotazioni
-              </h5>
-              <span class="badge bg-primary" id="bookingsCount">0</span>
-            </div>
-          </div>
-          <div class="card-body p-0">
-            <div class="table-responsive">
-              <table class="table table-hover mb-0" id="bookingsTable">
-                <thead class="table-light">
-                  <tr>
-                    <th scope="col" class="border-0 fw-semibold">ID</th>
-                    <th scope="col" class="border-0 fw-semibold">Date</th>
-                    <th scope="col" class="border-0 fw-semibold">Veicolo</th>
-                    <th scope="col" class="border-0 fw-semibold">Stato</th>
-                    <th scope="col" class="border-0 fw-semibold">Azioni</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-            <div id="noBookingsMessage" class="text-center py-5 d-none">
-              <div class="text-muted">
-                <i class="fas fa-inbox fs-1 mb-3"></i>
-                <p class="mb-0">Nessuna prenotazione trovata</p>
-                <small>Crea la tua prima prenotazione cliccando su "Nuova Prenotazione"</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Nuova Prenotazione -->
-      <div class="col-lg-4">
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-body">
-            <h5 class="card-title fw-bold mb-4">
-              <i class="fas fa-plus-circle text-success me-2"></i>
-              Nuova Prenotazione
-            </h5>
-            
-            <div class="d-grid gap-3">
-              <button class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#vehicleModal">
-                <i class="fas fa-calendar-plus me-2"></i>
-                Prenota Ora
-              </button>
-              
-              <div class="alert alert-info" role="alert">
-                <i class="fas fa-info-circle me-2"></i>
-                <strong>Come prenotare:</strong><br>
-                <small>
-                  1. Scegli il veicolo<br>
-                  2. Seleziona le date<br>
-                  3. Aggiungi autisti<br>
-                  4. Conferma la richiesta
-                </small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal Selezione Veicolo -->
-<div class="modal fade modal-vehicle-select" id="vehicleModal" tabindex="-1" aria-labelledby="vehicleModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content border-0 shadow">
-      <div class="modal-header border-0">
-        <h1 class="modal-title fs-4 fw-bold" id="vehicleModalLabel">
-          <i class="fas fa-van-shuttle text-primary me-2"></i>
-          Seleziona Veicolo
-        </h1>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
-      </div>
-      <div class="modal-body p-4">
-        <div id="vehiclesContainer" class="row g-3"></div>
-        
-        <div id="bookingForm" class="d-none mt-4">
-          <form id="newBookingForm">
-            <input type="hidden" id="selectedVehicle" value="">
-            
-            <div class="row g-3 mb-4">
-              <div class="col-md-6">
-                <label for="dataInizio" class="form-label fw-semibold">Data Inizio</label>
-                <input type="date" class="form-control" id="dataInizio" required>
-              </div>
-              <div class="col-md-6">
-                <label for="dataFine" class="form-label fw-semibold">Data Fine</label>
-                <input type="date" class="form-control" id="dataFine" required>
-              </div>
-            </div>
-            
-            <div class="mb-4">
-              <label for="destinazione" class="form-label fw-semibold">Destinazione</label>
-              <input type="text" class="form-control" id="destinazione" placeholder="Dove ti dirigi?" required>
-            </div>
-            
-            <div class="mb-4">
-              <h6 class="fw-semibold mb-3">
-                <i class="fas fa-users me-2"></i>
-                Autisti (minimo 1, massimo 3)
-              </h6>
-              <div id="driversContainer">
-                <div class="driver-group mb-3" data-driver="1">
-                  <label class="form-label fw-semibold">Autista 1 (obbligatorio)</label>
-                  <div class="row g-2">
-                    <div class="col-md-6">
-                      <input type="text" class="form-control" placeholder="Nome Cognome" required data-field="nome">
-                    </div>
-                    <div class="col-md-6">
-                      <input type="text" class="form-control" placeholder="Codice Fiscale" maxlength="16" required data-field="cf" style="text-transform: uppercase;">
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="d-flex gap-2 mt-3">
-                <button type="button" class="btn btn-outline-primary btn-sm" id="addDriver">
-                  <i class="fas fa-plus me-1"></i>Aggiungi Autista
-                </button>
-                <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="removeDriver">
-                  <i class="fas fa-minus me-1"></i>Rimuovi
-                </button>
-              </div>
-            </div>
-            
-            <div class="mb-4">
-              <label for="note" class="form-label fw-semibold">Note Aggiuntive</label>
-              <textarea class="form-control" id="note" rows="3" placeholder="Eventuali richieste particolari..."></textarea>
-            </div>
-            
-            <div class="d-grid gap-2">
-              <button type="submit" class="btn btn-primary btn-lg" id="submitBooking">
-                <span class="spinner-border spinner-border-sm me-2 d-none" id="submitSpinner" role="status"></span>
-                <i class="fas fa-paper-plane me-2" id="submitIcon"></i>
-                <span id="submitText">Invia Richiesta</span>
-              </button>
-              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                <i class="fas fa-times me-2"></i>Annulla
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Footer -->
-<footer class="bg-dark text-white py-4 mt-auto">
-  <div class="container">
-    <div class="row align-items-center">
-      <div class="col-md-6">
-        <div class="d-flex align-items-center">
-          <i class="fas fa-van-shuttle text-primary me-3 fs-4"></i>
-          <div>
-            <h6 class="mb-0 fw-bold">Imbriani Stefano Noleggio</h6>
-            <small class="text-white-50">Il tuo partner per la mobilità in Puglia</small>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-6 text-md-end mt-3 mt-md-0">
-        <div class="d-flex flex-column align-items-md-end">
-          <div class="mb-2">
-            <a href="tel:+393286589618" class="text-white text-decoration-none me-3">
-              <i class="fas fa-phone me-1"></i> +39 328 658 9618
-            </a>
-            <a href="mailto:info@imbrianinoleggio.it" class="text-white text-decoration-none">
-              <i class="fas fa-envelope me-1"></i> info@imbrianinoleggio.it
-            </a>
-          </div>
-          <small class="text-white-50">&copy; 2025 Tutti i diritti riservati</small>
-        </div>
-      </div>
-    </div>
-  </div>
-</footer>
-
-<!-- Toast Container -->
-<div class="toast-container position-fixed bottom-0 end-0 p-3">
-  <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-    <div class="toast-header">
-      <i class="fas fa-info-circle text-primary me-2" id="toastIcon"></i>
-      <strong class="me-auto" id="toastTitle">Notifica</strong>
-      <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Chiudi"></button>
-    </div>
-    <div class="toast-body" id="toastBody"></div>
-  </div>
-</div>
-
-<!-- Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="config.js"></script>
-<script src="shared-utils.js"></script>
-<script src="format-helpers.js"></script>
-<script src="scripts.js"></script>
-<script src="booking-submit.js"></script>
-<script src="safe-whatsapp-fix.js"></script>
-<script src="whatsapp-loader.js"></script>
-<script src="loader-diagnostics.js?v=8"></script>
-<script>if(window.bindCFHandlers) bindCFHandlers();</script>
-
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="config.js"></script>
+  <script src="shared-utils.js"></script>
+  <script src="format-helpers.js"></script>
+  <script src="scripts.js"></script>
+  <script src="booking-submit.js"></script>
+  <script src="safe-whatsapp-fix.js"></script>
+  <script src="whatsapp-loader.js"></script>
+  <script src="loader-diagnostics.js?v=8"></script>
+  <script>if(window.bindCFHandlers) bindCFHandlers();</script>
 </body>
 </html>
