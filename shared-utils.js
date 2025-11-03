@@ -1,454 +1,280 @@
-/* 🚀 IMBRIANI NOLEGGIO - Shared Utilities v6.2 COMPLETO - CORS-Safe Enhanced */
+/**
+ * IMBRIANI STEFANO NOLEGGIO - SHARED UTILITIES v8.0
+ * Utility condivise per frontend e admin
+ */
 
-'use strict';
-
-// Configuration
-const APP_CONFIG = {
-  AUTH_TOKEN: 'imbriani_secret_2025',
-  // Leggi API_URL da FRONTEND_CONFIG (proxy Cloudflare) con fallback
-  API_BASE_URL: (typeof window !== 'undefined' && window?.FRONTEND_CONFIG?.API_URL) || 'https://imbriani-proxy.dreenhd.workers.dev',
+const SHARED_CONFIG = {
+  VERSION: '8.0',
+  API_BASE_URL: window.API_URL || 'https://imbriani-proxy.dreenhd.workers.dev',
+  TOKEN: 'imbriani_secret_2025',
   HMAC_SECRET: 'imbriani_hmac_2025_secure',
-  MAX_URL_LENGTH: 1800,
-  DEBUG: typeof window !== 'undefined' && (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1'))
+  DEBUG: true,
+  VEHICLE_TYPES: {
+    PASSO_LUNGO_TARGA: 'EC787NM',
+    STATI_VALIDI: ['Disponibile', 'Occupato', 'Manutenzione', 'Fuori servizio']
+  }
 };
 
-// HMAC-SHA256 implementation (simplified for frontend)
-async function hmacSHA256(secret, message) {
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(message));
-  return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
+window.SHARED_CONFIG = SHARED_CONFIG;
 
-// Enhanced CORS-safe API helper with HMAC signatures
-async function callAPI(action, params = {}, method = 'GET') {
+// CORS-enabled API call with enhanced error handling
+async function callAPI(action, params = {}) {
   const timestamp = Date.now();
-  const nocache = timestamp + Math.random().toString(36);
-  
-  if (APP_CONFIG.DEBUG) {
-    console.log(`🔄 API Call: ${action}`, params);
-  }
-  
-  // Clean parameters
-  const cleanParams = Object.keys(params).reduce((acc, key) => {
-    if (params[key] !== null && params[key] !== undefined && params[key] !== '') {
-      acc[key] = typeof params[key] === 'string' ? params[key].trim() : params[key];
-    }
-    return acc;
-  }, {});
-  
-  // Add system parameters
-  cleanParams.action = action;
-  cleanParams.token = APP_CONFIG.AUTH_TOKEN;
-  cleanParams.ts = timestamp;
-  cleanParams._nocache = nocache;
-  
-  // Handle large payloads with base64 encoding
-  if (cleanParams.drivers && typeof cleanParams.drivers === 'string') {
-    try {
-      const driversSize = encodeURIComponent(cleanParams.drivers).length;
-      if (driversSize > 200) {
-        cleanParams.drivers_b64 = btoa(unescape(encodeURIComponent(cleanParams.drivers)));
-        delete cleanParams.drivers;
-      }
-    } catch (e) {
-      console.warn('Base64 encoding failed:', e);
-    }
-  }
-  
-  // Create HMAC signature
-  const sortedKeys = Object.keys(cleanParams).sort();
-  const paramString = sortedKeys.map(k => `${k}=${cleanParams[k]}`).join('|');
-  const signatureData = `${timestamp}|${action}|${paramString}`;
-  
-  try {
-    cleanParams.hmac = await hmacSHA256(APP_CONFIG.HMAC_SECRET, signatureData);
-  } catch (e) {
-    console.warn('HMAC generation failed, continuing without signature:', e);
-  }
-  
-  // Build URL usando il proxy da config.js
-  const queryParams = new URLSearchParams();
-  Object.keys(cleanParams).forEach(key => {
-    queryParams.append(key, cleanParams[key]);
-  });
-  
-  // Usa sempre l'API_URL da config.js (proxy Cloudflare)
-  const baseUrl = (typeof window !== 'undefined' && window?.FRONTEND_CONFIG?.API_URL) || APP_CONFIG.API_BASE_URL;
-  const url = `${baseUrl}?${queryParams.toString()}`;
-  
-  // Check URL length
-  if (url.length > APP_CONFIG.MAX_URL_LENGTH) {
-    console.warn(`URL length (${url.length}) exceeds safe limit (${APP_CONFIG.MAX_URL_LENGTH})`);
-  }
-  
-  // Retry logic with exponential backoff
-  let lastError = null;
-  const delays = [500, 1500, 3500];
-  
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const options = {
-        method: 'GET',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        },
-        mode: 'cors'
-      };
-      
-      const response = await fetch(url, options);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const result = await response.json();
-      
-      if (APP_CONFIG.DEBUG) {
-        console.log(`✅ API Response (attempt ${attempt + 1}):`, result);
-      }
-      
-      // Validate response structure
-      if (typeof result === 'object' && result !== null) {
-        return {
-          success: result.success !== false,
-          data: result.data || result,
-          message: result.message || '',
-          code: result.code || 200
-        };
-      }
-      
-      return { success: true, data: result, message: '', code: 200 };
-      
-    } catch (error) {
-      lastError = error;
-      console.warn(`API attempt ${attempt + 1} failed:`, error.message);
-      
-      if (attempt < 2) {
-        await new Promise(resolve => setTimeout(resolve, delays[attempt]));
-      }
-    }
-  }
-  
-  console.error(`❌ API Error (${action}) after 3 attempts:`, lastError);
-  return {
-    success: false,
-    error: lastError.message,
-    data: null,
-    code: 500
+  const payload = {
+    action: action,
+    token: SHARED_CONFIG.TOKEN,
+    ts: timestamp.toString(),
+    ...params
   };
-}
-
-// Storage helpers with error handling
-function saveToStorage(key, value) {
-  try {
-    const serialized = JSON.stringify(value);
-    localStorage.setItem(`imbriani_${key}`, serialized);
-    return true;
-  } catch (e) {
-    console.warn('Storage save failed:', e);
-    return false;
+  
+  if (SHARED_CONFIG.DEBUG) {
+    console.log(`🚀 API Call: ${action}`, payload);
   }
-}
-
-function getFromStorage(key, defaultValue = null) {
+  
   try {
-    const item = localStorage.getItem(`imbriani_${key}`);
-    return item ? JSON.parse(item) : defaultValue;
-  } catch (e) {
-    console.warn('Storage get failed:', e);
-    return defaultValue;
-  }
-}
-
-function clearStorage(key = null) {
-  try {
-    if (key) {
-      localStorage.removeItem(`imbriani_${key}`);
-    } else {
-      Object.keys(localStorage).forEach(k => {
-        if (k.startsWith('imbriani_')) {
-          localStorage.removeItem(k);
-        }
-      });
-    }
-  } catch (e) {
-    console.warn('Storage clear failed:', e);
-  }
-}
-
-// Enhanced validation helpers
-function isValidCF(cf) {
-  if (!cf || typeof cf !== 'string') return false;
-  const clean = cf.toUpperCase().trim();
-  return /^[A-Z0-9]{16}$/.test(clean);
-}
-
-function isValidEmail(email) {
-  if (!email || typeof email !== 'string') return false;
-  const clean = email.trim().toLowerCase();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean);
-}
-
-function isValidPhone(phone) {
-  if (!phone || typeof phone !== 'string') return false;
-  const clean = phone.trim();
-  return /^[0-9+\s\-()]{8,20}$/.test(clean);
-}
-
-function isValidDate(dateString) {
-  if (!dateString) return false;
-  const date = new Date(dateString);
-  return date instanceof Date && !isNaN(date.getTime());
-}
-
-// Enhanced UI helpers
-function showLoader(show = true, message = '') {
-  const loader = document.getElementById('spinner') || document.getElementById('loader') || document.getElementById('loading-overlay');
-  if (loader) {
-    loader.classList.toggle('d-none', !show);
-    loader.style.display = show ? 'flex' : 'none';
-    
-    if (message && show) {
-      const messageEl = loader.querySelector('.loader-message');
-      if (messageEl) {
-        messageEl.textContent = message;
+    const url = new URL(SHARED_CONFIG.API_BASE_URL);
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) {
+        url.searchParams.append(key, value.toString());
       }
+    });
+    
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    if (SHARED_CONFIG.DEBUG) {
+      console.log(`✅ API Response: ${action}`, data);
+    }
+    
+    return data;
+  } catch (error) {
+    console.error(`❌ API Error: ${action}`, error);
+    return {
+      success: false,
+      data: null,
+      message: `Errore di rete: ${error.message}`,
+      timestamp: new Date().toISOString()
+    };
+  }
+}
+
+// Enhanced vehicle utilities
+function isPassoLungo(vehicle) {
+  if (!vehicle) return false;
+  return vehicle.Targa === SHARED_CONFIG.VEHICLE_TYPES.PASSO_LUNGO_TARGA ||
+         vehicle.PassoLungo === true ||
+         (vehicle.Marca?.toLowerCase().includes('fiat') && 
+          vehicle.Modello?.toLowerCase().includes('ducato') && 
+          vehicle.Targa === 'EC787NM');
+}
+
+function getVehicleBadges(vehicle) {
+  const badges = [];
+  
+  if (isPassoLungo(vehicle)) {
+    badges.push({ text: '🚐 Passo Lungo', class: 'bg-warning' });
+  }
+  
+  if (vehicle.Disponibile) {
+    badges.push({ text: 'Disponibile', class: 'bg-success' });
+  } else if (vehicle.Stato?.toLowerCase().includes('manutenzione')) {
+    badges.push({ text: 'Manutenzione', class: 'bg-secondary' });
+  } else {
+    badges.push({ text: vehicle.Stato || 'Non disponibile', class: 'bg-warning' });
+  }
+  
+  return badges;
+}
+
+function formatVehicleForWhatsApp(vehicle, searchParams) {
+  const passoLungo = isPassoLungo(vehicle);
+  const vehicleText = `${vehicle.Marca} ${vehicle.Modello} (${vehicle.Targa})${passoLungo ? ' - Passo Lungo' : ''}`;
+  
+  const lines = [
+    'Richiesta preventivo — Imbriani Stefano Noleggio',
+    `Veicolo richiesto: ${vehicleText}`,
+    `Ritiro: ${searchParams.dataInizio} ${searchParams.oraInizio}`,
+    `Consegna: ${searchParams.dataFine} ${searchParams.oraFine}`,
+    `Destinazione: ${searchParams.destinazione || 'Da specificare'}`,
+    `Posti: ${vehicle.Posti}`
+  ];
+  
+  return lines.join('\n');
+}
+
+// Enhanced loading states
+function showLoader(show, message = 'Caricamento...') {
+  const spinner = document.getElementById('spinner');
+  const loadMessage = document.getElementById('loader-message');
+  
+  if (spinner) {
+    if (show) {
+      spinner.classList.remove('d-none');
+      if (loadMessage) loadMessage.textContent = message;
+    } else {
+      spinner.classList.add('d-none');
     }
   }
 }
 
-function showToast(message, type = 'info', duration = 4000) {
-  // Create toast container if it doesn't exist
+// Enhanced toast notifications
+function showToast(message, type = 'info', duration = 5000) {
+  const toastContainer = getOrCreateToastContainer();
+  const toastId = 'toast-' + Date.now();
+  
+  const bgClass = {
+    'success': 'bg-success',
+    'warning': 'bg-warning',
+    'error': 'bg-danger',
+    'info': 'bg-info'
+  }[type] || 'bg-info';
+  
+  const icon = {
+    'success': 'fas fa-check-circle',
+    'warning': 'fas fa-exclamation-triangle',
+    'error': 'fas fa-times-circle',
+    'info': 'fas fa-info-circle'
+  }[type] || 'fas fa-info-circle';
+  
+  const toastHTML = `
+    <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert">
+      <div class="d-flex">
+        <div class="toast-body">
+          <i class="${icon} me-2"></i>${message}
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>
+  `;
+  
+  toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+  const toastElement = document.getElementById(toastId);
+  const toast = new bootstrap.Toast(toastElement, { delay: duration });
+  
+  toast.show();
+  
+  // Remove toast element after hide
+  toastElement.addEventListener('hidden.bs.toast', () => {
+    toastElement.remove();
+  });
+}
+
+function getOrCreateToastContainer() {
   let container = document.getElementById('toast-container');
   if (!container) {
     container = document.createElement('div');
     container.id = 'toast-container';
-    container.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 10000;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      max-width: 350px;
-    `;
+    container.className = 'toast-container position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '9999';
     document.body.appendChild(container);
   }
-  
-  const toast = document.createElement('div');
-  const toastId = 'toast_' + Date.now();
-  toast.id = toastId;
-  
-  const bgColor = getToastColor(type);
-  const icon = getToastIcon(type);
-  
-  toast.style.cssText = `
-    padding: 14px 18px;
-    border-radius: 10px;
-    color: white;
-    font-weight: 500;
-    font-size: 14px;
-    line-height: 1.4;
-    transform: translateX(100%);
-    transition: all 0.3s ease;
-    background: ${bgColor};
-    box-shadow: 0 6px 16px rgba(0,0,0,0.2);
-    border-left: 4px solid rgba(255,255,255,0.3);
-    cursor: pointer;
-  `;
-  
-  toast.innerHTML = `
-    <div style="display: flex; align-items: center; gap: 10px;">
-      <span style="font-size: 16px;">${icon}</span>
-      <span style="flex: 1;">${message}</span>
-    </div>
-  `;
-  
-  // Click to dismiss
-  toast.onclick = () => dismissToast(toastId);
-  
-  container.appendChild(toast);
-  
-  // Animate in
-  setTimeout(() => {
-    toast.style.transform = 'translateX(0)';
-  }, 10);
-  
-  // Auto dismiss
-  setTimeout(() => dismissToast(toastId), duration);
+  return container;
 }
 
-function dismissToast(toastId) {
-  const toast = document.getElementById(toastId);
-  if (toast) {
-    toast.style.transform = 'translateX(100%)';
-    setTimeout(() => {
-      if (toast.parentNode) {
-        toast.parentNode.removeChild(toast);
-      }
-    }, 300);
+// Date utilities
+function formatDateForInput(dateString) {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    return date.toISOString().split('T')[0];
+  } catch (e) {
+    return '';
   }
 }
 
-function getToastColor(type) {
-  const colors = {
-    success: 'linear-gradient(135deg, #22c55e, #16a34a)',
-    error: 'linear-gradient(135deg, #ef4444, #dc2626)',
-    warning: 'linear-gradient(135deg, #f59e0b, #d97706)',
-    info: 'linear-gradient(135deg, #3b82f6, #2563eb)'
-  };
-  return colors[type] || colors.info;
-}
-
-function getToastIcon(type) {
-  const icons = {
-    success: '✅',
-    error: '❌',
-    warning: '⚠️',
-    info: 'ℹ️'
-  };
-  return icons[type] || icons.info;
-}
-
-// Status helpers
-function getStatoEmoji(stato) {
-  const emojiMap = {
-    'Da Confermare': '⏳',
-    'Da confermare': '⏳',
-    'Confermata': '✅',
-    'Annullata': '❌',
-    'Rifiutata': '🚫'
-  };
-  return emojiMap[stato] || '❓';
-}
-
-function getStatoColor(stato) {
-  const colorMap = {
-    'Da Confermare': '#f59e0b',
-    'Da confermare': '#f59e0b',
-    'Confermata': '#22c55e',
-    'Annullata': '#ef4444',
-    'Rifiutata': '#9333ea'
-  };
-  return colorMap[stato] || '#6b7280';
-}
-
-// Format helpers
-function formatDate(dateString, locale = 'it-IT', options = {}) {
-  if (!dateString) return '-';
+function formatDateForDisplay(dateString) {
+  if (!dateString) return '';
   try {
     const date = new Date(dateString);
-    const defaultOptions = {
+    return date.toLocaleDateString('it-IT', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit'
-    };
-    return date.toLocaleDateString(locale, { ...defaultOptions, ...options });
-  } catch (e) {
-    console.warn('Date format error:', e);
-    return dateString;
-  }
-}
-
-function formatDateTime(dateString, locale = 'it-IT') {
-  if (!dateString) return '-';
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleString(locale, {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
     });
   } catch (e) {
-    console.warn('DateTime format error:', e);
     return dateString;
   }
 }
 
-function formatCurrency(amount, currency = 'EUR', locale = 'it-IT') {
-  if (typeof amount !== 'number' || isNaN(amount)) return '-';
-  try {
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency
-    }).format(amount);
-  } catch (e) {
-    console.warn('Currency format error:', e);
-    return `${amount} ${currency}`;
+function formatCurrency(amount) {
+  if (!amount || isNaN(amount)) return '0,00 €';
+  return new Intl.NumberFormat('it-IT', {
+    style: 'currency',
+    currency: 'EUR'
+  }).format(parseFloat(amount));
+}
+
+// Validation utilities
+function validateTarga(targa) {
+  if (!targa) return { valid: false, message: 'Targa obbligatoria' };
+  const targaRegex = /^[A-Z]{2}[0-9]{3}[A-Z]{2}$/;
+  if (!targaRegex.test(targa.toUpperCase())) {
+    return { valid: false, message: 'Formato targa non valido (es. AB123CD)' };
   }
+  return { valid: true };
 }
 
-// Network status helpers
-function isOnline() {
-  return navigator.onLine;
-}
-
-function onNetworkChange(callback) {
-  if (typeof window !== 'undefined') {
-    window.addEventListener('online', () => callback(true));
-    window.addEventListener('offline', () => callback(false));
+function validateCodiceFiscale(cf) {
+  if (!cf) return { valid: false, message: 'Codice fiscale obbligatorio' };
+  if (cf.length !== 16) return { valid: false, message: 'Il codice fiscale deve essere di 16 caratteri' };
+  if (!/^[A-Z0-9]{16}$/.test(cf.toUpperCase())) {
+    return { valid: false, message: 'Il codice fiscale contiene caratteri non validi' };
   }
+  return { valid: true };
 }
 
-// Error helper
-function getErrorMessage(error, fallback = 'Errore sconosciuto') {
-  if (typeof error === 'string') return error;
-  if (error && error.message) return error.message;
-  if (error && error.error) return error.error;
-  return fallback;
-}
-
-// Debounce utility
-function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
+// Vehicle state utilities
+function getVehicleStatusColor(stato) {
+  const colors = {
+    'disponibile': 'success',
+    'occupato': 'warning',
+    'manutenzione': 'secondary',
+    'fuori servizio': 'danger'
   };
+  return colors[stato?.toLowerCase()] || 'secondary';
 }
 
-// Make globally available
-if (typeof window !== 'undefined') {
-  window.APP_CONFIG = APP_CONFIG;
-  window.callAPI = callAPI;
-  window.hmacSHA256 = hmacSHA256;
-  window.saveToStorage = saveToStorage;
-  window.getFromStorage = getFromStorage;
-  window.clearStorage = clearStorage;
-  window.isValidCF = isValidCF;
-  window.isValidEmail = isValidEmail;
-  window.isValidPhone = isValidPhone;
-  window.isValidDate = isValidDate;
-  window.showLoader = showLoader;
-  window.showToast = showToast;
-  window.dismissToast = dismissToast;
-  window.getStatoEmoji = getStatoEmoji;
-  window.getStatoColor = getStatoColor;
-  window.formatDate = formatDate;
-  window.formatDateTime = formatDateTime;
-  window.formatCurrency = formatCurrency;
-  window.isOnline = isOnline;
-  window.onNetworkChange = onNetworkChange;
-  window.getErrorMessage = getErrorMessage;
-  window.debounce = debounce;
+function getMaintenanceStatusColor(stato) {
+  const colors = {
+    'programmata': 'info',
+    'in corso': 'warning', 
+    'completata': 'success',
+    'annullata': 'secondary'
+  };
+  return colors[stato?.toLowerCase()] || 'secondary';
+}
 
-  if (APP_CONFIG.DEBUG) {
-    console.log('%c🚀 Shared Utils v6.2 loaded (CORS via config API_URL)', 'color: #22c55e; font-weight: bold;');
-    console.log('API Base URL:', APP_CONFIG.API_BASE_URL);
+// Export utilities for external access
+window.callAPI = callAPI;
+window.showLoader = showLoader;
+window.showToast = showToast;
+window.isPassoLungo = isPassoLungo;
+window.getVehicleBadges = getVehicleBadges;
+window.formatVehicleForWhatsApp = formatVehicleForWhatsApp;
+window.formatDateForInput = formatDateForInput;
+window.formatDateForDisplay = formatDateForDisplay;
+window.formatCurrency = formatCurrency;
+window.validateTarga = validateTarga;
+window.validateCodiceFiscale = validateCodiceFiscale;
+window.getVehicleStatusColor = getVehicleStatusColor;
+window.getMaintenanceStatusColor = getMaintenanceStatusColor;
+
+function logInfo(message) {
+  if (SHARED_CONFIG.DEBUG) {
+    console.log(`[SHARED] ${new Date().toISOString()}: ${message}`);
   }
 }
+
+logInfo(`🚀 Shared Utils v${SHARED_CONFIG.VERSION} loaded (CORS via config API_URL)`);
+logInfo(`API Base URL: ${SHARED_CONFIG.API_BASE_URL}`);
