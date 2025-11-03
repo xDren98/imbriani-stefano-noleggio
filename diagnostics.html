@@ -78,23 +78,21 @@
 
     <script src="config.js"></script>
     <script>
-        // Initialize diagnostics
         function initDiagnostics() {
             document.getElementById('env').textContent = window.ENV_NAME || 'Unknown';
-            document.getElementById('version').textContent = '8.2.0';
+            document.getElementById('version').textContent = '8.2.1';
             document.getElementById('apiUrl').textContent = window.API_URL || 'Not loaded';
             document.getElementById('token').textContent = window.API_TOKEN ? window.API_TOKEN.substring(0,8) + '...' : 'Not loaded';
             document.getElementById('sheetsId').textContent = window.SHEETS_CONFIG?.SPREADSHEET_ID || 'Not loaded';
             document.getElementById('origin').textContent = window.location.origin;
             document.getElementById('timestamp').textContent = new Date().toLocaleString('it-IT');
         }
-        
-        // Console capture
+
         const originalLog = console.log;
         const originalError = console.error;
         const originalWarn = console.warn;
         const logsContainer = document.getElementById('consoleLogs');
-        
+
         function addLogToPage(message, type = 'log') {
             const div = document.createElement('div');
             div.style.color = type === 'error' ? '#721c24' : type === 'warn' ? '#856404' : '#0c5460';
@@ -103,194 +101,56 @@
             logsContainer.appendChild(div);
             logsContainer.scrollTop = logsContainer.scrollHeight;
         }
-        
-        console.log = function(...args) {
-            originalLog.apply(console, args);
-            addLogToPage(args.join(' '), 'log');
-        };
-        
-        console.error = function(...args) {
-            originalError.apply(console, args);
-            addLogToPage(args.join(' '), 'error');
-        };
-        
-        console.warn = function(...args) {
-            originalWarn.apply(console, args);
-            addLogToPage(args.join(' '), 'warn');
-        };
-        
-        function showResult(message, type = 'info') {
-            const results = document.getElementById('testResults');
-            const div = document.createElement('div');
-            div.className = `status ${type}`;
-            div.innerHTML = message;
-            results.appendChild(div);
-        }
-        
-        // Test functions
+
+        console.log = function(...args) { originalLog.apply(console, args); addLogToPage(args.join(' '), 'log'); };
+        console.error = function(...args) { originalError.apply(console, args); addLogToPage(args.join(' '), 'error'); };
+        console.warn = function(...args) { originalWarn.apply(console, args); addLogToPage(args.join(' '), 'warn'); };
+
+        function showResult(message, type = 'info') { const results = document.getElementById('testResults'); const div = document.createElement('div'); div.className = `status ${type}`; div.innerHTML = message; results.appendChild(div); }
+
         async function testBackendDirect() {
             showResult('🎯 Testing backend diretto...', 'info');
-            
             try {
-                const directUrl = 'https://script.google.com/macros/s/AKfycbx8vOsfdliS4e5odoRMkvCwaWY7SowSkgtW0zTuvqDIu4R99sUEixlLSW7Y9MyvNWk/exec?token=imbriani_secret_2025&action=health';
+                const directUrl = 'https://script.google.com/macros/s/AKfycbx8vOsfdliS4e5odoRMkvCwaWY7SowSkgtW0zTuvqDIu4R99sUEixlLSW7Y9MyvNWk/exec?token=imbriani_secret_2025&action=health&ts=' + Date.now();
                 const response = await fetch(directUrl, { mode: 'cors' });
                 const data = await response.json();
-                
-                if (data.success) {
-                    showResult(`✅ Backend diretto OK - Version: ${data.version}`, 'success');
-                } else {
-                    showResult(`❌ Backend error: ${data.message}`, 'error');
-                }
-            } catch (error) {
-                showResult(`❌ Backend diretto failed: ${error.message}`, 'error');
-            }
+                if (data.success) { showResult(`✅ Backend diretto OK - Version: ${data.version}`, 'success'); } else { showResult(`❌ Backend error: ${data.message}`, 'error'); }
+            } catch (error) { showResult(`❌ Backend diretto failed: ${error.message}`, 'error'); }
         }
-        
+
         async function testAPIConnection() {
             showResult('🔗 Testing API via proxy...', 'info');
-            
-            try {
-                const data = await window.apiCall('/health');
-                
-                if (data.success) {
-                    showResult('✅ API proxy connection successful!', 'success');
-                } else {
-                    showResult(`❌ API proxy error: ${data.message}`, 'error');
-                }
-            } catch (error) {
-                showResult(`❌ API proxy failed: ${error.message}`, 'error');
-            }
+            try { const data = await window.apiCall('/health'); if (data.success) { showResult('✅ API proxy connection successful!', 'success'); } else { showResult(`❌ API proxy error: ${data.message}`, 'error'); } } catch (error) { showResult(`❌ API proxy failed: ${error.message}`, 'error'); }
         }
-        
+
         async function testCORS() {
             showResult('🌐 Testing CORS headers...', 'info');
-            
             try {
-                const response = await fetch(window.API_URL + '/health', {
-                    method: 'OPTIONS'
-                });
-                
-                const corsOrigin = response.headers.get('Access-Control-Allow-Origin');
-                const corsMethods = response.headers.get('Access-Control-Allow-Methods');
-                const corsHeaders = response.headers.get('Access-Control-Allow-Headers');
-                
-                if (corsOrigin && corsMethods) {
-                    showResult(`✅ CORS OK - Origin: ${corsOrigin}, Methods: ${corsMethods}`, 'success');
-                } else {
-                    showResult('❌ No CORS headers found', 'error');
-                }
-            } catch (error) {
-                showResult(`❌ CORS test failed: ${error.message}`, 'error');
-            }
+                const response = await fetch(window.API_URL + '/login', { method: 'OPTIONS', headers: { 'Origin': window.location.origin } });
+                const corsOrigin = response.headers.get('access-control-allow-origin');
+                const corsMethods = response.headers.get('access-control-allow-methods');
+                if (corsOrigin && corsMethods) { showResult(`✅ CORS OK - Origin: ${corsOrigin}, Methods: ${corsMethods}`, 'success'); } else { showResult(`❌ CORS headers missing - Status: ${response.status}`, 'error'); }
+            } catch (error) { showResult(`❌ CORS test failed: ${error.message}`, 'error'); }
         }
-        
+
         async function testLogin() {
             showResult('👤 Testing login endpoint...', 'info');
-            
-            try {
-                const data = await window.apiCall('/login', {
-                    method: 'POST',
-                    body: JSON.stringify({ codiceFiscale: 'TEST123456789ABCD' })
-                });
-                
-                if (data.success || data.message) {
-                    showResult(`✅ Login endpoint responding: ${data.message}`, 'success');
-                } else {
-                    showResult(`❌ Login failed: ${JSON.stringify(data)}`, 'error');
-                }
-            } catch (error) {
-                showResult(`❌ Login test failed: ${error.message}`, 'error');
-            }
+            try { const data = await window.apiCall('/login', { method: 'POST', body: JSON.stringify({ codiceFiscale: 'TEST123456789ABCD' }) }); if (data.success || data.message) { showResult(`✅ Login endpoint responding: ${data.message}`, 'success'); } else { showResult(`❌ Login failed: ${JSON.stringify(data)}`, 'error'); } } catch (error) { showResult(`❌ Login test failed: ${error.message}`, 'error'); }
         }
-        
-        async function testHealth() {
-            showResult('💓 Testing health endpoint...', 'info');
-            
-            try {
-                const data = await window.apiCall('/?action=health');
-                
-                if (data.success) {
-                    showResult(`✅ Health OK - Version: ${data.version}`, 'success');
-                } else {
-                    showResult(`⚠️ Health warning: ${data.message}`, 'warning');
-                }
-            } catch (error) {
-                showResult(`❌ Health failed: ${error.message}`, 'error');
-            }
-        }
-        
-        async function testToken() {
-            showResult('🔑 Testing token validation...', 'info');
-            
-            const token = window.API_TOKEN;
-            if (!token) {
-                showResult('❌ No token configured', 'error');
-                return;
-            }
-            
-            showResult(`✅ Token loaded: ${token.substring(0,8)}...*****`, 'success');
-        }
-        
-        async function testSheets() {
-            showResult('📊 Testing Sheets configuration...', 'info');
-            
-            const config = window.SHEETS_CONFIG;
-            if (!config) {
-                showResult('❌ No Sheets config found', 'error');
-                return;
-            }
-            
-            const tabs = Object.keys(config.TABS).join(', ');
-            showResult(`✅ Sheets config OK - ID: ${config.SPREADSHEET_ID.substring(0,10)}..., Tabs: ${tabs}`, 'success');
-        }
-        
-        async function runAllTests() {
-            clearLogs();
-            showResult('🚀 Running all tests...', 'info');
-            
-            await testToken();
-            await testSheets();
-            await testBackendDirect();
-            await testCORS();
-            await testAPIConnection();
-            await testHealth();
-            await testLogin();
-            
-            showResult('🎉 All tests completed!', 'success');
-        }
-        
-        function exportDiagnostics() {
-            const data = {
-                timestamp: new Date().toISOString(),
-                environment: window.ENV_NAME,
-                apiUrl: window.API_URL,
-                origin: window.location.origin,
-                sheetsId: window.SHEETS_CONFIG?.SPREADSHEET_ID,
-                userAgent: navigator.userAgent,
-                logs: document.getElementById('consoleLogs').textContent
-            };
-            
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `imbriani-diagnostics-${new Date().toISOString().slice(0,16).replace(/:/g,'-')}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-        
-        function clearLogs() {
-            document.getElementById('consoleLogs').innerHTML = '';
-            document.getElementById('testResults').innerHTML = '';
-        }
-        
-        // Initialize on load
-        document.addEventListener('DOMContentLoaded', function() {
-            initDiagnostics();
-            window.logApp('🔧 Diagnostics page loaded');
-            window.logApp(`Environment: ${window.ENV_NAME}`);
-            window.logApp(`API URL: ${window.API_URL}`);
-        });
+
+        async function testHealth() { showResult('💓 Testing health endpoint...', 'info'); try { const data = await window.apiCall('/?action=health'); if (data.success) { showResult(`✅ Health OK - Version: ${data.version}`, 'success'); } else { showResult(`⚠️ Health warning: ${data.message}`, 'warning'); } } catch (error) { showResult(`❌ Health failed: ${error.message}`, 'error'); } }
+
+        async function testToken() { showResult('🔑 Testing token validation...', 'info'); const token = window.API_TOKEN; if (!token) { showResult('❌ No token configured', 'error'); return; } showResult(`✅ Token loaded: ${token.substring(0,8)}...*****`, 'success'); }
+
+        async function testSheets() { showResult('📊 Testing Sheets configuration...', 'info'); const config = window.SHEETS_CONFIG; if (!config) { showResult('❌ No Sheets config found', 'error'); return; } const tabs = Object.keys(config.TABS).join(', '); showResult(`✅ Sheets config OK - ID: ${config.SPREADSHEET_ID.substring(0,10)}..., Tabs: ${tabs}`, 'success'); }
+
+        async function runAllTests() { clearLogs(); showResult('🚀 Running all tests...', 'info'); await testToken(); await testSheets(); await testBackendDirect(); await testCORS(); await testAPIConnection(); await testHealth(); await testLogin(); showResult('🎉 All tests completed!', 'success'); }
+
+        function exportDiagnostics() { const data = { timestamp: new Date().toISOString(), environment: window.ENV_NAME, apiUrl: window.API_URL, origin: window.location.origin, sheetsId: window.SHEETS_CONFIG?.SPREADSHEET_ID, userAgent: navigator.userAgent, logs: document.getElementById('consoleLogs').textContent }; const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `imbriani-diagnostics-${new Date().toISOString().slice(0,16).replace(/:/g,'-')}.json`; a.click(); URL.revokeObjectURL(url); }
+
+        function clearLogs() { document.getElementById('consoleLogs').innerHTML = ''; document.getElementById('testResults').innerHTML = ''; }
+
+        document.addEventListener('DOMContentLoaded', function() { initDiagnostics(); window.logApp('🔧 Diagnostics page loaded'); window.logApp(`Environment: ${window.ENV_NAME}`); window.logApp(`API URL: ${window.API_URL}`); });
     </script>
 </body>
 </html>
