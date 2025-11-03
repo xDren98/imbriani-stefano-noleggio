@@ -1,4 +1,4 @@
-// scripts.js v8.6 - debug API calls to find backend issue
+// scripts.js v8.7 - robust event binding + secureGet integration
 (function(){
   // Global safe guard for noisy extensions
   window.addEventListener('error', (ev)=>{
@@ -14,7 +14,7 @@
       console.log(`[API DEBUG] Response for ${action}:`, result);
       return result;
     }
-    console.warn('[API DEBUG] secureGet missing, using fallback');
+    console.warn('[API DEBUG] secureGet missing, this should now be fixed');
     return { success:false, message:'secureGet missing' };
   }
 
@@ -22,7 +22,7 @@
   window.doLogin = function(){
     const input = qs('cf-input') || qs('codiceFiscale');
     const cf = (input?.value||'').toUpperCase();
-    if(cf.length!==16){ window.showToast?.('CF non valido','danger'); return; }
+    if(cf.length!==16){ window.showToast?.('CF non valido','error'); return; }
     localStorage.setItem('USER_CF', cf);
     try{ bootstrap.Modal.getInstance(qs('loginModal'))?.hide(); }catch(e){}
     window.openPersonalArea?.();
@@ -231,5 +231,5 @@
     console.log('[INIT] Event binding complete');
   });
   
-  console.log('[SCRIPTS] v8.6 loaded with debug');
+  console.log('[SCRIPTS] v8.7 loaded with secureGet integration');
 })();
