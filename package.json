@@ -1,0 +1,31 @@
+{
+  "name": "imbriani-noleggio",
+  "version": "8.1.0",
+  "description": "Sistema di prenotazione pulmini 9 posti per Imbriani Stefano Noleggio",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "serve": "npx serve .",
+    "dev": "npx serve . --listen 3000",
+    "test": "echo 'Open http://localhost:8000/diagnostics.html for tests'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xDren98/imbriani-noleggio.git"
+  },
+  "keywords": [
+    "booking",
+    "rental",
+    "pulmini",
+    "noleggio",
+    "imbriani"
+  ],
+  "author": "Antonio Mello <dreenhd@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

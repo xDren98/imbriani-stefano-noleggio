@@ -1,243 +1,129 @@
-# 🚐 Imbriani Noleggio
+# 🚐 Imbriani Stefano Noleggio - Sistema Prenotazioni
 
-## Sistema di Prenotazione Pulmini 9 Posti
+> Sistema completo di prenotazione pulmini 9 posti con pannello admin
 
-**Versione**: 6.0.0 Production Ready  
-**Ultima modifica**: 02 Novembre 2025  
-**Status**: ✅ Completamente funzionante
+## 🚀 Setup Veloce
 
-### 🌐 URL Produzione
-- **Sito**: https://xdren98.github.io/imbriani-noleggio/
-- **Admin**: https://xdren98.github.io/imbriani-noleggio/admin.html
-
-### 🏗️ Architettura
-- **Frontend**: GitHub Pages (HTML/CSS/JS)
-- **Backend**: Google Apps Script (CORS-safe)
-- **Database**: Google Sheets
-- **Sicurezza**: HMAC signatures + SSL
-
-### ✅ Funzionalità v6.0
-- ✅ Sistema login con codice fiscale
-- ✅ Area personale clienti con cache intelligente
-- ✅ Prenotazioni con validazione avanzata
-- ✅ Dashboard admin con API reali
-- ✅ Bulk actions per gestione massiva
-- ✅ Export Excel completo
-- ✅ Grafici real-time (Chart.js)
-- ✅ Sistema CORS-safe con retry automatico
-- ✅ HMAC signatures per sicurezza
-- ✅ UI/UX completamente ottimizzata
-- ✅ Gestione offline/online
-- ✅ Responsive design perfetto
-- ✅ Toast notifications avanzate
-- ✅ Integrazione WhatsApp
-
-### 🔒 Sicurezza e CORS
-
-#### Soluzione CORS-Safe Implementata:
-- **Solo richieste GET** per evitare preflight CORS
-- **HMAC-SHA256 signatures** su tutte le chiamate API
-- **Timestamp validation** (2 minuti max)
-- **Base64 encoding** per payload grandi
-- **Retry exponential backoff** (3 tentativi)
-- **Cache control** per evitare cache CDN
-- **URL length protection** (max 1800 caratteri)
-
-#### Formato richieste API:
-```
-GET ?action=login&cf=ABC123&ts=1699123456789&hmac=sha256hash&_nocache=random
-```
-
-#### Vantaggi:
-✅ Nessun problema CORS su GitHub Pages  
-✅ Compatibilità browser universale  
-✅ Sicurezza crittografica  
-✅ Retry automatico su fallimenti  
-✅ Performance ottimizzata  
-
-### 🔧 Deploy
-Il sito è automaticamente deployato via GitHub Pages dal branch `main`.
-
-**Per modifiche:**
-1. Modifica i file nel branch `main`
-2. Commit e push
-3. GitHub Pages aggiorna automaticamente (2-3 minuti)
-
-### 🚀 Test Locale
-
-#### Requisiti:
-- Node.js (per npx serve)
+### Requisiti
 - Browser moderno (Chrome, Firefox, Safari, Edge)
+- Connessione internet per API Cloudflare
 
-#### Avvio rapido:
-```bash
-# Clona repository
-git clone https://github.com/xDren98/imbriani-noleggio.git
-cd imbriani-noleggio
+### Test in Locale
 
-# Avvia server locale
-npx serve . -p 3000
+```powershell
+# Scarica e testa tutto il progetto
+$repo = "https://github.com/xDren98/imbriani-noleggio"
+$folder = "imbriani-test"
 
-# Apri: http://localhost:3000
+# Clona repo
+git clone $repo $folder
+cd $folder
+
+# Avvia server locale (Python)
+python -m http.server 8000
+# OPPURE (Node.js se installato)
+npx serve .
+
+# Vai su: http://localhost:8000
+# Test diagnostics: http://localhost:8000/diagnostics.html
 ```
 
-#### Alternative server:
-```bash
-# Python 3
-python -m http.server 3000
+## 📱 Funzionalità
 
-# PHP
-php -S localhost:3000
+### **Cliente (index.html)**
+- 🔐 Login con Codice Fiscale (16 caratteri)
+- 🧿 Wizard prenotazione 4 step:
+  1. 📅 Selezione date
+  2. 🚐 Scelta veicolo (solo 9 posti)
+  3. 👨‍✈️ Autisti (1-3 per prenotazione)
+  4. ✅ Conferma finale
+- 📱 Responsive (mobile/tablet/desktop)
+- 📂 Area personale (prenotazioni, anagrafica, patente)
 
-# VS Code Live Server
-# Click destro su index.html > "Open with Live Server"
+### **Admin (admin.html)**
+- 🔑 Pannello amministrazione dedicato
+- ✅ Approva/Rifiuta prenotazioni
+- 📈 Dashboard prenotazioni in attesa
+- 📄 Export CSV completo
+
+### **Diagnostics (diagnostics.html)**
+- 🔧 Test connessione API/CORS
+- 📊 Monitoring sistema real-time
+- 📝 Console logs centralizzati
+
+## ⚙️ Configurazione
+
+### API Endpoint
+- **Produzione**: `https://imbriani-proxy.dreenhd.workers.dev`
+- **Token**: Configurato automaticamente in `config.js`
+- **CORS**: Gestito via Cloudflare Workers
+
+### Ambiente
+- 🌐 **PROD**: `imbriani-noleggio.vercel.app`
+- 💻 **LOCAL**: `localhost` o `127.0.0.1`
+- 🔄 Auto-detection in `config.js`
+
+## 📁 Struttura File
+
+```
+┌── index.html          # App principale cliente
+├── admin.html          # Pannello admin
+├── veicoli.html        # Pagina veicoli
+├── diagnostics.html    # Tool diagnostica
+├── config.js           # Configurazione centralizzata
+├── scripts.js          # Logica app principale
+├── admin-scripts.js    # Logica pannello admin
+├── booking-submit.js   # Gestione prenotazioni
+├── shared-utils.js     # Utilità condivise
+├── styles.css          # Stili completi
+└── partials/           # Componenti HTML
+    └── step-autisti.html
 ```
 
-### 🧪 Check-list Test Completa
+## 🚑 Deploy
 
-#### 📡 Test Frontend (http://localhost:3000):
-- [ ] **Homepage carica** senza errori console
-- [ ] **Login CF valido** (es: ABCDEF12G34H567I)
-- [ ] **Login CF invalido** mostra errore
-- [ ] **Area personale** si apre dopo login
-- [ ] **Lista prenotazioni** carica (anche se vuota)
-- [ ] **Veicoli disponibili** appaiono
-- [ ] **Selezione veicolo** evidenzia card
-- [ ] **Aggiunta autisti** (max 3)
-- [ ] **Validazione form** blocca invii incompleti
-- [ ] **Creazione prenotazione** con 1, 2, 3 autisti
-- [ ] **Toast notifications** appaiono
-- [ ] **Responsive** mobile/tablet
-- [ ] **Offline/online** detection
+### Vercel (Raccomandato)
+1. Collega repo GitHub a Vercel
+2. Deploy automatico su push `main`
+3. Dominio: `imbriani-noleggio.vercel.app`
 
-#### 🔧 Test Admin (http://localhost:3000/admin.html):
-- [ ] **Dashboard carica** con statistiche
-- [ ] **Tabella prenotazioni** populated
-- [ ] **Filtri** funzionano (date, stato, cliente)
-- [ ] **Selezione multipla** checkbox
-- [ ] **Bulk confirm/reject** aggiornano stati
-- [ ] **Singole azioni** ✅/❌
-- [ ] **Export Excel** scarica file
-- [ ] **Grafici** mostrano dati reali
-- [ ] **Real-time updates** dopo modifiche
-- [ ] **Responsive** admin mobile
+### Altro Hosting
+- Carica tutti i file HTML/JS/CSS
+- Nessuna build richiesta (static site)
+- Assicurati HTTPS per API calls
 
-#### 🌐 Test Produzione (https://xdren98.github.io/imbriani-noleggio/):
-- [ ] **Stesso test frontend** su GitHub Pages
-- [ ] **Stesso test admin** su GitHub Pages
-- [ ] **API Google Apps Script** risponde
-- [ ] **HMAC signatures** validate
-- [ ] **CORS** non da errori
-- [ ] **SSL** certificato valido
+## 🔧 Debug
 
-#### 🐛 Test Scenari Errore:
-- [ ] **Internet offline** → banner warning
-- [ ] **API timeout** → retry automatico
-- [ ] **Dati corrotti** → fallback graceful
-- [ ] **Browser cache** → nocache headers
-- [ ] **URL troppo lunga** → warning console
+### Test Sistema
+1. Vai su `/diagnostics.html`
+2. Test API Connection
+3. Test CORS headers
+4. Test Login mock
+5. Controlla console logs
 
-### 📁 Struttura File
-```
-├── index.html          # Homepage con area personale
-├── admin.html          # Dashboard amministratore  
-├── config.js           # Configurazione API
-├── shared-utils.js     # Utilities CORS-safe + HMAC
-├── scripts.js          # JavaScript frontend
-├── admin-scripts.js    # JavaScript admin
-├── styles.css          # Design system completo
-├── safe-whatsapp-fix.js # Fix widget WhatsApp
-├── whatsapp-loader.js  # Loader WhatsApp
-└── README.md           # Questa documentazione
+### Log Centralizzato
+```javascript
+// In qualsiasi script:
+window.logApp('Messaggio info');
+window.logApp('Errore critico', 'error');
+window.logApp('Warning', 'warn');
+window.logApp('Successo', 'success');
 ```
 
-### 🔗 API Backend
+### Ambienti
+- `window.ENV_NAME` - Nome ambiente corrente
+- `window.API_URL` - URL API attivo
+- `window.API_TOKEN` - Token autenticazione
 
-#### Endpoint Google Apps Script:
-```
-https://script.google.com/macros/s/AKfycbx8vOsfdliS4e5odoRMkvCwaWY7SowSkgtW0zTuvqDIu4R99sUEixlLSW7Y9MyvNWk/exec
-```
+## 📞 Contatti
+- **WhatsApp**: +39 328 658 9618
+- **Email**: Tramite sistema prenotazioni
 
-#### Azioni disponibili:
-- `login` - Autenticazione utente
-- `recuperaPrenotazioni` - Lista prenotazioni utente/admin
-- `disponibilita` - Veicoli disponibili
-- `creaPrenotazione` - Nuova prenotazione
-- `modificaStato` - Aggiorna stato prenotazione
-
-#### Sicurezza:
-- Token: `imbriani_secret_2025`
-- HMAC Secret: `imbriani_hmac_2025_secure`
-- Validazione timestamp (max 2 minuti)
-
-### 📊 Monitoraggio
-
-#### Logs JavaScript (Console F12):
-- `🚀 Shared Utils v6.0 loaded` - Utilities caricate
-- `✅ App inizializzata correttamente` - Frontend OK
-- `🔧 Admin Dashboard Pro v8.5` - Admin OK
-- `🔄 API Call: action` - Chiamate API
-- `✅ API Response` - Risposte API
-
-#### Metriche Performance:
-- **Caricamento iniziale**: < 2 secondi
-- **Chiamate API**: < 3 secondi (con retry)
-- **Rendering UI**: < 500ms
-- **Responsive**: 100% supporto
-
-### 🐛 Troubleshooting
-
-#### Problemi Comuni:
-
-**1. API non risponde**
-- Controlla console F12 per errori CORS
-- Verifica URL Google Apps Script
-- Controlla validità HMAC timestamp
-
-**2. Dati non si caricano**
-- Refresh pagina (cache CDN)
-- Controlla connessione internet
-- Verifica formato dati Google Sheets
-
-**3. Login non funziona**
-- CF deve essere 16 caratteri alfanumerici
-- Controlla maiuscole/minuscole
-- Verifica presenza utente nel backend
-
-**4. Mobile non responsive**
-- Controlla viewport meta tag
-- Usa Chrome DevTools mobile simulation
-- Testa su dispositivi reali
-
-#### Debug Mode:
-Su localhost, debug automaticamente attivo con logs estesi.
-
-### 🔄 Changelog v6.0
-
-#### 🆕 Nuovo:
-- ✨ Sistema CORS-safe con HMAC
-- ✨ Admin dashboard con API reali  
-- ✨ Bulk actions e export Excel
-- ✨ UI/UX completamente rinnovata
-- ✨ Gestione offline/online
-- ✨ Cache intelligente
-- ✨ Retry automatico
-- ✨ Responsive perfetto
-
-#### 🔧 Migliorato:
-- ⚡ Performance +300%
-- 🔒 Sicurezza crittografica
-- 📱 Mobile experience
-- 🎨 Design system
-- 🔄 Real-time updates
-
-#### 🗑️ Rimosso:
-- ❌ File legacy duplicati
-- ❌ Mock data
-- ❌ Branch obsoleti
-- ❌ Dipendenze inutili
+## 📈 Versione
+- **Frontend**: v8.1.0
+- **Backend**: Cloudflare Workers
+- **Database**: Google Sheets
 
 ---
 
-**© 2025 Imbriani Noleggio - Sistema v6.0 Production Ready**  
-**Sviluppato con ❤️ e ottimizzato per prestazioni massime**
+**🎆 Sistema completo e ottimizzato per produzione!**
