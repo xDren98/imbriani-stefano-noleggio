@@ -1,7 +1,4 @@
-/**
- * Utility di mapping stato: Futura, In corso, Completato, Da Confermare
- * Esegue il ricalcolo per tutte le prenotazioni in base a date/ore
- */
+// Patch: ricalcolo stati - "Da Confermare" SOLO se già impostato come tale; se mancano dati minimi NON toccare
 function handleRicalcolaStati() {
   try {
     const sh = ss().getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
@@ -14,34 +11,43 @@ function handleRicalcolaStati() {
 
     for (let i = 1; i < data.length; i++) {
       const r = data[i];
-      // ID se mancante
-      if (!r[H.ID_PREN]) {
-        r[H.ID_PREN] = generaIdPrenotazione();
-        updated++;
-      }
-      // Stato calcolato solo se non Annullata
-      const statoAttuale = (r[H.STATO_PRENOTAZIONE] || '').toString().toLowerCase();
-      if (statoAttuale === 'annullata') continue;
+      const statoAttuale = (r[H.STATO_PRENOTAZIONE] || '').toString();
+      const statoLower = statoAttuale.toLowerCase();
+      if (statoLower === 'annullata') continue; // non toccare
 
-      // Orari mancanti → 00:00 e 23:59
+      // Dati minimi per calcolare lo stato: date inizio/fine
+      const hasDates = !!r[H.GIORNO_INIZIO] && !!r[H.GIORNO_FINE];
+      if (!hasDates) continue; // lascia stare se mancano i dati minimi
+
+      // Orari: se mancanti, tratta come giornata intera
       const oraIn = r[H.ORA_INIZIO] || '00:00';
       const oraFi = r[H.ORA_FINE] || '23:59';
-
       const start = mergeDateTime(r[H.GIORNO_INIZIO], oraIn);
       const end = mergeDateTime(r[H.GIORNO_FINE], oraFi);
 
-      let nuovo = 'Da Confermare';
-      if (isValidDate(start) && isValidDate(end)) {
+      if (!(start instanceof Date) || isNaN(start.getTime()) || !(end instanceof Date) || isNaN(end.getTime())) continue;
+
+      let nuovo = statoAttuale; // default: non cambiare
+      if (statoLower !== 'confermata') { // "Da Confermare" solo se NON confermata
+        if (now < start) nuovo = 'Futura';
+        else if (now >= start && now < end) nuovo = 'In corso';
+        else if (now >= end) nuovo = 'Completato';
+        // Se era "Da Confermare" resta tale solo se non rientra nelle tre categorie temporali
+        if (statoLower === 'da confermare' && (now < start || (now >= start && now < end) || now >= end)) {
+          // sovrascrivi con lo stato temporale calcolato
+        }
+      } else {
+        // Confermata: mappatura temporale comunque utile ma non forzare a "Da Confermare"
         if (now < start) nuovo = 'Futura';
         else if (now >= start && now < end) nuovo = 'In corso';
         else if (now >= end) nuovo = 'Completato';
       }
 
-      if ((r[H.STATO_PRENOTAZIONE] || '') !== nuovo) {
+      if (nuovo !== statoAttuale) {
         r[H.STATO_PRENOTAZIONE] = nuovo;
+        data[i] = r;
         updated++;
       }
-      data[i] = r;
     }
 
     sh.getRange(1, 1, data.length, data[0].length).setValues(data);
@@ -49,8 +55,4 @@ function handleRicalcolaStati() {
   } catch (e) {
     return respond(false, {}, 'Errore ricalcolo stati: ' + e.message, 500);
   }
-}
-
-function isValidDate(d) {
-  return d instanceof Date && !isNaN(d.getTime());
 }
