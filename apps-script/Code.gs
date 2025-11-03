@@ -13,7 +13,7 @@ const CONFIG = {
   TOKEN: 'imbriani_secret_2025',
   SHEET_ID: '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns',
   DEBUG: true,
-  MAX_TIMESTAMP_AGE: 120000,
+  MAX_TIMESTAMP_AGE: 600000, // 10 minuti invece di 2
   SHEETS: { PRENOTAZIONI:'Risposte del modulo 1', CLIENTI:'Clienti', VEICOLI:'Gestione pulmini', MANUTENZIONI:'Registro manutenzioni' },
   PREN_COLS: { TIMESTAMP:0,NOME:1,DATA_NASCITA:2,LUOGO_NASCITA:3,CF:4,COMUNE_RESIDENZA:5,VIA_RESIDENZA:6,CIVICO_RESIDENZA:7,NUMERO_PATENTE:8,INIZIO_PATENTE:9,SCADENZA_PATENTE:10,TARGA:11,ORA_INIZIO:12,ORA_FINE:13,GIORNO_INIZIO:14,GIORNO_FINE:15,DESTINAZIONE:16,CELLULARE:17,DATA_CONTRATTO:18,ID_PRENOTAZIONE:39,STATO_PRENOTAZIONE:40,IMPORTO_PREVENTIVO:41,NOTE:42,EMAIL:43 },
   CLIENTI_HEADERS: ['Nome','Data di nascita','Luogo di nascita','Codice fiscale','Comune di residenza','Via di residenza','Civico di residenza','Numero di patente','Data inizio validità patente','Scadenza patente','Cellulare','Email']
