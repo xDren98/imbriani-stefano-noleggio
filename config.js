@@ -1,27 +1,19 @@
 /**
- * IMBRIANI STEFANO NOLEGGIO - CONFIG v8.1 CLEAN
- * Configurazione centralizzata per tutti gli ambienti
+ * IMBRIANI STEFANO NOLEGGIO - CONFIG v8.2 CORS+TOKEN FIX
+ * Configurazione centralizzata - TOKEN ALLINEATO
  */
 
 // Environment detection
 const ENV = {
-  PROD: window.location.hostname === 'imbriani-noleggio.vercel.app',
+  PROD: window.location.hostname.includes('github.io') || window.location.hostname.includes('vercel.app'),
   LOCAL: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
 };
 
-// API Configuration per ambiente
+// API Configuration UNIFICATA
 const API_CONFIG = {
-  VERSION: '8.1.0',
-  ENVIRONMENTS: {
-    PROD: {
-      BASE_URL: 'https://imbriani-proxy.dreenhd.workers.dev',
-      TOKEN: 'imbriani_secret_2025'
-    },
-    LOCAL: {
-      BASE_URL: 'https://imbriani-proxy.dreenhd.workers.dev',
-      TOKEN: 'imbriani_secret_2025'
-    }
-  },
+  VERSION: '8.2.0',
+  BASE_URL: 'https://imbriani-proxy.dreenhd.workers.dev',
+  TOKEN: 'imbriani_secret_2025',  // ALLINEATO CON BACKEND v8.0.1
   TIMEOUT: 30000,
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000
@@ -29,12 +21,22 @@ const API_CONFIG = {
 
 // Detect current environment
 const CURRENT_ENV = ENV.PROD ? 'PROD' : 'LOCAL';
-const CURRENT_CONFIG = API_CONFIG.ENVIRONMENTS[CURRENT_ENV];
 
 // Expose API globals
-window.API_URL = CURRENT_CONFIG.BASE_URL;
-window.API_TOKEN = CURRENT_CONFIG.TOKEN;
+window.API_URL = API_CONFIG.BASE_URL;
+window.API_TOKEN = API_CONFIG.TOKEN;
 window.ENV_NAME = CURRENT_ENV;
+
+// Google Sheets Configuration
+window.SHEETS_CONFIG = {
+  SPREADSHEET_ID: '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns',
+  TABS: {
+    PRENOTAZIONI: 'Risposte del modulo 1',
+    PULMINI: 'Gestione Pulmini', 
+    CLIENTI: 'Clienti',
+    MANUTENZIONI: 'Gestione manutenzioni'
+  }
+};
 
 // Vehicle constants
 window.VEHICLE_CONSTANTS = {
@@ -43,7 +45,7 @@ window.VEHICLE_CONSTANTS = {
   PHONE_NUMBER: '393286589618'
 };
 
-// Centralized logging
+// Centralized logging with environment
 window.logApp = function(message, type = 'info') {
   const timestamp = new Date().toISOString();
   const prefix = `[${CURRENT_ENV}] ${timestamp}`;
@@ -63,16 +65,57 @@ window.logApp = function(message, type = 'info') {
   }
 };
 
+// API Helper with correct token
+window.apiCall = async function(endpoint, options = {}) {
+  const url = `${window.API_URL}${endpoint}`;
+  
+  const defaultOptions = {
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${window.API_TOKEN}`
+    }
+  };
+  
+  const finalOptions = {
+    ...defaultOptions,
+    ...options,
+    headers: {
+      ...defaultOptions.headers,
+      ...options.headers
+    }
+  };
+  
+  window.logApp(`API Call: ${endpoint}`);
+  
+  try {
+    const response = await fetch(url, finalOptions);
+    const data = await response.json();
+    
+    if (data.success) {
+      window.logApp(`API Success: ${endpoint}`, 'success');
+    } else {
+      window.logApp(`API Error: ${endpoint} - ${data.message}`, 'error');
+    }
+    
+    return data;
+  } catch (error) {
+    window.logApp(`API Exception: ${endpoint} - ${error.message}`, 'error');
+    return { success: false, message: error.message };
+  }
+};
+
 // Initialize
-logApp(`🚀 CONFIG v${API_CONFIG.VERSION} loaded`);
-logApp(`Environment: ${CURRENT_ENV}`);
-logApp(`API URL: ${CURRENT_CONFIG.BASE_URL}`);
+window.logApp(`🚀 CONFIG v${API_CONFIG.VERSION} loaded`);
+window.logApp(`Environment: ${CURRENT_ENV}`);
+window.logApp(`API URL: ${API_CONFIG.BASE_URL}`);
+window.logApp(`Token: ${API_CONFIG.TOKEN.substring(0,8)}...`);
+window.logApp(`Sheets ID: ${window.SHEETS_CONFIG.SPREADSHEET_ID}`);
 
 // Global error handling
 window.addEventListener('error', (event) => {
-  logApp(`Global error: ${event.error?.message || event.message}`, 'error');
+  window.logApp(`Global error: ${event.error?.message || event.message}`, 'error');
 });
 
 window.addEventListener('unhandledrejection', (event) => {
-  logApp(`Unhandled promise: ${event.reason}`, 'error');
+  window.logApp(`Unhandled promise: ${event.reason}`, 'error');
 });

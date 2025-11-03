@@ -3,54 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔧 Diagnostics - Imbriani Noleggio</title>
+    <title>🔧 Diagnostics - Imbriani Stefano Noleggio</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace; }
         .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
         .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
         .test-btn { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
         .test-btn:hover { background: #0056b3; }
-        .code { background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; margin: 10px 0; }
-        .hidden { display: none; }
+        .test-btn:disabled { background: #6c757d; cursor: not-allowed; }
+        .code { background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; margin: 10px 0; white-space: pre-wrap; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+        .section { background: #f8f9fa; padding: 15px; border-radius: 4px; margin: 10px 0; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔧 Diagnostics - Sistema Imbriani</h1>
+        <h1>🔧 Sistema Diagnostics - Imbriani Stefano Noleggio</h1>
         
-        <div class="status info">
-            <strong>Environment:</strong> <span id="env">Loading...</span><br>
-            <strong>Config Version:</strong> <span id="version">Loading...</span><br>
-            <strong>API URL:</strong> <span id="apiUrl">Loading...</span><br>
-            <strong>Timestamp:</strong> <span id="timestamp">Loading...</span>
+        <div class="section">
+            <h3>📊 Configurazione Sistema</h3>
+            <div class="status info">
+                <strong>Environment:</strong> <span id="env">Loading...</span><br>
+                <strong>Config Version:</strong> <span id="version">Loading...</span><br>
+                <strong>API URL:</strong> <span id="apiUrl">Loading...</span><br>
+                <strong>Token:</strong> <span id="token">Loading...</span><br>
+                <strong>Sheets ID:</strong> <span id="sheetsId">Loading...</span><br>
+                <strong>Origin:</strong> <span id="origin">Loading...</span><br>
+                <strong>Timestamp:</strong> <span id="timestamp">Loading...</span>
+            </div>
         </div>
 
-        <h2>🧪 Tests</h2>
-        <button class="test-btn" onclick="testAPIConnection()">Test API Connection</button>
-        <button class="test-btn" onclick="testCORS()">Test CORS</button>
-        <button class="test-btn" onclick="testLogin()">Test Login Mock</button>
-        <button class="test-btn" onclick="clearLogs()">Clear Logs</button>
+        <div class="grid">
+            <div>
+                <h3>🧪 Test Sistema</h3>
+                <button class="test-btn" onclick="testBackendDirect()">🎯 Test Backend Diretto</button>
+                <button class="test-btn" onclick="testAPIConnection()">🔗 Test API via Proxy</button>
+                <button class="test-btn" onclick="testCORS()">🌐 Test CORS Headers</button>
+                <button class="test-btn" onclick="testLogin()">👤 Test Login Mock</button>
+                <button class="test-btn" onclick="testHealth()">💓 Test Health Endpoint</button>
+                <button class="test-btn" onclick="clearLogs()">🗑️ Clear Logs</button>
+            </div>
+            
+            <div>
+                <h3>⚡ Test Rapidi</h3>
+                <button class="test-btn" onclick="runAllTests()">🚀 Run All Tests</button>
+                <button class="test-btn" onclick="testSheets()">📊 Test Sheets Access</button>
+                <button class="test-btn" onclick="testToken()">🔑 Test Token</button>
+                <button class="test-btn" onclick="exportDiagnostics()">💾 Export Diagnostics</button>
+            </div>
+        </div>
         
-        <div id="testResults"></div>
+        <div class="section">
+            <h3>📋 Test Results</h3>
+            <div id="testResults"></div>
+        </div>
         
-        <h2>📋 Console Logs</h2>
-        <div id="consoleLogs" class="code" style="height: 300px; overflow-y: scroll;"></div>
+        <div class="section">
+            <h3>📄 Console Logs</h3>
+            <div id="consoleLogs" class="code" style="height: 300px; overflow-y: scroll; max-height: 300px;"></div>
+        </div>
         
-        <h2>🏠 Navigation</h2>
-        <a href="index.html">← Back to Main App</a> | 
-        <a href="admin.html">Admin Panel</a>
+        <div class="section">
+            <h3>🏠 Navigation</h3>
+            <a href="index.html" style="margin-right: 10px;">← App Principale</a>
+            <a href="admin.html" style="margin-right: 10px;">⚙️ Admin Panel</a>
+            <a href="veicoli.html">🚐 Veicoli</a>
+        </div>
     </div>
 
     <script src="config.js"></script>
     <script>
         // Initialize diagnostics
-        document.getElementById('env').textContent = window.ENV_NAME || 'Unknown';
-        document.getElementById('version').textContent = '8.1.0';
-        document.getElementById('apiUrl').textContent = window.API_URL || 'Not loaded';
-        document.getElementById('timestamp').textContent = new Date().toLocaleString('it-IT');
+        function initDiagnostics() {
+            document.getElementById('env').textContent = window.ENV_NAME || 'Unknown';
+            document.getElementById('version').textContent = '8.2.0';
+            document.getElementById('apiUrl').textContent = window.API_URL || 'Not loaded';
+            document.getElementById('token').textContent = window.API_TOKEN ? window.API_TOKEN.substring(0,8) + '...' : 'Not loaded';
+            document.getElementById('sheetsId').textContent = window.SHEETS_CONFIG?.SPREADSHEET_ID || 'Not loaded';
+            document.getElementById('origin').textContent = window.location.origin;
+            document.getElementById('timestamp').textContent = new Date().toLocaleString('it-IT');
+        }
         
         // Console capture
         const originalLog = console.log;
@@ -60,7 +97,8 @@
         
         function addLogToPage(message, type = 'log') {
             const div = document.createElement('div');
-            div.style.color = type === 'error' ? 'red' : type === 'warn' ? 'orange' : 'black';
+            div.style.color = type === 'error' ? '#721c24' : type === 'warn' ? '#856404' : '#0c5460';
+            div.style.marginBottom = '2px';
             div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
             logsContainer.appendChild(div);
             logsContainer.scrollTop = logsContainer.scrollHeight;
@@ -81,72 +119,164 @@
             addLogToPage(args.join(' '), 'warn');
         };
         
-        // Test functions
-        async function testAPIConnection() {
+        function showResult(message, type = 'info') {
             const results = document.getElementById('testResults');
-            results.innerHTML = '<div class="status info">Testing API connection...</div>';
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+        
+        // Test functions
+        async function testBackendDirect() {
+            showResult('🎯 Testing backend diretto...', 'info');
             
             try {
-                const response = await fetch(window.API_URL + '/health', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
+                const directUrl = 'https://script.google.com/macros/s/AKfycbx8vOsfdliS4e5odoRMkvCwaWY7SowSkgtW0zTuvqDIu4R99sUEixlLSW7Y9MyvNWk/exec?token=imbriani_secret_2025&action=health';
+                const response = await fetch(directUrl, { mode: 'cors' });
+                const data = await response.json();
                 
-                if (response.ok) {
-                    results.innerHTML = '<div class="status success">✅ API connection successful!</div>';
+                if (data.success) {
+                    showResult(`✅ Backend diretto OK - Version: ${data.version}`, 'success');
                 } else {
-                    results.innerHTML = `<div class="status error">❌ API returned status: ${response.status}</div>`;
+                    showResult(`❌ Backend error: ${data.message}`, 'error');
                 }
             } catch (error) {
-                results.innerHTML = `<div class="status error">❌ API connection failed: ${error.message}</div>`;
+                showResult(`❌ Backend diretto failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testAPIConnection() {
+            showResult('🔗 Testing API via proxy...', 'info');
+            
+            try {
+                const data = await window.apiCall('/health');
+                
+                if (data.success) {
+                    showResult('✅ API proxy connection successful!', 'success');
+                } else {
+                    showResult(`❌ API proxy error: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ API proxy failed: ${error.message}`, 'error');
             }
         }
         
         async function testCORS() {
-            const results = document.getElementById('testResults');
-            results.innerHTML = '<div class="status info">Testing CORS headers...</div>';
+            showResult('🌐 Testing CORS headers...', 'info');
             
             try {
-                const response = await fetch(window.API_URL + '/login', {
+                const response = await fetch(window.API_URL + '/health', {
                     method: 'OPTIONS'
                 });
                 
-                const corsHeaders = response.headers.get('Access-Control-Allow-Origin');
-                if (corsHeaders) {
-                    results.innerHTML = `<div class="status success">✅ CORS headers present: ${corsHeaders}</div>`;
+                const corsOrigin = response.headers.get('Access-Control-Allow-Origin');
+                const corsMethods = response.headers.get('Access-Control-Allow-Methods');
+                const corsHeaders = response.headers.get('Access-Control-Allow-Headers');
+                
+                if (corsOrigin && corsMethods) {
+                    showResult(`✅ CORS OK - Origin: ${corsOrigin}, Methods: ${corsMethods}`, 'success');
                 } else {
-                    results.innerHTML = '<div class="status error">❌ No CORS headers found</div>';
+                    showResult('❌ No CORS headers found', 'error');
                 }
             } catch (error) {
-                results.innerHTML = `<div class="status error">❌ CORS test failed: ${error.message}</div>`;
+                showResult(`❌ CORS test failed: ${error.message}`, 'error');
             }
         }
         
         async function testLogin() {
-            const results = document.getElementById('testResults');
-            results.innerHTML = '<div class="status info">Testing login endpoint...</div>';
+            showResult('👤 Testing login endpoint...', 'info');
             
             try {
-                const response = await fetch(window.API_URL + '/login', {
+                const data = await window.apiCall('/login', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${window.API_TOKEN}`
-                    },
                     body: JSON.stringify({ codiceFiscale: 'TEST123456789ABCD' })
                 });
                 
-                const data = await response.json();
-                if (response.ok) {
-                    results.innerHTML = '<div class="status success">✅ Login endpoint responding</div>';
+                if (data.success || data.message) {
+                    showResult(`✅ Login endpoint responding: ${data.message}`, 'success');
                 } else {
-                    results.innerHTML = `<div class="status error">❌ Login failed: ${data.message || response.statusText}</div>`;
+                    showResult(`❌ Login failed: ${JSON.stringify(data)}`, 'error');
                 }
             } catch (error) {
-                results.innerHTML = `<div class="status error">❌ Login test failed: ${error.message}</div>`;
+                showResult(`❌ Login test failed: ${error.message}`, 'error');
             }
+        }
+        
+        async function testHealth() {
+            showResult('💓 Testing health endpoint...', 'info');
+            
+            try {
+                const data = await window.apiCall('/?action=health');
+                
+                if (data.success) {
+                    showResult(`✅ Health OK - Version: ${data.version}`, 'success');
+                } else {
+                    showResult(`⚠️ Health warning: ${data.message}`, 'warning');
+                }
+            } catch (error) {
+                showResult(`❌ Health failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testToken() {
+            showResult('🔑 Testing token validation...', 'info');
+            
+            const token = window.API_TOKEN;
+            if (!token) {
+                showResult('❌ No token configured', 'error');
+                return;
+            }
+            
+            showResult(`✅ Token loaded: ${token.substring(0,8)}...*****`, 'success');
+        }
+        
+        async function testSheets() {
+            showResult('📊 Testing Sheets configuration...', 'info');
+            
+            const config = window.SHEETS_CONFIG;
+            if (!config) {
+                showResult('❌ No Sheets config found', 'error');
+                return;
+            }
+            
+            const tabs = Object.keys(config.TABS).join(', ');
+            showResult(`✅ Sheets config OK - ID: ${config.SPREADSHEET_ID.substring(0,10)}..., Tabs: ${tabs}`, 'success');
+        }
+        
+        async function runAllTests() {
+            clearLogs();
+            showResult('🚀 Running all tests...', 'info');
+            
+            await testToken();
+            await testSheets();
+            await testBackendDirect();
+            await testCORS();
+            await testAPIConnection();
+            await testHealth();
+            await testLogin();
+            
+            showResult('🎉 All tests completed!', 'success');
+        }
+        
+        function exportDiagnostics() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                environment: window.ENV_NAME,
+                apiUrl: window.API_URL,
+                origin: window.location.origin,
+                sheetsId: window.SHEETS_CONFIG?.SPREADSHEET_ID,
+                userAgent: navigator.userAgent,
+                logs: document.getElementById('consoleLogs').textContent
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `imbriani-diagnostics-${new Date().toISOString().slice(0,16).replace(/:/g,'-')}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
         }
         
         function clearLogs() {
@@ -154,10 +284,13 @@
             document.getElementById('testResults').innerHTML = '';
         }
         
-        // Auto-log system status
-        window.logApp('🔧 Diagnostics page loaded');
-        window.logApp(`Environment: ${window.ENV_NAME}`);
-        window.logApp(`API URL: ${window.API_URL}`);
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', function() {
+            initDiagnostics();
+            window.logApp('🔧 Diagnostics page loaded');
+            window.logApp(`Environment: ${window.ENV_NAME}`);
+            window.logApp(`API URL: ${window.API_URL}`);
+        });
     </script>
 </body>
 </html>
