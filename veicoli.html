@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="it" class="h-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seleziona Veicolo — Imbriani Stefano Noleggio</title>
+  <meta name="description" content="Selezione veicoli disponibili - Imbriani Stefano Noleggio">
+  <meta name="theme-color" content="#0066FF">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚐</text></svg>">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=800">
+  <style>
+    body{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);min-height:100vh}
+    .vehicle-card{cursor:pointer;transition:all .3s cubic-bezier(.4,0,.2,1)}
+    .vehicle-card:hover{transform:translateY(-4px)}
+    .vehicle-card.selected{border-color:#0066FF !important;box-shadow:0 0 0 3px rgba(0,102,255,.1)}
+    .vehicle-card.disabled{opacity:.5;cursor:not-allowed}
+  </style>
+</head>
+<body class="d-flex flex-column h-100">
+  <header class="py-4">
+    <div class="container">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <h1 class="h3 text-white fw-bold mb-0"><i class="fas fa-car me-2"></i>Seleziona il tuo veicolo</h1>
+          <p class="text-white-50 mb-0">Scegli il pulmino perfetto per il tuo viaggio</p>
+        </div>
+        <a href="index.html" class="btn btn-outline-light"><i class="fas fa-arrow-left me-2"></i>Torna alla home</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-grow-1 py-4">
+    <div class="container">
+      <!-- Filtri -->
+      <div class="glass-card p-3 mb-4">
+        <div class="row g-3 align-items-center">
+          <div class="col-md-3">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="filter-disponibili" checked>
+              <label class="form-check-label fw-semibold text-white" for="filter-disponibili">Solo disponibili</label>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="filter-manutenzione">
+              <label class="form-check-label fw-semibold text-white" for="filter-manutenzione">Includi manutenzione</label>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <input type="text" id="filter-search" class="form-control form-control-modern" placeholder="🔍 Cerca per marca, modello, targa...">
+          </div>
+          <div class="col-md-2">
+            <select id="filter-posti" class="form-select form-control-modern">
+              <option value="">Tutti i posti</option>
+              <option value="9">9 posti</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Griglia veicoli -->
+      <div id="vehicles-grid" class="row g-4 mb-4"></div>
+      
+      <!-- Azioni -->
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <span id="vehicles-count" class="text-white-50">Caricamento...</span>
+        </div>
+        <div class="d-flex gap-2">
+          <a href="index.html" class="btn btn-outline-light">Annulla</a>
+          <button type="button" id="continue-selection" class="btn btn-premium" disabled>Continua con questo veicolo</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="spinner" class="loader-premium d-none"><div class="loader-spinner"></div><div class="loader-text" id="loader-message">Caricamento...</div></div>
+
+  <script src="config.js"></script>
+  <script src="shared-utils.js"></script>
+  <script src="scripts.js"></script>
+  <script src="safe-whatsapp-fix.js"></script>
+  <script src="whatsapp-loader.js"></script>
+  <script>
+    let selectedVehicle = null;
+    let searchParams = {};
+    
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Leggi parametri URL
+      const urlParams = new URLSearchParams(window.location.search);
+      searchParams = {
+        dataInizio: urlParams.get('start') || '',
+        dataFine: urlParams.get('end') || '',
+        oraInizio: urlParams.get('ora_start') || '08:00',
+        oraFine: urlParams.get('ora_end') || '20:00',
+        destinazione: urlParams.get('dest') || '',
+        posti: urlParams.get('posti') || '9'
+      };
+      
+      // Setup filtri
+      ['filter-disponibili', 'filter-manutenzione', 'filter-search', 'filter-posti'].forEach(id => {
+        document.getElementById(id)?.addEventListener('change', filterVehicles);
+        document.getElementById(id)?.addEventListener('input', filterVehicles);
+      });
+      
+      // Continua selezione -> torna a homepage con localStorage
+      document.getElementById('continue-selection')?.addEventListener('click', () => {
+        if (selectedVehicle) {
+          localStorage.setItem('selectedVehicle', JSON.stringify(selectedVehicle));
+          localStorage.setItem('searchParams', JSON.stringify(searchParams));
+          window.location.href = 'index.html#preventivo';
+        }
+      });
+      
+      // Carica veicoli
+      await loadVehicles();
+    });
+    
+    // Stesse funzioni della modale
+    async function loadVehicles() {
+      if (window.showLoader) showLoader(true, 'Caricamento veicoli...');
+      try {
+        const [flottaResp, dispResp] = await Promise.all([
+          callAPI('flotta', { method: 'get' }),
+          callAPI('disponibilita', searchParams)
+        ]);
+        
+        const flotta = flottaResp.success ? flottaResp.data : [];
+        const disponibili = dispResp.success ? (dispResp.data.disponibili || dispResp.data || []) : [];
+        const targheDisponibili = new Set(disponibili.map(v => v.Targa));
+        
+        flotta.forEach(v => {
+          v.DisponibileDate = targheDisponibili.has(v.Targa);
+        });
+        
+        renderVehicles(flotta);
+        updateVehicleCount(flotta);
+      } catch (error) {
+        console.error('Errore caricamento veicoli:', error);
+        document.getElementById('vehicles-grid').innerHTML = '<div class="col-12"><div class="alert alert-danger">Errore caricamento veicoli. Riprova.</div></div>';
+      } finally {
+        if (window.showLoader) showLoader(false);
+      }
+    }
+    
+    function renderVehicles(vehicles) {
+      const grid = document.getElementById('vehicles-grid');
+      if (!vehicles || vehicles.length === 0) {
+        grid.innerHTML = '<div class="col-12"><div class="alert alert-warning text-center">Nessun veicolo trovato.</div></div>';
+        return;
+      }
+      
+      grid.innerHTML = vehicles.map(v => {
+        const available = v.DisponibileDate && v.Disponibile;
+        const passoLungo = v.PassoLungo || v.Targa === 'EC787NM';
+        const badges = [];
+        if (passoLungo) badges.push('<span class="badge bg-warning">🚐 Passo Lungo</span>');
+        if (!available) badges.push('<span class="badge bg-secondary">Manutenzione</span>');
+        else badges.push('<span class="badge bg-success">Disponibile</span>');
+        
+        return `
+          <div class="col-md-6 col-xl-4">
+            <div class="vehicle-card glass-card p-3 h-100 ${!available ? 'disabled' : ''}" data-targa="${v.Targa}" data-vehicle='${JSON.stringify(v)}'>
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <h6 class="fw-bold mb-0 text-white">${v.Marca} ${v.Modello}</h6>
+                <div class="d-flex flex-wrap gap-1">${badges.join('')}</div>
+              </div>
+              <div class="text-muted small mb-2">
+                <i class="fas fa-id-badge me-1"></i>Targa: ${v.Targa}
+              </div>
+              <div class="text-muted small mb-3">
+                <i class="fas fa-users me-1"></i>${v.Posti} posti
+              </div>
+              ${v.Note ? `<div class="small text-muted mb-2">${v.Note}</div>` : ''}
+              <div class="d-grid">
+                <button class="btn ${available ? 'btn-outline-primary' : 'btn-outline-secondary'} btn-sm vehicle-select" ${!available ? 'disabled' : ''} data-targa="${v.Targa}">
+                  ${available ? '<i class="fas fa-check me-1"></i>Seleziona' : '<i class="fas fa-ban me-1"></i>Non disponibile'}
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      document.querySelectorAll('.vehicle-select').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          if (!btn.disabled) {
+            selectVehicle(btn.dataset.targa);
+          }
+        });
+      });
+    }
+    
+    function selectVehicle(targa) {
+      selectedVehicle = null;
+      document.querySelectorAll('.vehicle-card').forEach(card => {
+        card.classList.remove('selected');
+        if (card.dataset.targa === targa) {
+          card.classList.add('selected');
+          try {
+            selectedVehicle = JSON.parse(card.dataset.vehicle);
+          } catch (e) {
+            console.error('Errore parsing veicolo:', e);
+          }
+        }
+      });
+      
+      document.getElementById('continue-selection').disabled = !selectedVehicle;
+    }
+    
+    function filterVehicles() {
+      const soloDisp = document.getElementById('filter-disponibili')?.checked;
+      const inclManu = document.getElementById('filter-manutenzione')?.checked;
+      const search = document.getElementById('filter-search')?.value?.toLowerCase() || '';
+      const posti = document.getElementById('filter-posti')?.value;
+      
+      document.querySelectorAll('.vehicle-card').forEach(card => {
+        try {
+          const vehicle = JSON.parse(card.dataset.vehicle);
+          let show = true;
+          
+          if (soloDisp && !vehicle.DisponibileDate) show = false;
+          if (!inclManu && !vehicle.Disponibile) show = false;
+          if (search && !`${vehicle.Marca} ${vehicle.Modello} ${vehicle.Targa}`.toLowerCase().includes(search)) show = false;
+          if (posti && vehicle.Posti.toString() !== posti) show = false;
+          
+          card.parentElement.style.display = show ? 'block' : 'none';
+        } catch (e) {
+          console.error('Errore filtro veicolo:', e);
+        }
+      });
+    }
+    
+    function updateVehicleCount(vehicles) {
+      const total = vehicles.length;
+      const available = vehicles.filter(v => v.DisponibileDate && v.Disponibile).length;
+      document.getElementById('vehicles-count').textContent = `${available} disponibili su ${total} veicoli totali`;
+    }
+  </script>
+</body>
+</html>
