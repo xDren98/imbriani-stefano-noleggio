@@ -1,2 +1,0 @@
-/* 🔧 IMBRIANI NOLEGGIO - Safe WhatsApp Fix */
-'use strict';(function(){console.log('🔧 Safe WhatsApp Fix initialized');if(typeof window.WhatsAppWidget!=='undefined'){console.log('WhatsApp widget already loaded, skipping...');return;}window.WhatsAppWidget={loaded:true,version:'1.0.0'};setTimeout(()=>{if(typeof loadWhatsAppWidget==='function'){try{loadWhatsAppWidget();console.log('✅ WhatsApp widget loaded safely');}catch(error){console.warn('WhatsApp widget load failed:',error);}}},1000);})();
