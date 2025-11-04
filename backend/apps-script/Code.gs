@@ -1,11 +1,11 @@
 /**
- * IMBRIANI STEFANO NOLEGGIO - BACKEND v8.3
+ * IMBRIANI STEFANO NOLEGGIO - BACKEND v8.3.1
  * Mappatura colonne corretta basata sui fogli Google Sheets reali
  */
 
 // 🔧 CONFIGURAZIONE AGGIORNATA CON COLONNE REALI
 const CONFIG = {
-  VERSION: '8.3.0',
+  VERSION: '8.3.1',
   SPREADSHEET_ID: '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns',
   TOKEN: 'imbriani_secret_2025',
   
@@ -164,7 +164,7 @@ function doGet(e) {
 // 🔑 FUNZIONE PRINCIPALE POST
 function doPost(e) {
   try {
-    const token = e.parameter.token || getAuthHeader(e);
+    const tokenHeader = e.parameter.token || getAuthHeader(e);
     
     let postData = {};
     try {
@@ -177,12 +177,15 @@ function doPost(e) {
     }
     
     const action = postData.action || 'login';
+
+    // ✅ NEW: accetta token da header OPPURE da body (compatibile con Worker)
+    const finalToken = tokenHeader || postData.token || postData.AUTH_TOKEN;
     
     if (action === 'login') {
-      return handleLogin(postData, token);
+      return handleLogin(postData, finalToken);
     }
     
-    if (!validateToken(token)) {
+    if (!validateToken(finalToken)) {
       return createJsonResponse({
         success: false,
         message: 'Token non valido',
@@ -221,7 +224,7 @@ function validateToken(token) {
   return token === CONFIG.TOKEN;
 }
 
-// 📤 HELPER RISPOSTA JSON
+// 📤 HELPER RISPOSTA JSON (VERSIONE CORRETTA)
 function createJsonResponse(data, status = 200) {
   const response = {
     ...data,
@@ -232,12 +235,7 @@ function createJsonResponse(data, status = 200) {
   
   return ContentService
     .createTextOutput(JSON.stringify(response, null, 2))
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeaders({
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-    });
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 // 🔑 GET AUTH HEADER
@@ -599,111 +597,6 @@ function creaPrenotazione(postData) {
     return createJsonResponse({
       success: false,
       message: 'Errore creazione prenotazione: ' + error.message
-    }, 500);
-  }
-}
-
-// 📝 AGGIORNA STATO PRENOTAZIONE
-function aggiornaStatoPrenotazione(postData) {
-  try {
-    const idPrenotazione = postData.idPrenotazione;
-    const nuovoStato = postData.stato;
-    
-    if (!idPrenotazione || !nuovoStato) {
-      return createJsonResponse({
-        success: false,
-        message: 'Parametri mancanti: idPrenotazione, stato'
-      }, 400);
-    }
-    
-    const sheet = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
-    const data = sheet.getDataRange().getValues();
-    
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1] === idPrenotazione) {
-        sheet.getRange(i + 1, CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE).setValue(nuovoStato);
-        
-        return createJsonResponse({
-          success: true,
-          message: 'Stato prenotazione aggiornato',
-          idPrenotazione: idPrenotazione,
-          nuovoStato: nuovoStato
-        });
-      }
-    }
-    
-    return createJsonResponse({
-      success: false,
-      message: 'Prenotazione non trovata'
-    }, 404);
-    
-  } catch (error) {
-    return createJsonResponse({
-      success: false,
-      message: 'Errore aggiornamento stato: ' + error.message
-    }, 500);
-  }
-}
-
-// 🔧 SET MANUTENZIONE
-function setManutenzione(postData) {
-  try {
-    const targa = postData.targa;
-    const dataInizio = postData.dataInizio;
-    const dataFine = postData.dataFine;
-    const costo = postData.costo || 0;
-    const note = postData.note || '';
-    
-    if (!targa || !dataInizio || !dataFine) {
-      return createJsonResponse({
-        success: false,
-        message: 'Parametri mancanti: targa, dataInizio, dataFine'
-      }, 400);
-    }
-    
-    const sheet = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.MANUTENZIONI);
-    
-    // Trova info veicolo dal foglio Pulmini
-    const pulminiSheet = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PULMINI);
-    const pulminiData = pulminiSheet.getDataRange().getValues();
-    
-    let veicoloInfo = {};
-    for (let i = 1; i < pulminiData.length; i++) {
-      if (pulminiData[i][CONFIG.PULMINI_COLS.TARGA - 1] === targa) {
-        veicoloInfo = {
-          targa: targa,
-          marca: pulminiData[i][CONFIG.PULMINI_COLS.MARCA - 1],
-          modello: pulminiData[i][CONFIG.PULMINI_COLS.MODELLO - 1],
-          posti: pulminiData[i][CONFIG.PULMINI_COLS.POSTI - 1]
-        };
-        break;
-      }
-    }
-    
-    const newRow = [
-      veicoloInfo.targa || targa,
-      veicoloInfo.marca || '',
-      veicoloInfo.modello || '',
-      veicoloInfo.posti || 9,
-      'In manutenzione',
-      new Date(dataInizio),
-      new Date(dataFine),
-      costo,
-      note
-    ];
-    
-    sheet.appendRow(newRow);
-    
-    return createJsonResponse({
-      success: true,
-      message: 'Manutenzione programmata',
-      targa: targa
-    });
-    
-  } catch (error) {
-    return createJsonResponse({
-      success: false,
-      message: 'Errore programmazione manutenzione: ' + error.message
     }, 500);
   }
 }
