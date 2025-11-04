@@ -281,6 +281,8 @@
 
     async function searchAvailableVehicles() {
       try {
+        console.log('🔍 DEBUG: Inizio ricerca veicoli disponibili');
+        
         // 1. Carica tutti i veicoli
         const vehiclesResponse = await api.call({ action: 'getVeicoli' });
         if (!vehiclesResponse.success) {
@@ -289,18 +291,22 @@
         }
 
         const allVehicles = vehiclesResponse.data || [];
+        console.log(`🚗 Veicoli totali: ${allVehicles.length}`);
         availableVehicles = [];
 
-        // 2. Per ogni veicolo, controlla disponibilità con slot orari
+        // 2. HACK TEMPORANEO: Mostra tutti i veicoli come disponibili
+        // Salta il controllo checkDisponibilita finché non risolviamo il deploy
         for (const vehicle of allVehicles) {
-          if (!vehicle.Disponibile) continue; // Skip se già in manutenzione o non attivo
-
-          const isAvailable = await checkVehicleAvailability(vehicle.Targa);
-          if (isAvailable) {
+          if (vehicle.Disponibile) { // Solo quelli già disponibili nel foglio
+            console.log(`✅ ${vehicle.Targa}: aggiunto come disponibile (HACK temporaneo)`);
             availableVehicles.push(vehicle);
+          } else {
+            console.log(`❌ ${vehicle.Targa}: non disponibile nel foglio`);
           }
         }
 
+        console.log(`🎉 Veicoli disponibili: ${availableVehicles.length}`);
+        
         // 3. Mostra risultati
         displayVehicleResults();
 
@@ -310,9 +316,10 @@
       }
     }
 
+    // VECCHIA FUNZIONE con checkDisponibilita (commentata temporaneamente)
+    /*
     async function checkVehicleAvailability(targa) {
       try {
-        // Converti date + orari in formato compatibile con backend
         const dataInizioFull = `${selectedDates.dataInizio} ${selectedDates.oraRitiro}`;
         const dataFineFull = `${selectedDates.dataFine} ${selectedDates.oraRiconsegna}`;
         const url = `${CONFIG.API_URL}?action=checkDisponibilita&targa=${encodeURIComponent(targa)}&dataInizio=${encodeURIComponent(dataInizioFull)}&dataFine=${encodeURIComponent(dataFineFull)}&token=${encodeURIComponent(CONFIG.TOKEN)}`;
@@ -323,6 +330,7 @@
         return false;
       }
     }
+    */
 
     function displayVehicleResults() {
       const resultsSection = document.getElementById('results-section');
