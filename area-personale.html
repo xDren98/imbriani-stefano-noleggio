@@ -10,7 +10,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=8009">
+  <link rel="stylesheet" href="styles.css?v=8010">
   <style>
     body{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);min-height:100vh}
     .stat-card{transition:all .3s cubic-bezier(.4,0,.2,1)}
@@ -123,7 +123,6 @@
     let currentUser = null;
 
     document.addEventListener('DOMContentLoaded', async () => {
-      // Controlla sessione
       const userData = localStorage.getItem('imbriani_user');
       if (!userData) {
         if (window.showToast) showToast('Sessione scaduta. Effettua di nuovo il login.', 'warning');
@@ -141,7 +140,6 @@
         window.location.href = 'index.html';
       }
 
-      // Bind eventi (logout robusto)
       const logout = function(e){
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
         try{
@@ -168,6 +166,8 @@
       ]);
     }
 
+    function safe(val){ return (val===undefined||val===null||val==='') ? 'N/A' : val }
+
     async function loadProfile() {
       const profileEl = document.getElementById('user-profile');
       if (!currentUser) return;
@@ -176,150 +176,71 @@
       const inizioValidita = currentUser.inizioValiditaPatente ? new Date(currentUser.inizioValiditaPatente) : null;
       const giorni = scadenzaPatente ? Math.ceil((scadenzaPatente - new Date()) / (1000*60*60*24)) : null;
 
+      const indirizzoFull = `${safe(currentUser.viaResidenza)} ${safe(currentUser.civicoResidenza)}`.trim();
+
       profileEl.innerHTML = `
-        <div class="mb-2">
-          <strong class="text-white">Nome:</strong>
-          <span class="text-white-75">${currentUser.nome || 'N/A'}</span>
-        </div>
-        <div class="mb-2">
-          <strong class="text-white">Codice Fiscale:</strong>
-          <span class="text-white-75">${currentUser.codiceFiscale || 'N/A'}</span>
-        </div>
-        <div class="mb-2">
-          <strong class="text-white">Comune:</strong>
-          <span class="text-white-75">${currentUser.comuneResidenza || 'N/A'}</span>
-        </div>
-        <div class="mb-2">
-          <strong class="text-white">Indirizzo:</strong>
-          <span class="text-white-75">${currentUser.indirizzo || 'N/A'}</span>
-        </div>
-        <div class="mb-2">
-          <strong class="text-white">Luogo di nascita:</strong>
-          <span class="text-white-75">${currentUser.luogoNascita || 'N/A'}</span>
-        </div>
-        <div class="mb-2">
-          <strong class="text-white">Patente:</strong>
-          <span class="text-white-75">${currentUser.numeroPatente || 'N/A'}</span>
-        </div>
-        <div class="mb-2">
-          <strong class="text-white">Inizio validità:</strong>
-          <span class="text-white-75">${inizioValidita ? inizioValidita.toLocaleDateString('it-IT') : 'N/A'}</span>
-        </div>
-        <div class="mb-3">
-          <strong class="text-white">Scadenza:</strong>
-          <span class="text-white-75">${scadenzaPatente ? scadenzaPatente.toLocaleDateString('it-IT') : 'N/A'}</span>
-          ${giorni && giorni < 60 ? `<span class="badge bg-warning ms-1">${giorni}g</span>` : ''}
-        </div>
-        <div class="mb-2">
-          <strong class="text-white">Telefono:</strong>
-          <span class="text-white-75">${currentUser.cellulare || 'N/A'}</span>
-        </div>
-        <div class="mb-3">
-          <strong class="text-white">Email:</strong>
-          <span class="text-white-75">${currentUser.email || 'N/A'}</span>
-        </div>
-        <button type="button" class="btn btn-outline-light btn-sm w-100">
-          <i class="fas fa-edit me-1"></i>Modifica Profilo
-        </button>
+        <div class="mb-2"><strong class="text-white">Nome:</strong> <span class="text-white-75">${safe(currentUser.nome)}</span></div>
+        <div class="mb-2"><strong class="text-white">Codice Fiscale:</strong> <span class="text-white-75">${safe(currentUser.codiceFiscale)}</span></div>
+        <div class="mb-2"><strong class="text-white">Comune:</strong> <span class="text-white-75">${safe(currentUser.comuneResidenza)}</span></div>
+        <div class="mb-2"><strong class="text-white">Indirizzo:</strong> <span class="text-white-75">${indirizzoFull !== 'N/A N/A' ? indirizzoFull : 'N/A'}</span></div>
+        <div class="mb-2"><strong class="text-white">Luogo di nascita:</strong> <span class="text-white-75">${safe(currentUser.luogoNascita)}</span></div>
+        <div class="mb-2"><strong class="text-white">Patente:</strong> <span class="text-white-75">${safe(currentUser.numeroPatente)}</span></div>
+        <div class="mb-2"><strong class="text-white">Inizio validità:</strong> <span class="text-white-75">${inizioValidita ? inizioValidita.toLocaleDateString('it-IT') : 'N/A'}</span></div>
+        <div class="mb-3"><strong class="text-white">Scadenza:</strong> <span class="text-white-75">${scadenzaPatente ? scadenzaPatente.toLocaleDateString('it-IT') : 'N/A'}</span> ${giorni && giorni < 60 ? `<span class="badge bg-warning ms-1">${giorni}g</span>` : ''}</div>
+        <div class="mb-2"><strong class="text-white">Telefono:</strong> <span class="text-white-75">${safe(currentUser.cellulare)}</span></div>
+        <div class="mb-3"><strong class="text-white">Email:</strong> <span class="text-white-75">${safe(currentUser.email) || 'N/A'}</span></div>
+        <button type="button" class="btn btn-outline-light btn-sm w-100"><i class="fas fa-edit me-1"></i>Modifica Profilo</button>
       `;
     }
 
     async function loadBookings() {
       const listEl = document.getElementById('bookings-list');
-      
       try {
         const response = await api.call({ action: 'getPrenotazioni' });
-        
-        if (!response.success) {
-          listEl.innerHTML = '<div class="text-danger">Errore caricamento prenotazioni</div>';
-          return;
-        }
-
-        const bookings = (response.data || []).filter(b => 
-          b.codiceFiscaleAutista1 === currentUser.codiceFiscale
-        );
-
+        if (!response.success) { listEl.innerHTML = '<div class="text-danger">Errore caricamento prenotazioni</div>'; return; }
+        const bookings = (response.data || []).filter(b => b.codiceFiscaleAutista1 === currentUser.codiceFiscale);
         if (bookings.length === 0) {
           listEl.innerHTML = `
             <div class="text-center text-muted py-4">
               <i class="fas fa-calendar-times mb-2" style="font-size:2rem"></i>
               <div>Nessuna prenotazione trovata</div>
-              <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="document.getElementById('nuova-prenotazione').click()">
-                Crea la tua prima prenotazione
-              </button>
-            </div>
-          `;
-          return;
-        }
-
-        listEl.innerHTML = bookings.slice(0, 5).map(booking => {
+              <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="document.getElementById('nuova-prenotazione').click()">Crea la tua prima prenotazione</button>
+            </div>`; return; }
+        listEl.innerHTML = bookings.slice(0,5).map(booking => {
           const status = booking.stato || 'In attesa';
-          const statusClass = {
-            'In attesa': 'status-attesa',
-            'Confermata': 'status-confermata', 
-            'Completata': 'status-completata',
-            'Rifiutata': 'status-rifiutata'
-          }[status] || 'status-attesa';
-
+          const statusClass = { 'In attesa':'status-attesa','Confermata':'status-confermata','Completata':'status-completata','Rifiutata':'status-rifiutata' }[status] || 'status-attesa';
           const targa = booking.targa || 'Targa N/A';
           const dataInizio = booking.giornoInizio ? new Date(booking.giornoInizio).toLocaleDateString('it-IT') : 'N/A';
           const dataFine = booking.giornoFine ? new Date(booking.giornoFine).toLocaleDateString('it-IT') : 'N/A';
           const destinazione = booking.destinazione || 'Destinazione N/A';
           const importo = booking.importo ? `${booking.importo}€` : '';
-
-          return `
-            <div class="border-bottom border-secondary pb-3 mb-3">
+          return `<div class="border-bottom border-secondary pb-3 mb-3">
               <div class="d-flex justify-content-between align-items-start mb-1">
                 <h6 class="text-white fw-semibold mb-0">${targa}</h6>
                 <span class="booking-status ${statusClass}">${status}</span>
               </div>
-              <div class="small text-white-50 mb-1">
-                <i class="fas fa-calendar me-1"></i>${dataInizio} → ${dataFine}
-              </div>
-              <div class="small text-white-75 mb-2">
-                <i class="fas fa-map-marker-alt me-1"></i>${destinazione}
-              </div>
+              <div class="small text-white-50 mb-1"><i class="fas fa-calendar me-1"></i>${dataInizio} → ${dataFine}</div>
+              <div class="small text-white-75 mb-2"><i class="fas fa-map-marker-alt me-1"></i>${destinazione}</div>
               ${importo ? `<div class="small text-success text-end">${importo}</div>` : ''}
-            </div>
-          `;
-        }).join('');
-
-        if (bookings.length > 5) {
-          listEl.innerHTML += `<div class="text-center mt-3"><button class="btn btn-outline-light btn-sm">Vedi tutte (${bookings.length})</button></div>`;
-        }
-
-      } catch (error) {
-        console.error('Errore caricamento prenotazioni:', error);
-        listEl.innerHTML = '<div class="text-danger">Errore caricamento prenotazioni</div>';
-      }
+            </div>`; }).join('');
+        if (bookings.length > 5) { listEl.innerHTML += `<div class="text-center mt-3"><button class="btn btn-outline-light btn-sm">Vedi tutte (${bookings.length})</button></div>`; }
+      } catch (error) { console.error('Errore caricamento prenotazioni:', error); listEl.innerHTML = '<div class="text-danger">Errore caricamento prenotazioni</div>'; }
     }
 
     async function loadStats() {
       try {
-        const response = await api.call({ action: 'getPrenotazioni' });
-        if (!response.success) return;
-
-        const bookings = (response.data || []).filter(b => 
-          b.codiceFiscaleAutista1 === currentUser.codiceFiscale
-        );
-
-        const attive = bookings.filter(b => ['In attesa', 'Confermata'].includes(b.stato)).length;
+        const response = await api.call({ action: 'getPrenotazioni' }); if (!response.success) return;
+        const bookings = (response.data || []).filter(b => b.codiceFiscaleAutista1 === currentUser.codiceFiscale);
+        const attive = bookings.filter(b => ['In attesa','Confermata'].includes(b.stato)).length;
         const totali = bookings.length;
-
         document.getElementById('stat-prenotazioni-attive').textContent = attive;
         document.getElementById('stat-prenotazioni-totali').textContent = totali;
-
-        // Calcola scadenza patente
         if (currentUser.scadenzaPatente) {
-          const scadenza = new Date(currentUser.scadenzaPatente);
-          const giorni = Math.ceil((scadenza - new Date()) / (1000*60*60*24));
+          const scadenza = new Date(currentUser.scadenzaPatente); const giorni = Math.ceil((scadenza - new Date())/(1000*60*60*24));
           document.getElementById('stat-prossima-scadenza').textContent = giorni > 0 ? `${giorni}gg` : 'Scaduta';
           if (giorni < 60) document.getElementById('stat-prossima-scadenza').className = 'h4 text-danger mb-1';
         }
-
-      } catch (error) {
-        console.error('Errore caricamento statistiche:', error);
-      }
+      } catch (error) { console.error('Errore caricamento statistiche:', error); }
     }
   </script>
 </body>
