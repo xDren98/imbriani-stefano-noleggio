@@ -1,11 +1,11 @@
 /**
- * IMBRIANI STEFANO NOLEGGIO - BACKEND v8.2
+ * IMBRIANI STEFANO NOLEGGIO - BACKEND v8.3
  * Mappatura colonne corretta basata sui fogli Google Sheets reali
  */
 
 // 🔧 CONFIGURAZIONE AGGIORNATA CON COLONNE REALI
 const CONFIG = {
-  VERSION: '8.2.0',
+  VERSION: '8.3.0',
   SPREADSHEET_ID: '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns',
   TOKEN: 'imbriani_secret_2025',
   
@@ -191,6 +191,10 @@ function doPost(e) {
     }
     
     switch (action) {
+      case 'getPrenotazioni':
+        return getPrenotazioni();
+      case 'getVeicoli':
+        return getVeicoli();
       case 'creaPrenotazione':
         return creaPrenotazione(postData);
       case 'aggiornaStato':
@@ -222,7 +226,8 @@ function createJsonResponse(data, status = 200) {
   const response = {
     ...data,
     timestamp: new Date().toISOString(),
-    version: CONFIG.VERSION
+    version: CONFIG.VERSION,
+    status: status
   };
   
   return ContentService
@@ -240,41 +245,6 @@ function getAuthHeader(e) {
   if (e.parameter.token) return e.parameter.token;
   if (e.parameter.Authorization) return e.parameter.Authorization.replace('Bearer ', '');
   return null;
-}
-
-// 🚗 GET VEICOLI DISPONIBILI
-function getVeicoli() {
-  try {
-    const sheet = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PULMINI);
-    const data = sheet.getDataRange().getValues();
-    
-    const veicoli = [];
-    for (let i = 1; i < data.length; i++) { // Skip header
-      const row = data[i];
-      const stato = row[CONFIG.PULMINI_COLS.STATO - 1];
-      if (stato && (stato.toLowerCase().includes('disponibile') || stato.toLowerCase() === 'attivo')) {
-        veicoli.push({
-          targa: row[CONFIG.PULMINI_COLS.TARGA - 1],
-          marca: row[CONFIG.PULMINI_COLS.MARCA - 1],
-          modello: row[CONFIG.PULMINI_COLS.MODELLO - 1],
-          posti: row[CONFIG.PULMINI_COLS.POSTI - 1] || 9,
-          stato: stato,
-          note: row[CONFIG.PULMINI_COLS.NOTE - 1] || ''
-        });
-      }
-    }
-    
-    return createJsonResponse({
-      success: true,
-      data: veicoli,
-      count: veicoli.length
-    });
-  } catch (error) {
-    return createJsonResponse({
-      success: false,
-      message: 'Errore caricamento veicoli: ' + error.message
-    }, 500);
-  }
 }
 
 // 🔐 HANDLE LOGIN
@@ -329,36 +299,166 @@ function handleLogin(postData, token) {
   }
 }
 
-// 📝 GET PRENOTAZIONI
-function getPrenotazioni() {
+// 🚗 GET VEICOLI DISPONIBILI
+function getVeicoli() {
   try {
-    const sheet = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
-    const data = sheet.getDataRange().getValues();
+    const sheetPulmini = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PULMINI);
+    const sheetManutenzioni = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.MANUTENZIONI);
     
-    const prenotazioni = [];
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      prenotazioni.push({
-        timestamp: row[CONFIG.PRENOTAZIONI_COLS.TIMESTAMP - 1],
-        nomeAutista1: row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1 - 1],
-        codiceFiscaleAutista1: row[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_1 - 1],
-        targa: row[CONFIG.PRENOTAZIONI_COLS.TARGA - 1],
-        giornoInizio: row[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO - 1],
-        giornoFine: row[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE - 1],
-        oraInizio: row[CONFIG.PRENOTAZIONI_COLS.ORA_INIZIO - 1],
-        oraFine: row[CONFIG.PRENOTAZIONI_COLS.ORA_FINE - 1],
-        destinazione: row[CONFIG.PRENOTAZIONI_COLS.DESTINAZIONE - 1],
-        stato: row[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE - 1],
-        importo: row[CONFIG.PRENOTAZIONI_COLS.IMPORTO_PREVENTIVO - 1],
-        email: row[CONFIG.PRENOTAZIONI_COLS.EMAIL - 1]
+    if (!sheetPulmini) {
+      return createJsonResponse({
+        success: false,
+        message: 'Foglio PULMINI non trovato'
+      }, 500);
+    }
+    
+    const dataPulmini = sheetPulmini.getDataRange().getValues();
+    if (dataPulmini.length <= 1) {
+      return createJsonResponse({
+        success: true,
+        message: 'Nessun veicolo trovato',
+        data: []
       });
+    }
+    
+    // Carica manutenzioni se disponibile
+    let manutenzioni = new Map();
+    if (sheetManutenzioni) {
+      try {
+        const dataManutenzioni = sheetManutenzioni.getDataRange().getValues();
+        for (let i = 1; i < dataManutenzioni.length; i++) {
+          const row = dataManutenzioni[i];
+          const targa = row[CONFIG.MANUTENZIONI_COLS.TARGA - 1];
+          const stato = row[CONFIG.MANUTENZIONI_COLS.STATO - 1];
+          if (targa && stato) {
+            manutenzioni.set(targa, {
+              stato: stato,
+              dataInizio: row[CONFIG.MANUTENZIONI_COLS.DATA_INIZIO - 1],
+              dataFine: row[CONFIG.MANUTENZIONI_COLS.DATA_FINE - 1],
+              note: row[CONFIG.MANUTENZIONI_COLS.NOTE - 1]
+            });
+          }
+        }
+      } catch (manutenzioniError) {
+        console.log('Avviso: errore caricamento manutenzioni:', manutenzioniError.message);
+      }
+    }
+    
+    const veicoli = [];
+    
+    for (let i = 1; i < dataPulmini.length; i++) {
+      const row = dataPulmini[i];
+      const targa = row[CONFIG.PULMINI_COLS.TARGA - 1];
+      
+      if (!targa) continue; // Skip righe vuote
+      
+      const manutenzione = manutenzioni.get(targa);
+      const inManutenzione = manutenzione && (manutenzione.stato === 'In manutenzione' || manutenzione.stato === 'In corso');
+      const statoBase = row[CONFIG.PULMINI_COLS.STATO - 1] || 'Disponibile';
+      
+      const veicolo = {
+        Targa: targa,
+        Marca: row[CONFIG.PULMINI_COLS.MARCA - 1] || '',
+        Modello: row[CONFIG.PULMINI_COLS.MODELLO - 1] || '',
+        Posti: parseInt(row[CONFIG.PULMINI_COLS.POSTI - 1]) || 9,
+        Disponibile: !inManutenzione && (statoBase === 'Disponibile' || statoBase === 'Attivo'),
+        Note: row[CONFIG.PULMINI_COLS.NOTE - 1] || '',
+        PassoLungo: (targa === 'EC787NM') || (row[CONFIG.PULMINI_COLS.NOTE - 1] && row[CONFIG.PULMINI_COLS.NOTE - 1].toLowerCase().includes('passo lungo')),
+        StatoManutenzione: inManutenzione ? 'In manutenzione' : 'Operativo',
+        DisponibileDate: !inManutenzione && (statoBase === 'Disponibile' || statoBase === 'Attivo')
+      };
+      
+      veicoli.push(veicolo);
     }
     
     return createJsonResponse({
       success: true,
+      message: `Trovati ${veicoli.length} veicoli`,
+      data: veicoli,
+      count: veicoli.length
+    });
+    
+  } catch (error) {
+    return createJsonResponse({
+      success: false,
+      message: 'Errore caricamento veicoli: ' + error.message
+    }, 500);
+  }
+}
+
+// 📝 GET PRENOTAZIONI
+function getPrenotazioni() {
+  try {
+    const sheet = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    if (!sheet) {
+      return createJsonResponse({
+        success: false,
+        message: 'Foglio PRENOTAZIONI non trovato'
+      }, 500);
+    }
+    
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return createJsonResponse({
+        success: true,
+        message: 'Nessuna prenotazione trovata',
+        data: []
+      });
+    }
+    
+    const prenotazioni = [];
+    
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      
+      // Skip righe vuote (controlla targa e CF autista 1)
+      const targa = row[CONFIG.PRENOTAZIONI_COLS.TARGA - 1];
+      const cfAutista1 = row[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_1 - 1];
+      
+      if (!targa && !cfAutista1) continue;
+      
+      const prenotazione = {
+        id: i,
+        // Dati principali
+        targa: targa || '',
+        giornoInizio: row[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO - 1] || '',
+        giornoFine: row[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE - 1] || '',
+        oraInizio: row[CONFIG.PRENOTAZIONI_COLS.ORA_INIZIO - 1] || '',
+        oraFine: row[CONFIG.PRENOTAZIONI_COLS.ORA_FINE - 1] || '',
+        destinazione: row[CONFIG.PRENOTAZIONI_COLS.DESTINAZIONE - 1] || '',
+        
+        // Autista principale
+        codiceFiscaleAutista1: cfAutista1 || '',
+        nomeAutista1: row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1 - 1] || '',
+        cellulare: row[CONFIG.PRENOTAZIONI_COLS.CELLULARE - 1] || '',
+        
+        // Autista 2
+        codiceFiscaleAutista2: row[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_2 - 1] || '',
+        nomeAutista2: row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_2 - 1] || '',
+        
+        // Autista 3
+        codiceFiscaleAutista3: row[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_3 - 1] || '',
+        nomeAutista3: row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_3 - 1] || '',
+        
+        // Stato e metadati
+        stato: row[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE - 1] || 'In attesa',
+        importo: row[CONFIG.PRENOTAZIONI_COLS.IMPORTO_PREVENTIVO - 1] || '',
+        dataContratto: row[CONFIG.PRENOTAZIONI_COLS.DATA_CONTRATTO - 1] || '',
+        email: row[CONFIG.PRENOTAZIONI_COLS.EMAIL - 1] || '',
+        idPrenotazione: row[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1] || '',
+        timestamp: row[CONFIG.PRENOTAZIONI_COLS.TIMESTAMP - 1] || ''
+      };
+      
+      prenotazioni.push(prenotazione);
+    }
+    
+    return createJsonResponse({
+      success: true,
+      message: `Trovate ${prenotazioni.length} prenotazioni`,
       data: prenotazioni,
       count: prenotazioni.length
     });
+    
   } catch (error) {
     return createJsonResponse({
       success: false,
