@@ -139,8 +139,19 @@
         window.location.href = 'index.html';
       }
 
-      // Bind eventi
-      document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
+      // Bind eventi (logout robusto)
+      const logout = function(e){
+        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+        try{
+          localStorage.removeItem('imbriani_user');
+          localStorage.removeItem('imbriani_session');
+          if (window.showToast) showToast('Logout effettuato', 'info');
+        }catch(_){ }
+        setTimeout(()=>{ window.location.href='index.html'; }, 600);
+      };
+      const btn = document.getElementById('logout-btn');
+      if (btn) btn.addEventListener('click', logout, { capture:true, passive:false });
+
       document.getElementById('nuova-prenotazione')?.addEventListener('click', () => {
         window.location.href = 'veicoli.html';
       });
@@ -288,15 +299,6 @@
 
       } catch (error) {
         console.error('Errore caricamento statistiche:', error);
-      }
-    }
-
-    function handleLogout() {
-      if (confirm('Vuoi uscire dall\'area personale?')) {
-        localStorage.removeItem('imbriani_user');
-        localStorage.removeItem('imbriani_session');
-        if (window.showToast) showToast('Logout effettuato', 'info');
-        setTimeout(() => window.location.href = 'index.html', 1000);
       }
     }
   </script>
