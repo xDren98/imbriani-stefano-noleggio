@@ -1,13 +1,11 @@
 /**
- * IMBRIANI STEFANO NOLEGGIO - BACKEND v8.3.4
- * Backend Apps Script completo con:
- * - checkDisponibilita che ritorna {disponibile, conflitti}
- * - getVeicoli, getPrenotazioni
- * - updateStatiLive per aggiornare stati su PRENOTAZIONI e MANUTENZIONI
+ * IMBRIANI STEFANO NOLEGGIO - BACKEND v8.3.5
+ * - updateStatiLive: ordine controlli corretto e chiusura 'Confermata/Programmata' scadute -> 'Completata'
+ * - checkDisponibilita/getVeicoli/getPrenotazioni invariati
  */
 
 const CONFIG = {
-  VERSION: '8.3.4',
+  VERSION: '8.3.5',
   SPREADSHEET_ID: '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns',
   TOKEN: 'imbriani_secret_2025',
   SHEETS: { PRENOTAZIONI: 'PRENOTAZIONI', PULMINI: 'PULMINI', CLIENTI: 'CLIENTI', MANUTENZIONI: 'MANUTENZIONI' },
@@ -27,10 +25,10 @@ function doGet(e){
       case 'getPrenotazioni': return getPrenotazioni();
       case 'checkDisponibilita': return checkDisponibilita(p);
       case 'updateStatiLive': return updateStatiLive();
-      case 'getSheet': return getSheetGeneric(p); // fallback generico
-      default: return createJsonResponse({success:false,message:'Azione non supportata: '+action, available_actions:['health','getVeicoli','getPrenotazioni','checkDisponibilita','updateStatiLive','getSheet']},400);
+      case 'getSheet': return getSheetGeneric(p);
+      default: return createJsonResponse({success:false,message:'Azione non supportata: '+action},400);
     }
-  }catch(err){ return createJsonResponse({success:false,message:'Errore server: '+err.message,error:String(err)},500); }
+  }catch(err){ return createJsonResponse({success:false,message:'Errore server: '+err.message},500); }
 }
 
 function doPost(e){
@@ -57,7 +55,8 @@ function getVeicoli(){ try{ const sp=SpreadsheetApp.openById(CONFIG.SPREADSHEET_
 function getPrenotazioni(){ try{ const sh=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI); if (!sh) return createJsonResponse({success:false,message:'Foglio PRENOTAZIONI non trovato'},500); const data=sh.getDataRange().getValues(); if (data.length<=1) return createJsonResponse({success:true,message:'Nessuna prenotazione trovata',data:[]}); const out=[]; for (let i=1;i<data.length;i++){ const r=data[i]; const t=r[CONFIG.PRENOTAZIONI_COLS.TARGA-1]; const cf=r[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_1-1]; if (!t && !cf) continue; out.push({ id:i, targa:t||'', giornoInizio:r[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO-1]||'', giornoFine:r[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE-1]||'', oraInizio:r[CONFIG.PRENOTAZIONI_COLS.ORA_INIZIO-1]||'', oraFine:r[CONFIG.PRENOTAZIONI_COLS.ORA_FINE-1]||'', destinazione:r[CONFIG.PRENOTAZIONI_COLS.DESTINAZIONE-1]||'', codiceFiscaleAutista1:cf||'', nomeAutista1:r[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1-1]||'', cellulare:r[CONFIG.PRENOTAZIONI_COLS.CELLULARE-1]||'', codiceFiscaleAutista2:r[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_2-1]||'', nomeAutista2:r[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_2-1]||'', codiceFiscaleAutista3:r[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_3-1]||'', nomeAutista3:r[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_3-1]||'', stato:r[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE-1]||'Programmata', importo:r[CONFIG.PRENOTAZIONI_COLS.IMPORTO_PREVENTIVO-1]||'', dataContratto:r[CONFIG.PRENOTAZIONI_COLS.DATA_CONTRATTO-1]||'', email:r[CONFIG.PRENOTAZIONI_COLS.EMAIL-1]||'', idPrenotazione:r[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE-1]||'', timestamp:r[CONFIG.PRENOTAZIONI_COLS.TIMESTAMP-1]||'' }); } return createJsonResponse({success:true,message:`Trovate ${out.length} prenotazioni`,data:out,count:out.length}); }catch(err){ return createJsonResponse({success:false,message:'Errore caricamento prenotazioni: '+err.message},500); }
 }
 
-function checkDisponibilita(p){ try{ const t=p.targa, di=p.dataInizio, df=p.dataFine; if (!t||!di||!df) return createJsonResponse({success:false,message:'Parametri mancanti: targa, dataInizio, dataFine'},400); const sh=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI); const data=sh.getDataRange().getValues(); let disp=true; const confl=[]; for (let i=1;i<data.length;i++){ const r=data[i]; const tp=r[CONFIG.PRENOTAZIONI_COLS.TARGA-1]; const st=String(r[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE-1]||''); if (tp===t && !['Rifiutata','Completata','Da confermare'].includes(st)){ const ie=new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO-1]); const fe=new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE-1]); const ni=new Date(di); const nf=new Date(df); if (!(nf<ie || ni>fe)){ disp=false; confl.push({da:ie,a:fe,stato:st}); } } } return createJsonResponse({success:true,disponibile:disp,conflitti:confl}); }catch(err){ return createJsonResponse({success:false,message:'Errore controllo disponibilità: '+err.message},500); }}
+function checkDisponibilita(p){ try{ const t=p.targa, di=p.dataInizio, df=p.dataFine; if (!t||!di||!df) return createJsonResponse({success:false,message:'Parametri mancanti: targa, dataInizio, dataFine'},400); const sh=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI); const data=sh.getDataRange().getValues(); let disp=true; const confl=[]; for (let i=1;i<data.length;i++){ const r=data[i]; const tp=r[CONFIG.PRENOTAZIONI_COLS.TARGA-1]; const st=String(r[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE-1]||''); if (tp===t && !['Rifiutata','Completata','Da confermare'].includes(st)){ const ie=new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO-1]); const fe=new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE-1]); const ni=new Date(di); const nf=new Date(df); if (!(nf<ie || ni>fe)){ disp=false; confl.push({da:ie,a:fe,stato:st}); } } } return createJsonResponse({success:true,disponibile:disp,conflitti:confl}); }catch(err){ return createJsonResponse({success:false,message:'Errore controllo disponibilità: '+err.message},500); }
+}
 
 function creaPrenotazione(post){ try{ const sh=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI); const row=new Array(44).fill(''); row[CONFIG.PRENOTAZIONI_COLS.TIMESTAMP-1]=new Date(); row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1-1]=post.autista1?.nome||''; row[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_1-1]=post.autista1?.dataNascita||''; row[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_1-1]=post.autista1?.luogoNascita||''; row[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_1-1]=post.autista1?.codiceFiscale||''; row[CONFIG.PRENOTAZIONI_COLS.COMUNE_RESIDENZA_AUTISTA_1-1]=post.autista1?.comuneResidenza||''; row[CONFIG.PRENOTAZIONI_COLS.VIA_RESIDENZA_AUTISTA_1-1]=post.autista1?.viaResidenza||''; row[CONFIG.PRENOTAZIONI_COLS.CIVICO_RESIDENZA_AUTISTA_1-1]=post.autista1?.civicoResidenza||''; row[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_1-1]=post.autista1?.numeroPatente||''; row[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_1-1]=post.autista1?.dataInizioPatente||''; row[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_1-1]=post.autista1?.scadenzaPatente||''; row[CONFIG.PRENOTAZIONI_COLS.TARGA-1]=post.targa||''; row[CONFIG.PRENOTAZIONI_COLS.ORA_INIZIO-1]=post.oraInizio||''; row[CONFIG.PRENOTAZIONI_COLS.ORA_FINE-1]=post.oraFine||''; row[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO-1]=new Date(post.giornoInizio); row[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE-1]=new Date(post.giornoFine); row[CONFIG.PRENOTAZIONI_COLS.DESTINAZIONE-1]=post.destinazione||''; row[CONFIG.PRENOTAZIONI_COLS.CELLULARE-1]=post.cellulare||''; row[CONFIG.PRENOTAZIONI_COLS.DATA_CONTRATTO-1]=new Date(); row[CONFIG.PRENOTAZIONI_COLS.EMAIL-1]=post.email||''; row[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE-1]=post.stato||'Programmata'; row[CONFIG.PRENOTAZIONI_COLS.IMPORTO_PREVENTIVO-1]=post.importo||0; if (post.autista2){ row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_2-1]=post.autista2.nome||''; row[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_2-1]=post.autista2.dataNascita||''; row[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_2-1]=post.autista2.luogoNascita||''; row[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_2-1]=post.autista2.codiceFiscale||''; row[CONFIG.PRENOTAZIONI_COLS.COMUNE_RESIDENZA_AUTISTA_2-1]=post.autista2.comuneResidenza||''; row[CONFIG.PRENOTAZIONI_COLS.VIA_RESIDENZA_AUTISTA_2-1]=post.autista2.viaResidenza||''; row[CONFIG.PRENOTAZIONI_COLS.CIVICO_RESIDENZA_AUTISTA_2-1]=post.autista2.civicoResidenza||''; row[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_2-1]=post.autista2.numeroPatente||''; row[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_2-1]=post.autista2.dataInizioPatente||''; row[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_2-1]=post.autista2.scadenzaPatente||''; } if (post.autista3){ row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_3-1]=post.autista3.nome||''; row[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_3-1]=post.autista3.dataNascita||''; row[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_3-1]=post.autista3.luogoNascita||''; row[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_3-1]=post.autista3.codiceFiscale||''; row[CONFIG.PRENOTAZIONI_COLS.COMUNE_RESIDENZA_AUTISTA_3-1]=post.autista3.comuneResidenza||''; row[CONFIG.PRENOTAZIONI_COLS.VIA_RESIDENZA_AUTISTA_3-1]=post.autista3.viaResidenza||''; row[CONFIG.PRENOTAZIONI_COLS.CIVICO_RESIDENZA_AUTISTA_3-1]=post.autista3.civicoResidenza||''; row[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_3-1]=post.autista3.numeroPatente||''; row[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_3-1]=post.autista3.dataInizioPatente||''; row[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_3-1]=post.autista3.scadenzaPatente||''; } const id='PRE-'+Date.now(); row[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE-1]=id; sh.appendRow(row); return createJsonResponse({success:true,message:'Prenotazione creata con successo',idPrenotazione:id}); }catch(err){ return createJsonResponse({success:false,message:'Errore creazione prenotazione: '+err.message},500); }
 }
@@ -67,33 +66,36 @@ function aggiornaCliente(post){ try{ const cf=(post.codiceFiscale||'').trim(); i
 
 function updateStatiLive(){
   try{
-    const now = new Date(); const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const ss=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
 
-    // PRENOTAZIONI
     const shP=ss.getSheetByName(CONFIG.SHEETS.PRENOTAZIONI); const valsP=shP.getDataRange().getValues();
+    let changedP=0;
     for (let i=1;i<valsP.length;i++){
-      const r=valsP[i]; const stato=String(r[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE-1]||'');
-      if (stato==='Da confermare') continue; // non toccare
-      const di = new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO-1]); const df = new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE-1]);
+      const r=valsP[i];
+      const stato=String(r[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE-1]||'');
+      if (stato==='Da confermare') continue;
+      const di = new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO-1]);
+      const df = new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE-1]);
       let next = stato;
-      if (stato==='Confermata' && today < di) next='Programmata';
-      if ((stato==='Programmata' || stato==='Confermata') && today>=di && today<=df) next='In corso';
-      if (stato==='In corso' && today>df) next='Completata';
-      if (next!==stato){ shP.getRange(i+1, CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE, 1, 1).setValue(next); }
+      if ((stato==='In corso' && today>df) || ((stato==='Confermata' || stato==='Programmata') && today>df)) next='Completata';
+      else if ((stato==='Programmata' || stato==='Confermata') && today>=di && today<=df) next='In corso';
+      else if (stato==='Confermata' && today < di) next='Programmata';
+      if (next!==stato){ shP.getRange(i+1, CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE, 1, 1).setValue(next); changedP++; }
     }
 
-    // MANUTENZIONI
     const shM=ss.getSheetByName(CONFIG.SHEETS.MANUTENZIONI); const valsM=shM.getDataRange().getValues();
+    let changedM=0;
     for (let i=1;i<valsM.length;i++){
       const r=valsM[i]; const stato=String(r[CONFIG.MANUTENZIONI_COLS.STATO-1]||'');
       const di = new Date(r[CONFIG.MANUTENZIONI_COLS.DATA_INIZIO-1]); const df = new Date(r[CONFIG.MANUTENZIONI_COLS.DATA_FINE-1]);
       let next = stato;
-      if (stato==='Programmata' && today>=di && today<=df) next='In corso';
-      if (stato==='In corso' && today>df) next='Completata';
-      if (next!==stato){ shM.getRange(i+1, CONFIG.MANUTENZIONI_COLS.STATO, 1, 1).setValue(next); }
+      if (today>df && stato==='In corso') next='Completata';
+      else if (today>=di && today<=df && stato==='Programmata') next='In corso';
+      if (next!==stato){ shM.getRange(i+1, CONFIG.MANUTENZIONI_COLS.STATO, 1, 1).setValue(next); changedM++; }
     }
 
-    return createJsonResponse({success:true,message:'Stati aggiornati'});
+    return createJsonResponse({success:true,message:`Stati aggiornati: prenotazioni ${changedP}, manutenzioni ${changedM}`});
   }catch(err){ return createJsonResponse({success:false,message:'Errore updateStatiLive: '+err.message},500); }
 }
