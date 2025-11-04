@@ -3,241 +3,427 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Seleziona Veicolo — Imbriani Stefano Noleggio</title>
+  <title>Selezione Veicoli — Imbriani Stefano Noleggio</title>
   <meta name="description" content="Selezione veicoli disponibili - Imbriani Stefano Noleggio">
   <meta name="theme-color" content="#0066FF">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚐</text></svg>">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=800">
+  <link rel="stylesheet" href="styles.css">
   <style>
     body{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);min-height:100vh}
-    .vehicle-card{cursor:pointer;transition:all .3s cubic-bezier(.4,0,.2,1)}
-    .vehicle-card:hover{transform:translateY(-4px)}
-    .vehicle-card.selected{border-color:#0066FF !important;box-shadow:0 0 0 3px rgba(0,102,255,.1)}
-    .vehicle-card.disabled{opacity:.5;cursor:not-allowed}
+    .vehicle-card{transition:all .3s ease;border:2px solid transparent}
+    .vehicle-card:hover{transform:translateY(-4px);border-color:#0066ff30}
+    .vehicle-card.selected{border-color:#0066ff;box-shadow:0 8px 25px rgba(0,102,255,.3)}
+    .badge-passo-lungo{background:linear-gradient(45deg,#f59e0b,#d97706);color:#fff}
+    .time-slot{cursor:pointer;transition:all .3s ease}
+    .time-slot:hover{background:rgba(0,102,255,.1)}
+    .time-slot.selected{background:rgba(0,102,255,.2);border-color:#0066ff}
   </style>
 </head>
 <body class="d-flex flex-column h-100">
   <header class="py-4">
     <div class="container">
-      <div class="d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
         <div>
-          <h1 class="h3 text-white fw-bold mb-0"><i class="fas fa-car me-2"></i>Seleziona il tuo veicolo</h1>
-          <p class="text-white-50 mb-0">Scegli il pulmino perfetto per il tuo viaggio</p>
+          <h1 class="h3 text-white fw-bold mb-1">
+            <i class="fas fa-car me-2"></i>
+            Selezione Veicoli
+          </h1>
+          <p class="text-white-50 mb-0" id="header-subtitle">Scegli date e orari per vedere i veicoli disponibili</p>
         </div>
-        <a href="index.html" class="btn btn-outline-light"><i class="fas fa-arrow-left me-2"></i>Torna alla home</a>
+        <div class="d-flex gap-2">
+          <button type="button" id="back-btn" class="btn btn-outline-light btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>Indietro
+          </button>
+          <button type="button" id="logout-btn" class="btn btn-outline-light btn-sm d-none">
+            <i class="fas fa-sign-out-alt me-1"></i>Logout
+          </button>
+        </div>
       </div>
     </div>
   </header>
 
   <main class="flex-grow-1 py-4">
     <div class="container">
-      <!-- Filtri -->
-      <div class="glass-card p-3 mb-4">
-        <div class="row g-3 align-items-center">
-          <div class="col-md-3">
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" id="filter-disponibili" checked>
-              <label class="form-check-label fw-semibold text-white" for="filter-disponibili">Solo disponibili</label>
-            </div>
+      <!-- Form selezione date e orari -->
+      <div class="glass-card p-4 mb-4" id="date-form-section">
+        <h5 class="fw-bold text-white mb-3">
+          <i class="fas fa-calendar-alt me-2"></i>Quando hai bisogno del veicolo?
+        </h5>
+        <form id="availability-form" class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Data inizio</label>
+            <input type="date" class="form-control form-control-modern" id="data_inizio" required>
           </div>
-          <div class="col-md-3">
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" id="filter-manutenzione">
-              <label class="form-check-label fw-semibold text-white" for="filter-manutenzione">Includi manutenzione</label>
-            </div>
+          <div class="col-md-6">
+            <label class="form-label">Data fine</label>
+            <input type="date" class="form-control form-control-modern" id="data_fine" required>
           </div>
-          <div class="col-md-4">
-            <input type="text" id="filter-search" class="form-control form-control-modern" placeholder="🔍 Cerca per marca, modello, targa...">
-          </div>
-          <div class="col-md-2">
-            <select id="filter-posti" class="form-select form-control-modern">
-              <option value="">Tutti i posti</option>
-              <option value="9">9 posti</option>
+          <div class="col-md-6">
+            <label class="form-label">Ora ritiro</label>
+            <select class="form-select form-control-modern" id="ora_ritiro" required>
+              <option value="">Seleziona ora</option>
+              <option value="08:00">08:00</option>
+              <option value="10:00">10:00</option>
+              <option value="12:00">12:00</option>
+              <option value="14:00">14:00</option>
+              <option value="16:00">16:00</option>
+              <option value="18:00">18:00</option>
+              <option value="20:00">20:00</option>
+              <option value="22:00">22:00</option>
             </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Ora riconsegna</label>
+            <select class="form-select form-control-modern" id="ora_riconsegna" required>
+              <option value="">Seleziona ora</option>
+              <option value="08:00">08:00</option>
+              <option value="10:00">10:00</option>
+              <option value="12:00">12:00</option>
+              <option value="14:00">14:00</option>
+              <option value="16:00">16:00</option>
+              <option value="18:00">18:00</option>
+              <option value="20:00">20:00</option>
+              <option value="22:00">22:00</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-premium">
+              <i class="fas fa-search me-2"></i>
+              <span id="search-btn-text">Cerca veicoli disponibili</span>
+              <div class="spinner-border spinner-border-sm ms-2 d-none" id="search-spinner"></div>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Risultati ricerca veicoli -->
+      <div id="results-section" class="d-none">
+        <div class="glass-card p-4">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <h5 class="fw-bold text-white mb-0">
+              <i class="fas fa-car-side me-2"></i>Veicoli disponibili
+            </h5>
+            <button type="button" id="modify-dates" class="btn btn-outline-light btn-sm">
+              <i class="fas fa-edit me-1"></i>Modifica date
+            </button>
+          </div>
+          <div class="text-muted mb-3" id="search-summary"></div>
+          <div id="vehicles-list">
+            <div class="text-center text-muted py-4">
+              <div class="spinner-border spinner-border-sm me-2"></div>
+              Ricerca veicoli disponibili...
+            </div>
+          </div>
+          <div id="no-vehicles" class="text-center text-muted py-5 d-none">
+            <i class="fas fa-car-crash mb-3" style="font-size:3rem"></i>
+            <h5>Nessun veicolo disponibile</h5>
+            <p>Per le date e gli orari selezionati non ci sono veicoli liberi.</p>
+            <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('modify-dates').click()">Modifica date</button>
           </div>
         </div>
       </div>
-      
-      <!-- Griglia veicoli -->
-      <div id="vehicles-grid" class="row g-4 mb-4"></div>
-      
-      <!-- Azioni -->
-      <div class="d-flex justify-content-between align-items-center">
-        <div>
-          <span id="vehicles-count" class="text-white-50">Caricamento...</span>
-        </div>
-        <div class="d-flex gap-2">
-          <a href="index.html" class="btn btn-outline-light">Annulla</a>
-          <button type="button" id="continue-selection" class="btn btn-premium" disabled>Continua con questo veicolo</button>
+
+      <!-- Selezione veicolo (hidden inizialmente) -->
+      <div id="vehicle-selected-section" class="d-none">
+        <div class="glass-card p-4">
+          <h5 class="fw-bold text-white mb-3">
+            <i class="fas fa-check-circle me-2"></i>Veicolo selezionato
+          </h5>
+          <div id="selected-vehicle-info"></div>
+          <div class="d-flex gap-2 mt-3">
+            <button type="button" id="change-vehicle" class="btn btn-outline-secondary">
+              <i class="fas fa-exchange-alt me-1"></i>Cambia veicolo
+            </button>
+            <button type="button" id="proceed-next-step" class="btn btn-premium">
+              <i class="fas fa-arrow-right me-2"></i>Procedi al prossimo step
+            </button>
+          </div>
         </div>
       </div>
     </div>
   </main>
 
-  <div id="spinner" class="loader-premium d-none"><div class="loader-spinner"></div><div class="loader-text" id="loader-message">Caricamento...</div></div>
+  <div id="toast-container" class="position-fixed top-0 end-0 p-3" style="z-index:1055"></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="config.js"></script>
   <script src="shared-utils.js"></script>
-  <script src="scripts.js"></script>
-  <script src="safe-whatsapp-fix.js"></script>
-  <script src="whatsapp-loader.js"></script>
   <script>
+    let currentUser = null;
+    let selectedDates = null;
     let selectedVehicle = null;
-    let searchParams = {};
-    
+    let availableVehicles = [];
+
     document.addEventListener('DOMContentLoaded', async () => {
-      // Leggi parametri URL
+      // Controlla se utente loggato
+      const userData = localStorage.getItem('imbriani_user');
+      if (userData) {
+        currentUser = JSON.parse(userData);
+        document.getElementById('logout-btn').classList.remove('d-none');
+        document.getElementById('header-subtitle').textContent = `Ciao ${currentUser.nome}, scegli il tuo veicolo`;
+      }
+
+      // Controlla URL parameters (da homepage)
       const urlParams = new URLSearchParams(window.location.search);
-      searchParams = {
-        dataInizio: urlParams.get('start') || '',
-        dataFine: urlParams.get('end') || '',
-        oraInizio: urlParams.get('ora_start') || '08:00',
-        oraFine: urlParams.get('ora_end') || '20:00',
-        destinazione: urlParams.get('dest') || '',
-        posti: urlParams.get('posti') || '9'
-      };
+      const dal = urlParams.get('dal');
+      const al = urlParams.get('al');
       
-      // Setup filtri
-      ['filter-disponibili', 'filter-manutenzione', 'filter-search', 'filter-posti'].forEach(id => {
-        document.getElementById(id)?.addEventListener('change', filterVehicles);
-        document.getElementById(id)?.addEventListener('input', filterVehicles);
-      });
-      
-      // Continua selezione -> torna a homepage con localStorage
-      document.getElementById('continue-selection')?.addEventListener('click', () => {
-        if (selectedVehicle) {
-          localStorage.setItem('selectedVehicle', JSON.stringify(selectedVehicle));
-          localStorage.setItem('searchParams', JSON.stringify(searchParams));
-          window.location.href = 'index.html#preventivo';
+      if (dal && al) {
+        document.getElementById('data_inizio').value = dal;
+        document.getElementById('data_fine').value = al;
+        // Auto-search per nuovi clienti da homepage
+        setTimeout(() => document.getElementById('availability-form').dispatchEvent(new Event('submit')), 500);
+      }
+
+      setupUI();
+    });
+
+    function setupUI() {
+      // Back button
+      document.getElementById('back-btn')?.addEventListener('click', () => {
+        if (currentUser) {
+          window.location.href = 'area-personale.html';
+        } else {
+          window.location.href = 'index.html';
         }
       });
-      
-      // Carica veicoli
-      await loadVehicles();
-    });
-    
-    // Stesse funzioni della modale
-    async function loadVehicles() {
-      if (window.showLoader) showLoader(true, 'Caricamento veicoli...');
-      try {
-        const [flottaResp, dispResp] = await Promise.all([
-          callAPI('flotta', { method: 'get' }),
-          callAPI('disponibilita', searchParams)
-        ]);
-        
-        const flotta = flottaResp.success ? flottaResp.data : [];
-        const disponibili = dispResp.success ? (dispResp.data.disponibili || dispResp.data || []) : [];
-        const targheDisponibili = new Set(disponibili.map(v => v.Targa));
-        
-        flotta.forEach(v => {
-          v.DisponibileDate = targheDisponibili.has(v.Targa);
-        });
-        
-        renderVehicles(flotta);
-        updateVehicleCount(flotta);
-      } catch (error) {
-        console.error('Errore caricamento veicoli:', error);
-        document.getElementById('vehicles-grid').innerHTML = '<div class="col-12"><div class="alert alert-danger">Errore caricamento veicoli. Riprova.</div></div>';
-      } finally {
-        if (window.showLoader) showLoader(false);
-      }
+
+      // Logout button (se loggato)
+      document.getElementById('logout-btn')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        localStorage.removeItem('imbriani_user');
+        localStorage.removeItem('imbriani_session');
+        if (window.showToast) showToast('Logout effettuato', 'info');
+        setTimeout(() => window.location.href = 'index.html', 600);
+      });
+
+      // Form submission
+      document.getElementById('availability-form')?.addEventListener('submit', handleSearchVehicles);
+
+      // Modifica date
+      document.getElementById('modify-dates')?.addEventListener('click', () => {
+        document.getElementById('date-form-section').classList.remove('d-none');
+        document.getElementById('results-section').classList.add('d-none');
+        document.getElementById('vehicle-selected-section').classList.add('d-none');
+        selectedVehicle = null;
+      });
+
+      // Change vehicle
+      document.getElementById('change-vehicle')?.addEventListener('click', () => {
+        document.getElementById('vehicle-selected-section').classList.add('d-none');
+        document.getElementById('results-section').classList.remove('d-none');
+        selectedVehicle = null;
+      });
+
+      // Proceed to next step - BLOCCO QUI per istruzione successiva
+      document.getElementById('proceed-next-step')?.addEventListener('click', () => {
+        if (window.showToast) showToast('🛑 STOP: Avvisami ora per il prossimo step da implementare!', 'warning');
+        console.log('🛑 NEXT STEP REQUIRED - Selected vehicle:', selectedVehicle);
+        console.log('📅 Selected dates:', selectedDates);
+        console.log('👤 Current user:', currentUser);
+      });
+
+      // Set minimum date to today
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('data_inizio').min = today;
+      document.getElementById('data_fine').min = today;
     }
-    
-    function renderVehicles(vehicles) {
-      const grid = document.getElementById('vehicles-grid');
-      if (!vehicles || vehicles.length === 0) {
-        grid.innerHTML = '<div class="col-12"><div class="alert alert-warning text-center">Nessun veicolo trovato.</div></div>';
+
+    async function handleSearchVehicles(e) {
+      e.preventDefault();
+      
+      const dataInizio = document.getElementById('data_inizio').value;
+      const dataFine = document.getElementById('data_fine').value;
+      const oraRitiro = document.getElementById('ora_ritiro').value;
+      const oraRiconsegna = document.getElementById('ora_riconsegna').value;
+
+      // Validazioni
+      if (!dataInizio || !dataFine || !oraRitiro || !oraRiconsegna) {
+        if (window.showToast) showToast('Compila tutti i campi richiesti', 'error');
         return;
       }
+
+      if (new Date(dataFine) < new Date(dataInizio)) {
+        if (window.showToast) showToast('La data di fine deve essere successiva a quella di inizio', 'error');
+        return;
+      }
+
+      if (dataInizio === dataFine && oraRiconsegna <= oraRitiro) {
+        if (window.showToast) showToast('Per lo stesso giorno, l\'ora di riconsegna deve essere successiva', 'error');
+        return;
+      }
+
+      selectedDates = { dataInizio, dataFine, oraRitiro, oraRiconsegna };
       
-      grid.innerHTML = vehicles.map(v => {
-        const available = v.DisponibileDate && v.Disponibile;
-        const passoLungo = v.PassoLungo || v.Targa === 'EC787NM';
-        const badges = [];
-        if (passoLungo) badges.push('<span class="badge bg-warning">🚐 Passo Lungo</span>');
-        if (!available) badges.push('<span class="badge bg-secondary">Manutenzione</span>');
-        else badges.push('<span class="badge bg-success">Disponibile</span>');
+      // UI loading
+      const searchBtn = document.querySelector('#availability-form button[type="submit"]');
+      const searchSpinner = document.getElementById('search-spinner');
+      const searchBtnText = document.getElementById('search-btn-text');
+      
+      searchBtn.disabled = true;
+      searchSpinner.classList.remove('d-none');
+      searchBtnText.textContent = 'Ricerca in corso...';
+
+      try {
+        await searchAvailableVehicles();
+      } catch (error) {
+        console.error('Errore ricerca veicoli:', error);
+        if (window.showToast) showToast('Errore durante la ricerca veicoli', 'error');
+      } finally {
+        searchBtn.disabled = false;
+        searchSpinner.classList.add('d-none');
+        searchBtnText.textContent = 'Cerca veicoli disponibili';
+      }
+    }
+
+    async function searchAvailableVehicles() {
+      try {
+        // 1. Carica tutti i veicoli
+        const vehiclesResponse = await api.call({ action: 'getVeicoli' });
+        if (!vehiclesResponse.success) {
+          if (window.showToast) showToast('Errore caricamento veicoli', 'error');
+          return;
+        }
+
+        const allVehicles = vehiclesResponse.data || [];
+        availableVehicles = [];
+
+        // 2. Per ogni veicolo, controlla disponibilità con slot orari
+        for (const vehicle of allVehicles) {
+          if (!vehicle.Disponibile) continue; // Skip se già in manutenzione o non attivo
+
+          const isAvailable = await checkVehicleAvailability(vehicle.Targa);
+          if (isAvailable) {
+            availableVehicles.push(vehicle);
+          }
+        }
+
+        // 3. Mostra risultati
+        displayVehicleResults();
+
+      } catch (error) {
+        console.error('Errore ricerca:', error);
+        if (window.showToast) showToast('Errore ricerca veicoli', 'error');
+      }
+    }
+
+    async function checkVehicleAvailability(targa) {
+      try {
+        // Converti date + orari in formato compatibile con backend
+        const dataInizioFull = `${selectedDates.dataInizio} ${selectedDates.oraRitiro}`;
+        const dataFineFull = `${selectedDates.dataFine} ${selectedDates.oraRiconsegna}`;
         
-        return `
-          <div class="col-md-6 col-xl-4">
-            <div class="vehicle-card glass-card p-3 h-100 ${!available ? 'disabled' : ''}" data-targa="${v.Targa}" data-vehicle='${JSON.stringify(v)}'>
-              <div class="d-flex justify-content-between align-items-start mb-2">
-                <h6 class="fw-bold mb-0 text-white">${v.Marca} ${v.Modello}</h6>
-                <div class="d-flex flex-wrap gap-1">${badges.join('')}</div>
-              </div>
-              <div class="text-muted small mb-2">
-                <i class="fas fa-id-badge me-1"></i>Targa: ${v.Targa}
-              </div>
-              <div class="text-muted small mb-3">
-                <i class="fas fa-users me-1"></i>${v.Posti} posti
-              </div>
-              ${v.Note ? `<div class="small text-muted mb-2">${v.Note}</div>` : ''}
-              <div class="d-grid">
-                <button class="btn ${available ? 'btn-outline-primary' : 'btn-outline-secondary'} btn-sm vehicle-select" ${!available ? 'disabled' : ''} data-targa="${v.Targa}">
-                  ${available ? '<i class="fas fa-check me-1"></i>Seleziona' : '<i class="fas fa-ban me-1"></i>Non disponibile'}
+        const response = await api.call({
+          action: 'checkDisponibilita',
+          targa: targa,
+          dataInizio: dataInizioFull,
+          dataFine: dataFineFull
+        });
+
+        return response.success && response.disponibile;
+      } catch (error) {
+        console.error(`Errore controllo disponibilità ${targa}:`, error);
+        return false;
+      }
+    }
+
+    function displayVehicleResults() {
+      const resultsSection = document.getElementById('results-section');
+      const vehiclesList = document.getElementById('vehicles-list');
+      const noVehicles = document.getElementById('no-vehicles');
+      const searchSummary = document.getElementById('search-summary');
+
+      // Hide form, show results
+      document.getElementById('date-form-section').classList.add('d-none');
+      resultsSection.classList.remove('d-none');
+
+      // Update summary
+      const formatDate = (d) => new Date(d).toLocaleDateString('it-IT');
+      searchSummary.innerHTML = `
+        <i class="fas fa-info-circle me-1"></i>
+        Ricerca: ${formatDate(selectedDates.dataInizio)} ${selectedDates.oraRitiro} → ${formatDate(selectedDates.dataFine)} ${selectedDates.oraRiconsegna}
+      `;
+
+      if (availableVehicles.length === 0) {
+        vehiclesList.classList.add('d-none');
+        noVehicles.classList.remove('d-none');
+        return;
+      }
+
+      // Show vehicles
+      noVehicles.classList.add('d-none');
+      vehiclesList.classList.remove('d-none');
+      
+      vehiclesList.innerHTML = `
+        <div class="row g-4">
+          ${availableVehicles.map(vehicle => `
+            <div class="col-lg-4 col-md-6">
+              <div class="glass-card vehicle-card p-4 h-100 cursor-pointer" data-targa="${vehicle.Targa}">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                  <h6 class="fw-bold text-white mb-0">${vehicle.Targa}</h6>
+                  ${vehicle.PassoLungo ? '<span class="badge badge-passo-lungo">Passo Lungo</span>' : ''}
+                </div>
+                <div class="mb-2">
+                  <span class="text-white fw-semibold">${vehicle.Marca} ${vehicle.Modello}</span>
+                </div>
+                <div class="mb-3">
+                  <span class="badge bg-success">
+                    <i class="fas fa-users me-1"></i>${vehicle.Posti} posti
+                  </span>
+                  <span class="badge bg-info ms-1">
+                    <i class="fas fa-check-circle me-1"></i>Disponibile
+                  </span>
+                </div>
+                ${vehicle.Note ? `<div class="small text-white-50 mb-3">${vehicle.Note}</div>` : ''}
+                <button type="button" class="btn btn-premium w-100" onclick="selectVehicle('${vehicle.Targa}')">
+                  <i class="fas fa-hand-pointer me-2"></i>Seleziona questo veicolo
                 </button>
               </div>
             </div>
-          </div>
-        `;
-      }).join('');
-      
-      document.querySelectorAll('.vehicle-select').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          if (!btn.disabled) {
-            selectVehicle(btn.dataset.targa);
-          }
-        });
-      });
+          `).join('')}
+        </div>
+      `;
     }
-    
+
     function selectVehicle(targa) {
-      selectedVehicle = null;
-      document.querySelectorAll('.vehicle-card').forEach(card => {
-        card.classList.remove('selected');
-        if (card.dataset.targa === targa) {
-          card.classList.add('selected');
-          try {
-            selectedVehicle = JSON.parse(card.dataset.vehicle);
-          } catch (e) {
-            console.error('Errore parsing veicolo:', e);
-          }
-        }
-      });
-      
-      document.getElementById('continue-selection').disabled = !selectedVehicle;
-    }
-    
-    function filterVehicles() {
-      const soloDisp = document.getElementById('filter-disponibili')?.checked;
-      const inclManu = document.getElementById('filter-manutenzione')?.checked;
-      const search = document.getElementById('filter-search')?.value?.toLowerCase() || '';
-      const posti = document.getElementById('filter-posti')?.value;
-      
-      document.querySelectorAll('.vehicle-card').forEach(card => {
-        try {
-          const vehicle = JSON.parse(card.dataset.vehicle);
-          let show = true;
-          
-          if (soloDisp && !vehicle.DisponibileDate) show = false;
-          if (!inclManu && !vehicle.Disponibile) show = false;
-          if (search && !`${vehicle.Marca} ${vehicle.Modello} ${vehicle.Targa}`.toLowerCase().includes(search)) show = false;
-          if (posti && vehicle.Posti.toString() !== posti) show = false;
-          
-          card.parentElement.style.display = show ? 'block' : 'none';
-        } catch (e) {
-          console.error('Errore filtro veicolo:', e);
-        }
-      });
-    }
-    
-    function updateVehicleCount(vehicles) {
-      const total = vehicles.length;
-      const available = vehicles.filter(v => v.DisponibileDate && v.Disponibile).length;
-      document.getElementById('vehicles-count').textContent = `${available} disponibili su ${total} veicoli totali`;
+      selectedVehicle = availableVehicles.find(v => v.Targa === targa);
+      if (!selectedVehicle) return;
+
+      // Update selected vehicle info
+      const selectedInfo = document.getElementById('selected-vehicle-info');
+      selectedInfo.innerHTML = `
+        <div class="row align-items-center">
+          <div class="col-md-8">
+            <div class="d-flex align-items-center gap-3">
+              <div class="bg-success p-3 rounded-3">
+                <i class="fas fa-car text-white" style="font-size:1.5rem"></i>
+              </div>
+              <div>
+                <h6 class="text-white fw-bold mb-1">${selectedVehicle.Targa}</h6>
+                <div class="text-white-75">${selectedVehicle.Marca} ${selectedVehicle.Modello}</div>
+                <div class="small text-success">
+                  <i class="fas fa-users me-1"></i>${selectedVehicle.Posti} posti
+                  ${selectedVehicle.PassoLungo ? ' • Passo Lungo' : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4 text-end">
+            <div class="small text-white-50">Periodo selezionato:</div>
+            <div class="text-white">${new Date(selectedDates.dataInizio).toLocaleDateString('it-IT')} ${selectedDates.oraRitiro}</div>
+            <div class="text-white">${new Date(selectedDates.dataFine).toLocaleDateString('it-IT')} ${selectedDates.oraRiconsegna}</div>
+          </div>
+        </div>
+      `;
+
+      // Show selection, hide results
+      document.getElementById('results-section').classList.add('d-none');
+      document.getElementById('vehicle-selected-section').classList.remove('d-none');
+
+      if (window.showToast) showToast(`Veicolo ${selectedVehicle.Targa} selezionato`, 'success');
     }
   </script>
 </body>
