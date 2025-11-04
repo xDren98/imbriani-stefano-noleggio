@@ -10,10 +10,10 @@ const CONFIG = {
   TOKEN: 'imbriani_secret_2025',
   
   SHEETS: {
-    PRENOTAZIONI: 'Risposte del modulo 1',
-    PULMINI: 'Gestione Pulmini',
-    CLIENTI: 'Clienti',
-    MANUTENZIONI: 'Gestione manutenzioni'
+    PRENOTAZIONI: 'PRENOTAZIONI',
+    PULMINI: 'PULMINI',
+    CLIENTI: 'CLIENTI',
+    MANUTENZIONI: 'MANUTENZIONI'
   },
   
   // 📋 RISPOSTE DEL MODULO 1 (44 colonne)
