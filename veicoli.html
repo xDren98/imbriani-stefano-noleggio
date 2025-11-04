@@ -259,7 +259,7 @@
       selectedDates = { dataInizio, dataFine, oraRitiro, oraRiconsegna };
       
       // UI loading
-      const searchBtn = document.querySelector('#availability-form button[type="submit"]');
+      const searchBtn = document.querySelector('#availability-form button[type=\"submit\"]');
       const searchSpinner = document.getElementById('search-spinner');
       const searchBtnText = document.getElementById('search-btn-text');
       
@@ -315,14 +315,8 @@
         // Converti date + orari in formato compatibile con backend
         const dataInizioFull = `${selectedDates.dataInizio} ${selectedDates.oraRitiro}`;
         const dataFineFull = `${selectedDates.dataFine} ${selectedDates.oraRiconsegna}`;
-        
-        const response = await api.call({
-          action: 'checkDisponibilita',
-          targa: targa,
-          dataInizio: dataInizioFull,
-          dataFine: dataFineFull
-        });
-
+        const url = `${CONFIG.API_URL}?action=checkDisponibilita&targa=${encodeURIComponent(targa)}&dataInizio=${encodeURIComponent(dataInizioFull)}&dataFine=${encodeURIComponent(dataFineFull)}&token=${encodeURIComponent(CONFIG.TOKEN)}`;
+        const response = await fetch(url).then(r => r.json());
         return response.success && response.disponibile;
       } catch (error) {
         console.error(`Errore controllo disponibilità ${targa}:`, error);
