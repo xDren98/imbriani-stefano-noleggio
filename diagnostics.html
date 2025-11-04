@@ -1,49 +1,80 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="it" class="h-100">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Diagnostics</title>
   <link href="styles.css" rel="stylesheet">
-  <style> body{padding:20px;font-family:system-ui} pre{background:#0b1220;color:#e6edf3;padding:12px;border-radius:8px;overflow:auto} .row{display:flex;gap:12px;align-items:center} input,button{padding:8px 12px} .ok{color:#16a34a}.err{color:#ef4444} </style>
+  <style>
+    body{padding:20px}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    input,button{padding:8px 12px}
+    pre{background:#0b1220;color:#e6edf3;padding:12px;border-radius:8px;min-height:120px}
+    .badge{display:inline-block;padding:.25rem .5rem;border-radius:.5rem;background:#1f2937;color:#e5e7eb;font-size:.8rem}
+  </style>
 </head>
-<body>
-  <h1>Diagnostics</h1>
+<body class="h-100">
+  <h1>Diagnostics <span class="badge">v8.2 tools</span></h1>
+
   <div class="row">
     <label>CF</label>
     <input id="cf" value="AAAAAAAAAAAAAAAA" maxlength="16" />
     <button id="btn-post">POST login</button>
     <button id="btn-health">GET health</button>
+    <button id="btn-ping">PING Worker (OPTIONS)</button>
   </div>
+
   <h3>Risposta</h3>
   <pre id="out">(vuoto)</pre>
 
   <script src="config.js"></script>
   <script>
-    const out = document.getElementById('out');
-    function show(obj){ out.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2); }
+    (function(){
+      const out = document.getElementById('out');
+      const show = v => out.textContent = (typeof v==='string')? v : JSON.stringify(v, null, 2);
 
-    document.getElementById('btn-health').onclick = async () => {
-      try{
-        const u = CONFIG.API_URL + '?action=health&token=' + encodeURIComponent(CONFIG.AUTH_TOKEN);
-        const r = await fetch(u);
-        const t = await r.text();
-        show(t);
-      }catch(e){ show('ERR: '+e.message); }
-    };
+      function needConfig(){
+        if (!window.CONFIG){ show('ERR: CONFIG is not defined'); return true; }
+        if (!CONFIG.API_URL){ show('ERR: CONFIG.API_URL mancante'); return true; }
+        return false;
+      }
 
-    document.getElementById('btn-post').onclick = async () => {
-      try{
-        const cf = document.getElementById('cf').value.trim().toUpperCase();
-        const r = await fetch(CONFIG.API_URL, {
-          method:'POST',
-          headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+CONFIG.AUTH_TOKEN },
-          body: JSON.stringify({ action:'login', codiceFiscale: cf })
-        });
-        const t = await r.text();
-        show(t);
-      }catch(e){ show('ERR: '+e.message); }
-    };
+      document.getElementById('btn-health').onclick = async () => {
+        if (needConfig()) return;
+        try{
+          const u = CONFIG.API_URL + '?action=health&token=' + encodeURIComponent(CONFIG.AUTH_TOKEN||'');
+          const r = await fetch(u, { cache:'no-cache' });
+          const t = await r.text();
+          show(t);
+        }catch(e){ show('ERR: '+e.message); }
+      };
+
+      document.getElementById('btn-post').onclick = async () => {
+        if (needConfig()) return;
+        try{
+          const cf = document.getElementById('cf').value.trim().toUpperCase();
+          const r = await fetch(CONFIG.API_URL, {
+            method:'POST', mode:'cors', cache:'no-cache',
+            headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+(CONFIG.AUTH_TOKEN||'') },
+            body: JSON.stringify({ action:'login', codiceFiscale: cf })
+          });
+          const t = await r.text();
+          show(t);
+        }catch(e){ show('ERR: '+e.message); }
+      };
+
+      document.getElementById('btn-ping').onclick = async () => {
+        if (needConfig()) return;
+        try{
+          const r = await fetch(CONFIG.API_URL, { method:'OPTIONS' });
+          show({ status:r.status, ok:r.ok, cors:{
+            allowOrigin: r.headers.get('access-control-allow-origin'),
+            allowMethods: r.headers.get('access-control-allow-methods'),
+            allowHeaders: r.headers.get('access-control-allow-headers')
+          }});
+        }catch(e){ show('ERR: '+e.message); }
+      };
+    })();
   </script>
 </body>
 </html>
