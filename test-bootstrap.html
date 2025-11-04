@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Bootstrap JS - Toast System</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <style>
+    body { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; }
+    .test-card { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); }
+  </style>
+</head>
+<body class="d-flex align-items-center justify-content-center">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-6">
+        <div class="test-card rounded p-4">
+          <h3 class="text-white text-center mb-4">
+            <i class="fas fa-vial me-2"></i>Test Bootstrap JS
+          </h3>
+          
+          <div class="d-grid gap-2">
+            <button class="btn btn-success" onclick="testToast('success')">
+              <i class="fas fa-check me-2"></i>Test Toast Success
+            </button>
+            
+            <button class="btn btn-danger" onclick="testToast('error')">
+              <i class="fas fa-times me-2"></i>Test Toast Error
+            </button>
+            
+            <button class="btn btn-warning" onclick="testToast('warning')">
+              <i class="fas fa-exclamation me-2"></i>Test Toast Warning
+            </button>
+            
+            <button class="btn btn-info" onclick="testToast('info')">
+              <i class="fas fa-info me-2"></i>Test Toast Info
+            </button>
+            
+            <hr class="text-white-50">
+            
+            <button class="btn btn-primary" onclick="testAPI()">
+              <i class="fas fa-plug me-2"></i>Test API Call
+            </button>
+            
+            <button class="btn btn-secondary" onclick="testLogin()">
+              <i class="fas fa-sign-in-alt me-2"></i>Test Login Flow
+            </button>
+          </div>
+          
+          <div class="mt-4 text-center">
+            <small class="text-white-50">
+              <i class="fas fa-info-circle me-1"></i>
+              I toast appariranno in alto a destra
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Container per i toast -->
+  <div id="toast-container" class="position-fixed top-0 end-0 p-3" style="z-index:1055"></div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <!-- Config e Utils -->
+  <script src="config.js"></script>
+  <script src="shared-utils.js"></script>
+  
+  <script>
+    function testToast(type) {
+      const messages = {
+        success: 'Operazione completata con successo! ✅',
+        error: 'Si è verificato un errore! ❌',
+        warning: 'Attenzione: verifica i dati inseriti! ⚠️',
+        info: 'Informazione: sistema operativo! ℹ️'
+      };
+      
+      if (window.showToast) {
+        showToast(messages[type], type);
+        console.log(`✅ Toast ${type} mostrato`);
+      } else {
+        alert('ERROR: showToast non disponibile!');
+      }
+    }
+    
+    async function testAPI() {
+      if (window.showToast) showToast('Test API in corso...', 'info');
+      
+      try {
+        const response = await api.call({ action: 'health' });
+        
+        if (response.success) {
+          if (window.showToast) showToast('✅ API funzionante: ' + response.message, 'success');
+        } else {
+          if (window.showToast) showToast('❌ API Error: ' + response.message, 'error');
+        }
+        
+        console.log('API Response:', response);
+      } catch (error) {
+        if (window.showToast) showToast('❌ Errore di rete: ' + error.message, 'error');
+        console.error('API Error:', error);
+      }
+    }
+    
+    function testLogin() {
+      // Simula un flow di login
+      if (window.showToast) showToast('Avvio processo di login...', 'info');
+      
+      setTimeout(() => {
+        if (window.showToast) showToast('Verifica credenziali in corso...', 'warning');
+        
+        setTimeout(() => {
+          if (window.showToast) showToast('Login effettuato con successo! Reindirizzamento...', 'success');
+          
+          setTimeout(() => {
+            console.log('🎯 Login flow completato');
+          }, 1000);
+        }, 1500);
+      }, 1000);
+    }
+    
+    // Test automatico all'avvio
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('🧪 Pagina di test caricata');
+      console.log('📋 Bootstrap version:', bootstrap.Toast ? 'Disponibile' : 'NON DISPONIBILE');
+      console.log('📋 showToast function:', typeof window.showToast);
+      console.log('📋 API object:', typeof window.api);
+      
+      // Toast di benvenuto
+      if (window.showToast) {
+        setTimeout(() => {
+          showToast('🎉 Test page caricata! Bootstrap JS operativo', 'success');
+        }, 500);
+      }
+    });
+  </script>
+</body>
+</html>
