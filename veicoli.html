@@ -44,7 +44,6 @@
 
   <main class="flex-grow-1 py-4">
     <div class="container">
-      <!-- Form selezione date e orari -->
       <div class="glass-card p-4 mb-4" id="date-form-section">
         <h5 class="fw-bold text-white mb-3">
           <i class="fas fa-calendar-alt me-2"></i>Quando hai bisogno del veicolo?
@@ -96,7 +95,6 @@
         </form>
       </div>
 
-      <!-- Risultati ricerca veicoli -->
       <div id="results-section" class="d-none">
         <div class="glass-card p-4">
           <div class="d-flex align-items-center justify-content-between mb-3">
@@ -123,7 +121,6 @@
         </div>
       </div>
 
-      <!-- Selezione veicolo (hidden inizialmente) -->
       <div id="vehicle-selected-section" class="d-none">
         <div class="glass-card p-4">
           <h5 class="fw-bold text-white mb-3">
@@ -269,10 +266,14 @@
 
       if (sameStartDay && reqStartH < preEndH) return true;
       if (sameEndDay && reqEndH > preStartH) return true;
-      return true; // giorni interni sovrapposti
+      return true;
     }
 
     function hasMaintenanceOverlap(req, man){
+      // Filtra solo stati richiesti: Futura o In corso
+      const stato = (man.stato || '').toLowerCase();
+      if (!(stato.includes('futura') || stato.includes('in corso'))) return false;
+
       const rStart = toDate(req.dataInizio);
       const rEnd = toDate(req.dataFine);
       const mStart = new Date(man.dataInizio);
@@ -290,7 +291,7 @@
         const allVehicles = vehiclesResponse.data || [];
         const allPren = (prenotazioniResponse.success ? prenotazioniResponse.data : []) || [];
 
-        // Carica manutenzioni dal foglio via API generica (riuso getPrenotazioni come fallback se non c'è endpoint)
+        // Carica manutenzioni dal foglio via API generica
         let manut = [];
         try {
           const url = `${CONFIG.API_URL}?action=getSheet&name=MANUTENZIONI&token=${encodeURIComponent(CONFIG.TOKEN)}`;
@@ -298,7 +299,6 @@
           manut = (resp.success ? resp.data : []) || [];
         } catch(err) { console.warn('MANUTENZIONI non disponibili via API generica'); }
 
-        // Normalizza manut (header: Targa, Marca, Modello, Posti, Stato, Data Inizio Manutenzione, Data Fine Manutenzione, Costo manutenzione, Note)
         const maintRows = manut.map(r => ({
           targa: r.Targa || r.targa || r[0],
           stato: r.Stato || r.stato || r[4],
@@ -308,16 +308,14 @@
 
         availableVehicles = [];
         for (const v of allVehicles){
-          if (!v.Disponibile) continue; // fuori servizio/manutenzione base
+          if (!v.Disponibile) continue;
 
           const prenV = allPren.filter(p => p.targa === v.Targa && !['Rifiutata','Completata'].includes(p.stato));
-          const manV = maintRows.filter(m => m.targa === v.Targa && (m.stato ? ['In manutenzione','In corso'].includes(m.stato) : true));
+          const manV = maintRows.filter(m => m.targa === v.Targa);
 
-          // Overlap manutenzioni → blocca subito
           const manOverlap = manV.some(m => hasMaintenanceOverlap(selectedDates, m));
           if (manOverlap) continue;
 
-          // Overlap prenotazioni → blocca
           const preOverlap = prenV.some(p => hasDateTimeOverlap(selectedDates, p));
           if (preOverlap) continue;
 
