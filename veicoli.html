@@ -17,9 +17,6 @@
     .vehicle-card:hover{transform:translateY(-4px);border-color:#0066ff30}
     .vehicle-card.selected{border-color:#0066ff;box-shadow:0 8px 25px rgba(0,102,255,.3)}
     .badge-passo-lungo{background:linear-gradient(45deg,#f59e0b,#d97706);color:#fff}
-    .time-slot{cursor:pointer;transition:all .3s ease}
-    .time-slot:hover{background:rgba(0,102,255,.1)}
-    .time-slot.selected{background:rgba(0,102,255,.2);border-color:#0066ff}
   </style>
 </head>
 <body class="d-flex flex-column h-100">
@@ -158,7 +155,6 @@
     let availableVehicles = [];
 
     document.addEventListener('DOMContentLoaded', async () => {
-      // Controlla se utente loggato
       const userData = localStorage.getItem('imbriani_user');
       if (userData) {
         currentUser = JSON.parse(userData);
@@ -166,32 +162,23 @@
         document.getElementById('header-subtitle').textContent = `Ciao ${currentUser.nome}, scegli il tuo veicolo`;
       }
 
-      // Controlla URL parameters (da homepage)
       const urlParams = new URLSearchParams(window.location.search);
       const dal = urlParams.get('dal');
       const al = urlParams.get('al');
-      
       if (dal && al) {
         document.getElementById('data_inizio').value = dal;
         document.getElementById('data_fine').value = al;
-        // Auto-search per nuovi clienti da homepage
-        setTimeout(() => document.getElementById('availability-form').dispatchEvent(new Event('submit')), 500);
+        setTimeout(() => document.getElementById('availability-form').dispatchEvent(new Event('submit')), 300);
       }
 
       setupUI();
     });
 
     function setupUI() {
-      // Back button
       document.getElementById('back-btn')?.addEventListener('click', () => {
-        if (currentUser) {
-          window.location.href = 'area-personale.html';
-        } else {
-          window.location.href = 'index.html';
-        }
+        window.location.href = currentUser ? 'area-personale.html' : 'index.html';
       });
 
-      // Logout button (se loggato)
       document.getElementById('logout-btn')?.addEventListener('click', (e) => {
         e.preventDefault();
         localStorage.removeItem('imbriani_user');
@@ -200,10 +187,7 @@
         setTimeout(() => window.location.href = 'index.html', 600);
       });
 
-      // Form submission
       document.getElementById('availability-form')?.addEventListener('submit', handleSearchVehicles);
-
-      // Modifica date
       document.getElementById('modify-dates')?.addEventListener('click', () => {
         document.getElementById('date-form-section').classList.remove('d-none');
         document.getElementById('results-section').classList.add('d-none');
@@ -211,14 +195,12 @@
         selectedVehicle = null;
       });
 
-      // Change vehicle
       document.getElementById('change-vehicle')?.addEventListener('click', () => {
         document.getElementById('vehicle-selected-section').classList.add('d-none');
         document.getElementById('results-section').classList.remove('d-none');
         selectedVehicle = null;
       });
 
-      // Proceed to next step - BLOCCO QUI per istruzione successiva
       document.getElementById('proceed-next-step')?.addEventListener('click', () => {
         if (window.showToast) showToast('🛑 STOP: Avvisami ora per il prossimo step da implementare!', 'warning');
         console.log('🛑 NEXT STEP REQUIRED - Selected vehicle:', selectedVehicle);
@@ -226,7 +208,6 @@
         console.log('👤 Current user:', currentUser);
       });
 
-      // Set minimum date to today
       const today = new Date().toISOString().split('T')[0];
       document.getElementById('data_inizio').min = today;
       document.getElementById('data_fine').min = today;
@@ -234,182 +215,148 @@
 
     async function handleSearchVehicles(e) {
       e.preventDefault();
-      
       const dataInizio = document.getElementById('data_inizio').value;
       const dataFine = document.getElementById('data_fine').value;
       const oraRitiro = document.getElementById('ora_ritiro').value;
       const oraRiconsegna = document.getElementById('ora_riconsegna').value;
 
-      // Validazioni
       if (!dataInizio || !dataFine || !oraRitiro || !oraRiconsegna) {
         if (window.showToast) showToast('Compila tutti i campi richiesti', 'error');
         return;
       }
-
       if (new Date(dataFine) < new Date(dataInizio)) {
-        if (window.showToast) showToast('La data di fine deve essere successiva a quella di inizio', 'error');
+        if (window.showToast) showToast('La fine deve essere successiva all\'inizio', 'error');
         return;
       }
-
       if (dataInizio === dataFine && oraRiconsegna <= oraRitiro) {
-        if (window.showToast) showToast('Per lo stesso giorno, l\'ora di riconsegna deve essere successiva', 'error');
+        if (window.showToast) showToast('Per lo stesso giorno serve un\'ora di riconsegna successiva', 'error');
         return;
       }
 
       selectedDates = { dataInizio, dataFine, oraRitiro, oraRiconsegna };
-      
-      // UI loading
-      const searchBtn = document.querySelector('#availability-form button[type=\"submit\"]');
+
+      const searchBtn = document.querySelector('#availability-form button[type="submit"]');
       const searchSpinner = document.getElementById('search-spinner');
       const searchBtnText = document.getElementById('search-btn-text');
-      
-      searchBtn.disabled = true;
-      searchSpinner.classList.remove('d-none');
-      searchBtnText.textContent = 'Ricerca in corso...';
+      searchBtn.disabled = true; searchSpinner.classList.remove('d-none'); searchBtnText.textContent = 'Ricerca in corso...';
 
-      try {
-        await searchAvailableVehicles();
-      } catch (error) {
-        console.error('Errore ricerca veicoli:', error);
-        if (window.showToast) showToast('Errore durante la ricerca veicoli', 'error');
-      } finally {
-        searchBtn.disabled = false;
-        searchSpinner.classList.add('d-none');
-        searchBtnText.textContent = 'Cerca veicoli disponibili';
-      }
+      try { await searchAvailableVehicles(); }
+      catch (error) { console.error('Errore ricerca veicoli:', error); if (window.showToast) showToast('Errore durante la ricerca veicoli', 'error'); }
+      finally { searchBtn.disabled = false; searchSpinner.classList.add('d-none'); searchBtnText.textContent = 'Cerca veicoli disponibili'; }
     }
 
-    async function searchAvailableVehicles() {
-      try {
-        console.log('🔍 DEBUG: Inizio ricerca veicoli disponibili');
-        
-        // 1. Carica tutti i veicoli
-        const vehiclesResponse = await api.call({ action: 'getVeicoli' });
-        if (!vehiclesResponse.success) {
-          if (window.showToast) showToast('Errore caricamento veicoli', 'error');
-          return;
-        }
+    function toDate(d){ return new Date(d + 'T00:00:00'); }
 
+    function hasDateTimeOverlap(req, pre){
+      // Intervalli in giorni
+      const rStart = toDate(req.dataInizio);
+      const rEnd = toDate(req.dataFine);
+      const pStart = new Date(pre.giornoInizio);
+      const pEnd = new Date(pre.giornoFine);
+
+      // Nessuna sovrapposizione di giorni
+      if (rEnd < pStart || rStart > pEnd) return false;
+
+      // Se i giorni si toccano, controlla orari con regola "fascia successiva"
+      const sameStartDay = rStart.toDateString() === pStart.toDateString();
+      const sameEndDay = rEnd.toDateString() === pEnd.toDateString();
+
+      // Normalizza orari (2h slot) → es. 08:00 => 8, 20:00 => 20
+      const toHour = (hhmm)=> parseInt(hhmm.split(':')[0],10);
+      const reqStartH = toHour(req.oraRitiro);
+      const reqEndH = toHour(req.oraRiconsegna);
+      const preStartH = toHour(pre.oraInizio||'08:00');
+      let preEndH = toHour(pre.oraFine||'20:00');
+      // Ragola: veicolo disponibile dalla fascia successiva all'arrivo → +2h
+      preEndH = Math.min(22, preEndH + 2);
+
+      // Se stesso giorno d'inizio → il reqStart deve partire dopo la fine con buffer
+      if (sameStartDay && reqStartH < preEndH) return true;
+      // Se stesso giorno di fine → il reqEnd deve finire prima dell'inizio prenotato
+      if (sameEndDay && reqEndH > preStartH) return true;
+
+      // Giorni interni sovrapposti
+      return true; // se i giorni si sovrappongono anche parzialmente
+    }
+
+    async function searchAvailableVehicles(){
+      try{
+        const [vehiclesResponse, prenotazioniResponse] = await Promise.all([
+          api.call({ action: 'getVeicoli' }),
+          api.call({ action: 'getPrenotazioni' })
+        ]);
+        if (!vehiclesResponse.success) { if (window.showToast) showToast('Errore caricamento veicoli', 'error'); return; }
         const allVehicles = vehiclesResponse.data || [];
-        console.log(`🚗 Veicoli totali: ${allVehicles.length}`);
-        availableVehicles = [];
+        const allPren = (prenotazioniResponse.success ? prenotazioniResponse.data : []) || [];
 
-        // 2. HACK TEMPORANEO: Mostra tutti i veicoli come disponibili
-        // Salta il controllo checkDisponibilita finché non risolviamo il deploy
-        for (const vehicle of allVehicles) {
-          if (vehicle.Disponibile) { // Solo quelli già disponibili nel foglio
-            console.log(`✅ ${vehicle.Targa}: aggiunto come disponibile (HACK temporaneo)`);
-            availableVehicles.push(vehicle);
-          } else {
-            console.log(`❌ ${vehicle.Targa}: non disponibile nel foglio`);
-          }
+        availableVehicles = [];
+        for (const v of allVehicles){
+          if (!v.Disponibile) continue; // fuori servizio/manutenzione
+
+          // Filtra prenotazioni attive di questo veicolo
+          const prenV = allPren.filter(p => p.targa === v.Targa && !['Rifiutata','Completata'].includes(p.stato));
+
+          // Se nessuna prenotazione attiva → disponibile
+          if (prenV.length === 0){ availableVehicles.push(v); continue; }
+
+          // Se c'è overlap con una qualunque → non disponibile
+          const overlap = prenV.some(p => hasDateTimeOverlap(selectedDates, p));
+          if (!overlap) availableVehicles.push(v);
         }
 
-        console.log(`🎉 Veicoli disponibili: ${availableVehicles.length}`);
-        
-        // 3. Mostra risultati
         displayVehicleResults();
-
-      } catch (error) {
-        console.error('Errore ricerca:', error);
+      }catch(err){
+        console.error('Errore ricerca:', err);
         if (window.showToast) showToast('Errore ricerca veicoli', 'error');
       }
     }
 
-    // VECCHIA FUNZIONE con checkDisponibilita (commentata temporaneamente)
-    /*
-    async function checkVehicleAvailability(targa) {
-      try {
-        const dataInizioFull = `${selectedDates.dataInizio} ${selectedDates.oraRitiro}`;
-        const dataFineFull = `${selectedDates.dataFine} ${selectedDates.oraRiconsegna}`;
-        const url = `${CONFIG.API_URL}?action=checkDisponibilita&targa=${encodeURIComponent(targa)}&dataInizio=${encodeURIComponent(dataInizioFull)}&dataFine=${encodeURIComponent(dataFineFull)}&token=${encodeURIComponent(CONFIG.TOKEN)}`;
-        const response = await fetch(url).then(r => r.json());
-        return response.success && response.disponibile;
-      } catch (error) {
-        console.error(`Errore controllo disponibilità ${targa}:`, error);
-        return false;
-      }
-    }
-    */
-
-    function displayVehicleResults() {
+    function displayVehicleResults(){
       const resultsSection = document.getElementById('results-section');
       const vehiclesList = document.getElementById('vehicles-list');
       const noVehicles = document.getElementById('no-vehicles');
       const searchSummary = document.getElementById('search-summary');
 
-      // Hide form, show results
       document.getElementById('date-form-section').classList.add('d-none');
       resultsSection.classList.remove('d-none');
 
-      // Update summary
       const formatDate = (d) => new Date(d).toLocaleDateString('it-IT');
-      searchSummary.innerHTML = `
-        <i class="fas fa-info-circle me-1"></i>
-        Ricerca: ${formatDate(selectedDates.dataInizio)} ${selectedDates.oraRitiro} → ${formatDate(selectedDates.dataFine)} ${selectedDates.oraRiconsegna}
-      `;
+      searchSummary.innerHTML = `<i class="fas fa-info-circle me-1"></i> Ricerca: ${formatDate(selectedDates.dataInizio)} ${selectedDates.oraRitiro} → ${formatDate(selectedDates.dataFine)} ${selectedDates.oraRiconsegna}`;
 
-      if (availableVehicles.length === 0) {
-        vehiclesList.classList.add('d-none');
-        noVehicles.classList.remove('d-none');
-        return;
-      }
+      if (availableVehicles.length === 0){ vehiclesList.classList.add('d-none'); noVehicles.classList.remove('d-none'); return; }
 
-      // Show vehicles
-      noVehicles.classList.add('d-none');
-      vehiclesList.classList.remove('d-none');
-      
-      vehiclesList.innerHTML = `
-        <div class="row g-4">
-          ${availableVehicles.map(vehicle => `
-            <div class="col-lg-4 col-md-6">
-              <div class="glass-card vehicle-card p-4 h-100 cursor-pointer" data-targa="${vehicle.Targa}">
-                <div class="d-flex align-items-center justify-content-between mb-3">
-                  <h6 class="fw-bold text-white mb-0">${vehicle.Targa}</h6>
-                  ${vehicle.PassoLungo ? '<span class="badge badge-passo-lungo">Passo Lungo</span>' : ''}
-                </div>
-                <div class="mb-2">
-                  <span class="text-white fw-semibold">${vehicle.Marca} ${vehicle.Modello}</span>
-                </div>
-                <div class="mb-3">
-                  <span class="badge bg-success">
-                    <i class="fas fa-users me-1"></i>${vehicle.Posti} posti
-                  </span>
-                  <span class="badge bg-info ms-1">
-                    <i class="fas fa-check-circle me-1"></i>Disponibile
-                  </span>
-                </div>
-                ${vehicle.Note ? `<div class="small text-white-50 mb-3">${vehicle.Note}</div>` : ''}
-                <button type="button" class="btn btn-premium w-100" onclick="selectVehicle('${vehicle.Targa}')">
-                  <i class="fas fa-hand-pointer me-2"></i>Seleziona questo veicolo
-                </button>
-              </div>
+      noVehicles.classList.add('d-none'); vehiclesList.classList.remove('d-none');
+      vehiclesList.innerHTML = `<div class="row g-4">${availableVehicles.map(vehicle => `
+        <div class="col-lg-4 col-md-6">
+          <div class="glass-card vehicle-card p-4 h-100 cursor-pointer" data-targa="${vehicle.Targa}">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <h6 class="fw-bold text-white mb-0">${vehicle.Targa}</h6>
+              ${vehicle.PassoLungo ? '<span class="badge badge-passo-lungo">Passo Lungo</span>' : ''}
             </div>
-          `).join('')}
-        </div>
-      `;
+            <div class="mb-2"><span class="text-white fw-semibold">${vehicle.Marca} ${vehicle.Modello}</span></div>
+            <div class="mb-3">
+              <span class="badge bg-success"><i class="fas fa-users me-1"></i>${vehicle.Posti} posti</span>
+              <span class="badge bg-info ms-1"><i class="fas fa-check-circle me-1"></i>Disponibile</span>
+            </div>
+            ${vehicle.Note ? `<div class="small text-white-50 mb-3">${vehicle.Note}</div>` : ''}
+            <button type="button" class="btn btn-premium w-100" onclick="selectVehicle('${vehicle.Targa}')"><i class="fas fa-hand-pointer me-2"></i>Seleziona questo veicolo</button>
+          </div>
+        </div>`).join('')}</div>`;
     }
 
-    function selectVehicle(targa) {
+    function selectVehicle(targa){
       selectedVehicle = availableVehicles.find(v => v.Targa === targa);
       if (!selectedVehicle) return;
-
-      // Update selected vehicle info
       const selectedInfo = document.getElementById('selected-vehicle-info');
       selectedInfo.innerHTML = `
         <div class="row align-items-center">
           <div class="col-md-8">
             <div class="d-flex align-items-center gap-3">
-              <div class="bg-success p-3 rounded-3">
-                <i class="fas fa-car text-white" style="font-size:1.5rem"></i>
-              </div>
+              <div class="bg-success p-3 rounded-3"><i class="fas fa-car text-white" style="font-size:1.5rem"></i></div>
               <div>
                 <h6 class="text-white fw-bold mb-1">${selectedVehicle.Targa}</h6>
                 <div class="text-white-75">${selectedVehicle.Marca} ${selectedVehicle.Modello}</div>
-                <div class="small text-success">
-                  <i class="fas fa-users me-1"></i>${selectedVehicle.Posti} posti
-                  ${selectedVehicle.PassoLungo ? ' • Passo Lungo' : ''}
-                </div>
+                <div class="small text-success"><i class="fas fa-users me-1"></i>${selectedVehicle.Posti} posti ${selectedVehicle.PassoLungo ? ' • Passo Lungo' : ''}</div>
               </div>
             </div>
           </div>
@@ -418,13 +365,9 @@
             <div class="text-white">${new Date(selectedDates.dataInizio).toLocaleDateString('it-IT')} ${selectedDates.oraRitiro}</div>
             <div class="text-white">${new Date(selectedDates.dataFine).toLocaleDateString('it-IT')} ${selectedDates.oraRiconsegna}</div>
           </div>
-        </div>
-      `;
-
-      // Show selection, hide results
+        </div>`;
       document.getElementById('results-section').classList.add('d-none');
       document.getElementById('vehicle-selected-section').classList.remove('d-none');
-
       if (window.showToast) showToast(`Veicolo ${selectedVehicle.Targa} selezionato`, 'success');
     }
   </script>
