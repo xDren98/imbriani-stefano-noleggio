@@ -1,4 +1,4 @@
-// Shared Utils v8.6 - robust API call with CONFIG fallbacks, visible errors and toast notifications
+// Shared Utils v8.7 - robust API call with dual token support (header + body)
 (function(){
   window.api = window.api || {};
 
@@ -88,12 +88,21 @@
     const body = typeof pathOrBody === 'string' ? (opts.body||{}) : (pathOrBody||{});
     const token = (window.CONFIG && window.CONFIG.AUTH_TOKEN) ? window.CONFIG.AUTH_TOKEN : cfg('AUTH_TOKEN');
 
+    // DUAL TOKEN SUPPORT: includi token sia in header che nel body per massima compatibilità
+    const payload = {
+      ...body,
+      token: token  // Token nel body per Apps Script
+    };
+
     try{
       const res = await fetch(url, {
         method: 'POST',
         mode: 'cors', cache: 'no-cache',
-        headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + token },
-        body: JSON.stringify(body)
+        headers: { 
+          'Content-Type':'application/json', 
+          'Authorization':'Bearer ' + token  // Token nell'header per il proxy
+        },
+        body: JSON.stringify(payload)
       });
       const data = await toJSONSafe(res);
       if (!res.ok || data.success === false){
