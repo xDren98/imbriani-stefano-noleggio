@@ -1,6 +1,16 @@
-// Shared Utils v8.4 - robust API call with JSON enforcement and visible errors
+// Shared Utils v8.5 - robust API call with CONFIG fallbacks and visible errors
 (function(){
   window.api = window.api || {};
+
+  const DEFAULTS = {
+    API_URL: 'https://imbriani-proxy.dreenhd.workers.dev',
+    AUTH_TOKEN: 'imbriani_secret_2025'
+  };
+
+  function cfg(key){
+    try{ return (window.CONFIG && window.CONFIG[key]) ? window.CONFIG[key] : DEFAULTS[key]; }
+    catch(_){ return DEFAULTS[key]; }
+  }
 
   function toJSONSafe(res){
     const ct = (res.headers.get('content-type')||'').toLowerCase();
@@ -14,13 +24,14 @@
   }
 
   async function call(pathOrBody, opts={}){
-    const url = (window.CONFIG && window.CONFIG.API_URL) ? window.CONFIG.API_URL : pathOrBody;
+    const url = (window.CONFIG && window.CONFIG.API_URL) ? window.CONFIG.API_URL : cfg('API_URL');
     const body = typeof pathOrBody === 'string' ? (opts.body||{}) : (pathOrBody||{});
-    const token = (window.CONFIG && window.CONFIG.AUTH_TOKEN) ? window.CONFIG.AUTH_TOKEN : '';
+    const token = (window.CONFIG && window.CONFIG.AUTH_TOKEN) ? window.CONFIG.AUTH_TOKEN : cfg('AUTH_TOKEN');
 
     try{
       const res = await fetch(url, {
         method: 'POST',
+        mode: 'cors', cache: 'no-cache',
         headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + token },
         body: JSON.stringify(body)
       });
