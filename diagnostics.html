@@ -39,40 +39,51 @@
         return false;
       }
 
+      async function doHealth(){
+        const u = CONFIG.API_URL + '?action=health&token=' + encodeURIComponent(CONFIG.AUTH_TOKEN||'');
+        const r = await fetch(u, { cache:'no-cache' });
+        return r.text();
+      }
+      async function doLogin(){
+        const cf = document.getElementById('cf').value.trim().toUpperCase();
+        const r = await fetch(CONFIG.API_URL, {
+          method:'POST', mode:'cors', cache:'no-cache',
+          headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+(CONFIG.AUTH_TOKEN||'') },
+          body: JSON.stringify({ action:'login', codiceFiscale: cf })
+        });
+        return r.text();
+      }
+      async function doPing(){
+        const r = await fetch(CONFIG.API_URL, { method:'OPTIONS' });
+        return JSON.stringify({ status:r.status, ok:r.ok, cors:{
+          allowOrigin: r.headers.get('access-control-allow-origin'),
+          allowMethods: r.headers.get('access-control-allow-methods'),
+          allowHeaders: r.headers.get('access-control-allow-headers')
+        }}, null, 2);
+      }
+
+      // Ready guard: abilita bottoni solo quando CONFIG è pronto
+      (function ensureReady(){
+        const ids=['btn-post','btn-health','btn-ping'];
+        const btns=ids.map(id=>document.getElementById(id));
+        const set=(v)=>btns.forEach(b=>b&&(b.disabled=v));
+        function ready(){ return !!(window.CONFIG && CONFIG.API_URL); }
+        if (!ready()){
+          set(true); let n=0; const t=setInterval(()=>{
+            if (ready()){ clearInterval(t); set(false); }
+            else if(++n>50){ clearInterval(t); show('ERR: CONFIG non disponibile (timeout). Ricarica la pagina.'); }
+          },100);
+        }
+      })();
+
       document.getElementById('btn-health').onclick = async () => {
-        if (needConfig()) return;
-        try{
-          const u = CONFIG.API_URL + '?action=health&token=' + encodeURIComponent(CONFIG.AUTH_TOKEN||'');
-          const r = await fetch(u, { cache:'no-cache' });
-          const t = await r.text();
-          show(t);
-        }catch(e){ show('ERR: '+e.message); }
+        if (needConfig()) return; try{ show(await doHealth()); }catch(e){ show('ERR: '+e.message); }
       };
-
       document.getElementById('btn-post').onclick = async () => {
-        if (needConfig()) return;
-        try{
-          const cf = document.getElementById('cf').value.trim().toUpperCase();
-          const r = await fetch(CONFIG.API_URL, {
-            method:'POST', mode:'cors', cache:'no-cache',
-            headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+(CONFIG.AUTH_TOKEN||'') },
-            body: JSON.stringify({ action:'login', codiceFiscale: cf })
-          });
-          const t = await r.text();
-          show(t);
-        }catch(e){ show('ERR: '+e.message); }
+        if (needConfig()) return; try{ show(await doLogin()); }catch(e){ show('ERR: '+e.message); }
       };
-
       document.getElementById('btn-ping').onclick = async () => {
-        if (needConfig()) return;
-        try{
-          const r = await fetch(CONFIG.API_URL, { method:'OPTIONS' });
-          show({ status:r.status, ok:r.ok, cors:{
-            allowOrigin: r.headers.get('access-control-allow-origin'),
-            allowMethods: r.headers.get('access-control-allow-methods'),
-            allowHeaders: r.headers.get('access-control-allow-headers')
-          }});
-        }catch(e){ show('ERR: '+e.message); }
+        if (needConfig()) return; try{ show(await doPing()); }catch(e){ show('ERR: '+e.message); }
       };
     })();
   </script>
