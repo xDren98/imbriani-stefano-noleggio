@@ -10,7 +10,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=8010">
+  <link rel="stylesheet" href="styles.css?v=8011">
   <style>
     body{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);min-height:100vh}
     .stat-card{transition:all .3s cubic-bezier(.4,0,.2,1)}
@@ -112,6 +112,70 @@
     </div>
   </main>
 
+  <!-- Modal Modifica Profilo -->
+  <div class="modal fade" id="editProfileModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Modifica Profilo</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="edit-profile-form" class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Nome</label>
+              <input type="text" class="form-control form-control-modern" id="ep_nome" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Codice Fiscale</label>
+              <input type="text" class="form-control form-control-modern" id="ep_cf" disabled>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Luogo di nascita</label>
+              <input type="text" class="form-control form-control-modern" id="ep_luogoNascita">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Comune di residenza</label>
+              <input type="text" class="form-control form-control-modern" id="ep_comuneResidenza">
+            </div>
+            <div class="col-8">
+              <label class="form-label">Via di residenza</label>
+              <input type="text" class="form-control form-control-modern" id="ep_viaResidenza">
+            </div>
+            <div class="col-4">
+              <label class="form-label">Civico</label>
+              <input type="text" class="form-control form-control-modern" id="ep_civicoResidenza">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Numero patente</label>
+              <input type="text" class="form-control form-control-modern" id="ep_numeroPatente">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Inizio validità patente</label>
+              <input type="date" class="form-control form-control-modern" id="ep_inizioValiditaPatente">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Scadenza patente</label>
+              <input type="date" class="form-control form-control-modern" id="ep_scadenzaPatente">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Cellulare</label>
+              <input type="text" class="form-control form-control-modern" id="ep_cellulare">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Email</label>
+              <input type="email" class="form-control form-control-modern" id="ep_email">
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+          <button type="button" id="ep_save_btn" class="btn btn-premium">Salva Modifiche</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="toast-container" class="position-fixed top-0 end-0 p-3" style="z-index:1055"></div>
   <div id="spinner" class="loader-premium d-none"><div class="loader-spinner"></div><div class="loader-text" id="loader-message">Caricamento...</div></div>
 
@@ -121,63 +185,44 @@
   <script src="shared-utils.js"></script>
   <script>
     let currentUser = null;
+    let editProfileModal = null;
 
     document.addEventListener('DOMContentLoaded', async () => {
       const userData = localStorage.getItem('imbriani_user');
-      if (!userData) {
-        if (window.showToast) showToast('Sessione scaduta. Effettua di nuovo il login.', 'warning');
-        setTimeout(() => window.location.href = 'index.html', 1500);
-        return;
-      }
+      if (!userData) { if (window.showToast) showToast('Sessione scaduta. Effettua di nuovo il login.', 'warning'); setTimeout(()=>location.href='index.html',1500); return; }
+      currentUser = JSON.parse(userData);
+      document.getElementById('user-name').textContent = currentUser.nome || 'Cliente';
 
-      try {
-        currentUser = JSON.parse(userData);
-        document.getElementById('user-name').textContent = currentUser.nome || 'Cliente';
-        await loadUserData();
-      } catch (error) {
-        console.error('Errore caricamento sessione:', error);
-        localStorage.removeItem('imbriani_user');
-        window.location.href = 'index.html';
-      }
-
-      const logout = function(e){
-        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-        try{
-          localStorage.removeItem('imbriani_user');
-          localStorage.removeItem('imbriani_session');
-          if (window.showToast) showToast('Logout effettuato', 'info');
-        }catch(_){ }
-        setTimeout(()=>{ window.location.href='index.html'; }, 600);
-      };
-      const btn = document.getElementById('logout-btn');
-      if (btn) btn.addEventListener('click', logout, { capture:true, passive:false });
-
-      document.getElementById('nuova-prenotazione')?.addEventListener('click', () => {
-        window.location.href = 'veicoli.html';
-      });
-      document.getElementById('refresh-bookings')?.addEventListener('click', loadBookings);
+      await loadUserData();
+      bindUI();
     });
 
-    async function loadUserData() {
-      await Promise.all([
-        loadProfile(),
-        loadBookings(),
-        loadStats()
-      ]);
+    function bindUI(){
+      document.getElementById('logout-btn')?.addEventListener('click', (e)=>{ e.preventDefault(); localStorage.removeItem('imbriani_user'); localStorage.removeItem('imbriani_session'); if (window.showToast) showToast('Logout effettuato', 'info'); setTimeout(()=>location.href='index.html',600); });
+      document.getElementById('nuova-prenotazione')?.addEventListener('click', ()=> location.href='veicoli.html');
+      document.getElementById('refresh-bookings')?.addEventListener('click', loadBookings);
+
+      // Apri modal Modifica Profilo
+      document.querySelector('#user-profile')?.addEventListener('click', (e)=>{
+        const btn = e.target.closest('button[data-role="edit-profile"]');
+        if (!btn) return;
+        openEditProfile();
+      });
+
+      editProfileModal = new bootstrap.Modal(document.getElementById('editProfileModal'));
+      document.getElementById('ep_save_btn')?.addEventListener('click', saveProfile);
     }
 
-    function safe(val){ return (val===undefined||val===null||val==='') ? 'N/A' : val }
+    async function loadUserData(){ await Promise.all([loadProfile(), loadBookings(), loadStats()]); }
 
-    async function loadProfile() {
+    function safe(v){ return (v===undefined||v===null||v==='') ? 'N/A' : v }
+
+    async function loadProfile(){
       const profileEl = document.getElementById('user-profile');
-      if (!currentUser) return;
-
       const scadenzaPatente = currentUser.scadenzaPatente ? new Date(currentUser.scadenzaPatente) : null;
       const inizioValidita = currentUser.inizioValiditaPatente ? new Date(currentUser.inizioValiditaPatente) : null;
-      const giorni = scadenzaPatente ? Math.ceil((scadenzaPatente - new Date()) / (1000*60*60*24)) : null;
-
+      const giorni = scadenzaPatente ? Math.ceil((scadenzaPatente - new Date())/(1000*60*60*24)) : null;
       const indirizzoFull = `${safe(currentUser.viaResidenza)} ${safe(currentUser.civicoResidenza)}`.trim();
-
       profileEl.innerHTML = `
         <div class="mb-2"><strong class="text-white">Nome:</strong> <span class="text-white-75">${safe(currentUser.nome)}</span></div>
         <div class="mb-2"><strong class="text-white">Codice Fiscale:</strong> <span class="text-white-75">${safe(currentUser.codiceFiscale)}</span></div>
@@ -188,24 +233,64 @@
         <div class="mb-2"><strong class="text-white">Inizio validità:</strong> <span class="text-white-75">${inizioValidita ? inizioValidita.toLocaleDateString('it-IT') : 'N/A'}</span></div>
         <div class="mb-3"><strong class="text-white">Scadenza:</strong> <span class="text-white-75">${scadenzaPatente ? scadenzaPatente.toLocaleDateString('it-IT') : 'N/A'}</span> ${giorni && giorni < 60 ? `<span class="badge bg-warning ms-1">${giorni}g</span>` : ''}</div>
         <div class="mb-2"><strong class="text-white">Telefono:</strong> <span class="text-white-75">${safe(currentUser.cellulare)}</span></div>
-        <div class="mb-3"><strong class="text-white">Email:</strong> <span class="text-white-75">${safe(currentUser.email) || 'N/A'}</span></div>
-        <button type="button" class="btn btn-outline-light btn-sm w-100"><i class="fas fa-edit me-1"></i>Modifica Profilo</button>
-      `;
+        <div class="mb-3 d-flex align-items-center justify-content-between">
+          <div><strong class="text-white">Email:</strong> <span class="text-white-75">${safe(currentUser.email) || 'N/A'}</span></div>
+          <button type="button" class="btn btn-outline-light btn-sm" data-role="edit-profile"><i class="fas fa-edit me-1"></i>Modifica Profilo</button>
+        </div>`;
     }
 
-    async function loadBookings() {
+    function openEditProfile(){
+      document.getElementById('ep_nome').value = currentUser.nome || '';
+      document.getElementById('ep_cf').value = currentUser.codiceFiscale || '';
+      document.getElementById('ep_luogoNascita').value = currentUser.luogoNascita || '';
+      document.getElementById('ep_comuneResidenza').value = currentUser.comuneResidenza || '';
+      document.getElementById('ep_viaResidenza').value = currentUser.viaResidenza || '';
+      document.getElementById('ep_civicoResidenza').value = currentUser.civicoResidenza || '';
+      document.getElementById('ep_numeroPatente').value = currentUser.numeroPatente || '';
+      document.getElementById('ep_inizioValiditaPatente').value = currentUser.inizioValiditaPatente ? new Date(currentUser.inizioValiditaPatente).toISOString().slice(0,10) : '';
+      document.getElementById('ep_scadenzaPatente').value = currentUser.scadenzaPatente ? new Date(currentUser.scadenzaPatente).toISOString().slice(0,10) : '';
+      document.getElementById('ep_cellulare').value = currentUser.cellulare || '';
+      document.getElementById('ep_email').value = currentUser.email || '';
+      editProfileModal.show();
+    }
+
+    async function saveProfile(){
+      const payload = {
+        action: 'aggiornaCliente',
+        codiceFiscale: currentUser.codiceFiscale,
+        nome: document.getElementById('ep_nome').value.trim(),
+        luogoNascita: document.getElementById('ep_luogoNascita').value.trim(),
+        comuneResidenza: document.getElementById('ep_comuneResidenza').value.trim(),
+        viaResidenza: document.getElementById('ep_viaResidenza').value.trim(),
+        civicoResidenza: document.getElementById('ep_civicoResidenza').value.trim(),
+        numeroPatente: document.getElementById('ep_numeroPatente').value.trim(),
+        inizioValiditaPatente: document.getElementById('ep_inizioValiditaPatente').value,
+        scadenzaPatente: document.getElementById('ep_scadenzaPatente').value,
+        cellulare: document.getElementById('ep_cellulare').value.trim(),
+        email: document.getElementById('ep_email').value.trim()
+      };
+      try{
+        const res = await api.call(payload);
+        if (res.success){
+          if (window.showToast) showToast('Profilo aggiornato con successo', 'success');
+          // merge locale
+          Object.assign(currentUser, payload);
+          localStorage.setItem('imbriani_user', JSON.stringify(currentUser));
+          loadProfile();
+          editProfileModal.hide();
+        } else {
+          if (window.showToast) showToast(res.message || 'Errore aggiornamento profilo', 'error');
+        }
+      }catch(err){ if (window.showToast) showToast('Errore di rete: '+err.message, 'error'); }
+    }
+
+    async function loadBookings(){
       const listEl = document.getElementById('bookings-list');
       try {
         const response = await api.call({ action: 'getPrenotazioni' });
-        if (!response.success) { listEl.innerHTML = '<div class="text-danger">Errore caricamento prenotazioni</div>'; return; }
+        if (!response.success){ listEl.innerHTML = '<div class="text-danger">Errore caricamento prenotazioni</div>'; return; }
         const bookings = (response.data || []).filter(b => b.codiceFiscaleAutista1 === currentUser.codiceFiscale);
-        if (bookings.length === 0) {
-          listEl.innerHTML = `
-            <div class="text-center text-muted py-4">
-              <i class="fas fa-calendar-times mb-2" style="font-size:2rem"></i>
-              <div>Nessuna prenotazione trovata</div>
-              <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="document.getElementById('nuova-prenotazione').click()">Crea la tua prima prenotazione</button>
-            </div>`; return; }
+        if (bookings.length === 0){ listEl.innerHTML = `<div class="text-center text-muted py-4"><i class="fas fa-calendar-times mb-2" style="font-size:2rem"></i><div>Nessuna prenotazione trovata</div><button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="document.getElementById('nuova-prenotazione').click()">Crea la tua prima prenotazione</button></div>`; return; }
         listEl.innerHTML = bookings.slice(0,5).map(booking => {
           const status = booking.stato || 'In attesa';
           const statusClass = { 'In attesa':'status-attesa','Confermata':'status-confermata','Completata':'status-completata','Rifiutata':'status-rifiutata' }[status] || 'status-attesa';
@@ -214,33 +299,21 @@
           const dataFine = booking.giornoFine ? new Date(booking.giornoFine).toLocaleDateString('it-IT') : 'N/A';
           const destinazione = booking.destinazione || 'Destinazione N/A';
           const importo = booking.importo ? `${booking.importo}€` : '';
-          return `<div class="border-bottom border-secondary pb-3 mb-3">
-              <div class="d-flex justify-content-between align-items-start mb-1">
-                <h6 class="text-white fw-semibold mb-0">${targa}</h6>
-                <span class="booking-status ${statusClass}">${status}</span>
-              </div>
-              <div class="small text-white-50 mb-1"><i class="fas fa-calendar me-1"></i>${dataInizio} → ${dataFine}</div>
-              <div class="small text-white-75 mb-2"><i class="fas fa-map-marker-alt me-1"></i>${destinazione}</div>
-              ${importo ? `<div class="small text-success text-end">${importo}</div>` : ''}
-            </div>`; }).join('');
-        if (bookings.length > 5) { listEl.innerHTML += `<div class="text-center mt-3"><button class="btn btn-outline-light btn-sm">Vedi tutte (${bookings.length})</button></div>`; }
+          return `<div class="border-bottom border-secondary pb-3 mb-3"><div class="d-flex justify-content-between align-items-start mb-1"><h6 class="text-white fw-semibold mb-0">${targa}</h6><span class="booking-status ${statusClass}">${status}</span></div><div class="small text-white-50 mb-1"><i class="fas fa-calendar me-1"></i>${dataInizio} → ${dataFine}</div><div class="small text-white-75 mb-2"><i class="fas fa-map-marker-alt me-1"></i>${destinazione}</div>${importo ? `<div class="small text-success text-end">${importo}</div>` : ''}</div>`; }).join('');
+        if (bookings.length > 5){ listEl.innerHTML += `<div class="text-center mt-3"><button class="btn btn-outline-light btn-sm">Vedi tutte (${bookings.length})</button></div>`; }
       } catch (error) { console.error('Errore caricamento prenotazioni:', error); listEl.innerHTML = '<div class="text-danger">Errore caricamento prenotazioni</div>'; }
     }
 
-    async function loadStats() {
-      try {
+    async function loadStats(){
+      try{
         const response = await api.call({ action: 'getPrenotazioni' }); if (!response.success) return;
         const bookings = (response.data || []).filter(b => b.codiceFiscaleAutista1 === currentUser.codiceFiscale);
         const attive = bookings.filter(b => ['In attesa','Confermata'].includes(b.stato)).length;
         const totali = bookings.length;
         document.getElementById('stat-prenotazioni-attive').textContent = attive;
         document.getElementById('stat-prenotazioni-totali').textContent = totali;
-        if (currentUser.scadenzaPatente) {
-          const scadenza = new Date(currentUser.scadenzaPatente); const giorni = Math.ceil((scadenza - new Date())/(1000*60*60*24));
-          document.getElementById('stat-prossima-scadenza').textContent = giorni > 0 ? `${giorni}gg` : 'Scaduta';
-          if (giorni < 60) document.getElementById('stat-prossima-scadenza').className = 'h4 text-danger mb-1';
-        }
-      } catch (error) { console.error('Errore caricamento statistiche:', error); }
+        if (currentUser.scadenzaPatente){ const scadenza = new Date(currentUser.scadenzaPatente); const giorni = Math.ceil((scadenza - new Date())/(1000*60*60*24)); document.getElementById('stat-prossima-scadenza').textContent = giorni > 0 ? `${giorni}gg` : 'Scaduta'; if (giorni < 60) document.getElementById('stat-prossima-scadenza').className = 'h4 text-danger mb-1'; }
+      }catch(error){ console.error('Errore caricamento statistiche:', error); }
     }
   </script>
 </body>
