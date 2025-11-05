@@ -1,11 +1,12 @@
 /**
- * IMBRIANI STEFANO NOLEGGIO - BACKEND v8.3.5
- * - updateStatiLive: ordine controlli corretto e chiusura 'Confermata/Programmata' scadute -> 'Completata'
- * - checkDisponibilita/getVeicoli/getPrenotazioni invariati
+ * IMBRIANI STEFANO NOLEGGIO - BACKEND v8.3.6
+ * - creaPrenotazione: supporto autisti 1-3, destinazione obbligatoria lato frontend
+ * - upsert CLIENTI (inserimento/aggiornamento per CF) quando post.upsertClienti === true
+ * - cellulare/email sempre associati al primo autista (email può essere null in questo step)
  */
 
 const CONFIG = {
-  VERSION: '8.3.5',
+  VERSION: '8.3.6',
   SPREADSHEET_ID: '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns',
   TOKEN: 'imbriani_secret_2025',
   SHEETS: { PRENOTAZIONI: 'PRENOTAZIONI', PULMINI: 'PULMINI', CLIENTI: 'CLIENTI', MANUTENZIONI: 'MANUTENZIONI' },
@@ -58,7 +59,58 @@ function getPrenotazioni(){ try{ const sh=SpreadsheetApp.openById(CONFIG.SPREADS
 function checkDisponibilita(p){ try{ const t=p.targa, di=p.dataInizio, df=p.dataFine; if (!t||!di||!df) return createJsonResponse({success:false,message:'Parametri mancanti: targa, dataInizio, dataFine'},400); const sh=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI); const data=sh.getDataRange().getValues(); let disp=true; const confl=[]; for (let i=1;i<data.length;i++){ const r=data[i]; const tp=r[CONFIG.PRENOTAZIONI_COLS.TARGA-1]; const st=String(r[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE-1]||''); if (tp===t && !['Rifiutata','Completata','Da confermare'].includes(st)){ const ie=new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO-1]); const fe=new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE-1]); const ni=new Date(di); const nf=new Date(df); if (!(nf<ie || ni>fe)){ disp=false; confl.push({da:ie,a:fe,stato:st}); } } } return createJsonResponse({success:true,disponibile:disp,conflitti:confl}); }catch(err){ return createJsonResponse({success:false,message:'Errore controllo disponibilità: '+err.message},500); }
 }
 
-function creaPrenotazione(post){ try{ const sh=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI); const row=new Array(44).fill(''); row[CONFIG.PRENOTAZIONI_COLS.TIMESTAMP-1]=new Date(); row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1-1]=post.autista1?.nome||''; row[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_1-1]=post.autista1?.dataNascita||''; row[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_1-1]=post.autista1?.luogoNascita||''; row[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_1-1]=post.autista1?.codiceFiscale||''; row[CONFIG.PRENOTAZIONI_COLS.COMUNE_RESIDENZA_AUTISTA_1-1]=post.autista1?.comuneResidenza||''; row[CONFIG.PRENOTAZIONI_COLS.VIA_RESIDENZA_AUTISTA_1-1]=post.autista1?.viaResidenza||''; row[CONFIG.PRENOTAZIONI_COLS.CIVICO_RESIDENZA_AUTISTA_1-1]=post.autista1?.civicoResidenza||''; row[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_1-1]=post.autista1?.numeroPatente||''; row[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_1-1]=post.autista1?.dataInizioPatente||''; row[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_1-1]=post.autista1?.scadenzaPatente||''; row[CONFIG.PRENOTAZIONI_COLS.TARGA-1]=post.targa||''; row[CONFIG.PRENOTAZIONI_COLS.ORA_INIZIO-1]=post.oraInizio||''; row[CONFIG.PRENOTAZIONI_COLS.ORA_FINE-1]=post.oraFine||''; row[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO-1]=new Date(post.giornoInizio); row[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE-1]=new Date(post.giornoFine); row[CONFIG.PRENOTAZIONI_COLS.DESTINAZIONE-1]=post.destinazione||''; row[CONFIG.PRENOTAZIONI_COLS.CELLULARE-1]=post.cellulare||''; row[CONFIG.PRENOTAZIONI_COLS.DATA_CONTRATTO-1]=new Date(); row[CONFIG.PRENOTAZIONI_COLS.EMAIL-1]=post.email||''; row[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE-1]=post.stato||'Programmata'; row[CONFIG.PRENOTAZIONI_COLS.IMPORTO_PREVENTIVO-1]=post.importo||0; if (post.autista2){ row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_2-1]=post.autista2.nome||''; row[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_2-1]=post.autista2.dataNascita||''; row[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_2-1]=post.autista2.luogoNascita||''; row[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_2-1]=post.autista2.codiceFiscale||''; row[CONFIG.PRENOTAZIONI_COLS.COMUNE_RESIDENZA_AUTISTA_2-1]=post.autista2.comuneResidenza||''; row[CONFIG.PRENOTAZIONI_COLS.VIA_RESIDENZA_AUTISTA_2-1]=post.autista2.viaResidenza||''; row[CONFIG.PRENOTAZIONI_COLS.CIVICO_RESIDENZA_AUTISTA_2-1]=post.autista2.civicoResidenza||''; row[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_2-1]=post.autista2.numeroPatente||''; row[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_2-1]=post.autista2.dataInizioPatente||''; row[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_2-1]=post.autista2.scadenzaPatente||''; } if (post.autista3){ row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_3-1]=post.autista3.nome||''; row[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_3-1]=post.autista3.dataNascita||''; row[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_3-1]=post.autista3.luogoNascita||''; row[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_3-1]=post.autista3.codiceFiscale||''; row[CONFIG.PRENOTAZIONI_COLS.COMUNE_RESIDENZA_AUTISTA_3-1]=post.autista3.comuneResidenza||''; row[CONFIG.PRENOTAZIONI_COLS.VIA_RESIDENZA_AUTISTA_3-1]=post.autista3.viaResidenza||''; row[CONFIG.PRENOTAZIONI_COLS.CIVICO_RESIDENZA_AUTISTA_3-1]=post.autista3.civicoResidenza||''; row[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_3-1]=post.autista3.numeroPatente||''; row[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_3-1]=post.autista3.dataInizioPatente||''; row[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_3-1]=post.autista3.scadenzaPatente||''; } const id='PRE-'+Date.now(); row[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE-1]=id; sh.appendRow(row); return createJsonResponse({success:true,message:'Prenotazione creata con successo',idPrenotazione:id}); }catch(err){ return createJsonResponse({success:false,message:'Errore creazione prenotazione: '+err.message},500); }
+function creaPrenotazione(post){
+  try{
+    const ss=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+    const sh=ss.getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    const row=new Array(44).fill('');
+
+    // Prenotazione base
+    row[CONFIG.PRENOTAZIONI_COLS.TIMESTAMP-1]=new Date();
+    row[CONFIG.PRENOTAZIONI_COLS.TARGA-1]=post.targa||'';
+    row[CONFIG.PRENOTAZIONI_COLS.ORA_INIZIO-1]=post.oraInizio||'';
+    row[CONFIG.PRENOTAZIONI_COLS.ORA_FINE-1]=post.oraFine||'';
+    row[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO-1]=post.giornoInizio? new Date(post.giornoInizio):'';
+    row[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE-1]=post.giornoFine? new Date(post.giornoFine):'';
+    row[CONFIG.PRENOTAZIONI_COLS.DESTINAZIONE-1]=post.destinazione||'';
+
+    // Autista 1 (obbligatorio lato FE)
+    const a1 = post.autista1||{};
+    row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1-1]=a1.nome||'';
+    row[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_1-1]=a1.dataNascita||'';
+    row[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_1-1]=a1.luogoNascita||'';
+    row[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_1-1]=a1.codiceFiscale||'';
+    row[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_1-1]=a1.numeroPatente||'';
+    row[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_1-1]=a1.inizioValiditaPatente||a1.dataInizioPatente||'';
+    row[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_1-1]=a1.scadenzaPatente||'';
+    row[CONFIG.PRENOTAZIONI_COLS.CELLULARE-1]=a1.cellulare||post.cellulare||'';
+
+    // Autista 2
+    if (post.autista2){ const a2=post.autista2; row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_2-1]=a2.nome||''; row[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_2-1]=a2.dataNascita||''; row[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_2-1]=a2.luogoNascita||''; row[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_2-1]=a2.codiceFiscale||''; row[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_2-1]=a2.numeroPatente||''; row[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_2-1]=a2.inizioValiditaPatente||a2.dataInizioPatente||''; row[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_2-1]=a2.scadenzaPatente||''; }
+
+    // Autista 3
+    if (post.autista3){ const a3=post.autista3; row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_3-1]=a3.nome||''; row[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_3-1]=a3.dataNascita||''; row[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_3-1]=a3.luogoNascita||''; row[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_3-1]=a3.codiceFiscale||''; row[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_3-1]=a3.numeroPatente||''; row[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_3-1]=a3.inizioValiditaPatente||a3.dataInizioPatente||''; row[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_3-1]=a3.scadenzaPatente||''; }
+
+    // Stato/ID/Importo/Email
+    const id='PRE-'+Date.now(); row[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE-1]=id;
+    row[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE-1]=post.stato||'Programmata';
+    row[CONFIG.PRENOTAZIONI_COLS.IMPORTO_PREVENTIVO-1]=post.importo||0;
+    row[CONFIG.PRENOTAZIONI_COLS.EMAIL-1]=post.email||''; // email viene chiesta dopo, può restare vuota
+
+    sh.appendRow(row);
+
+    // Upsert CLIENTI se richiesto
+    if (post.upsertClienti){
+      const shC = ss.getSheetByName(CONFIG.SHEETS.CLIENTI);
+      const map = { NOME:'nome', DATA_NASCITA:'dataNascita', LUOGO_NASCITA:'luogoNascita', CODICE_FISCALE:'codiceFiscale', COMUNE_RESIDENZA:'comuneResidenza', VIA_RESIDENZA:'viaResidenza', CIVICO_RESIDENZA:'civicoResidenza', NUMERO_PATENTE:'numeroPatente', DATA_INIZIO_PATENTE:'inizioValiditaPatente', SCADENZA_PATENTE:'scadenzaPatente', CELLULARE:'cellulare', EMAIL:'email' };
+      function upsert(d, isPrimary){ if (!d || !d.codiceFiscale) return; const vals = shC.getDataRange().getValues(); let idx=-1; for (let i=1;i<vals.length;i++){ if (String(vals[i][CONFIG.CLIENTI_COLS.CODICE_FISCALE-1]).trim()===String(d.codiceFiscale).trim()){ idx=i; break; } } if (idx===-1){ const rowC=new Array(12).fill(''); rowC[CONFIG.CLIENTI_COLS.NOME-1]=d.nome||''; rowC[CONFIG.CLIENTI_COLS.DATA_NASCITA-1]=d.dataNascita||''; rowC[CONFIG.CLIENTI_COLS.LUOGO_NASCITA-1]=d.luogoNascita||''; rowC[CONFIG.CLIENTI_COLS.CODICE_FISCALE-1]=d.codiceFiscale||''; rowC[CONFIG.CLIENTI_COLS.COMUNE_RESIDENZA-1]=d.comuneResidenza||''; rowC[CONFIG.CLIENTI_COLS.VIA_RESIDENZA-1]=d.viaResidenza||''; rowC[CONFIG.CLIENTI_COLS.CIVICO_RESIDENZA-1]=d.civicoResidenza||''; rowC[CONFIG.CLIENTI_COLS.NUMERO_PATENTE-1]=d.numeroPatente||''; rowC[CONFIG.CLIENTI_COLS.DATA_INIZIO_PATENTE-1]=d.inizioValiditaPatente||d.dataInizioPatente||''; rowC[CONFIG.CLIENTI_COLS.SCADENZA_PATENTE-1]=d.scadenzaPatente||''; rowC[CONFIG.CLIENTI_COLS.CELLULARE-1]=isPrimary ? (d.cellulare||a1.cellulare||'') : (vals[0][CONFIG.CLIENTI_COLS.CELLULARE-1]||''); rowC[CONFIG.CLIENTI_COLS.EMAIL-1]=isPrimary ? (d.email||post.email||'') : ''; shC.appendRow(rowC); } else { function setIf(colKey, prop){ const val=d[prop]; if (val!==undefined && val!==null && val!==''){ shC.getRange(idx+1, CONFIG.CLIENTI_COLS[colKey], 1, 1).setValue(val); } } setIf('NOME','nome'); setIf('DATA_NASCITA','dataNascita'); setIf('LUOGO_NASCITA','luogoNascita'); setIf('COMUNE_RESIDENZA','comuneResidenza'); setIf('VIA_RESIDENZA','viaResidenza'); setIf('CIVICO_RESIDENZA','civicoResidenza'); setIf('NUMERO_PATENTE','numeroPatente'); setIf('DATA_INIZIO_PATENTE','inizioValiditaPatente'); setIf('SCADENZA_PATENTE','scadenzaPatente'); if (isPrimary && (d.cellulare || post.cellulare)){ shC.getRange(idx+1, CONFIG.CLIENTI_COLS.CELLULARE, 1, 1).setValue(d.cellulare||post.cellulare); } if (isPrimary && (d.email || post.email)){ shC.getRange(idx+1, CONFIG.CLIENTI_COLS.EMAIL, 1, 1).setValue(d.email||post.email); } } }
+      upsert(a1, true);
+      if (post.autista2 && post.autista2.codiceFiscale) upsert(post.autista2, false);
+      if (post.autista3 && post.autista3.codiceFiscale) upsert(post.autista3, false);
+    }
+
+    return createJsonResponse({success:true,message:'Prenotazione creata con successo',idPrenotazione:id});
+  }catch(err){ return createJsonResponse({success:false,message:'Errore creazione prenotazione: '+err.message},500); }
 }
 
 function aggiornaCliente(post){ try{ const cf=(post.codiceFiscale||'').trim(); if (!cf||cf.length!==16) return createJsonResponse({success:false,message:'Codice fiscale mancante o non valido'},400); const ss=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID); const sh=ss.getSheetByName(CONFIG.SHEETS.CLIENTI); const vals=sh.getDataRange().getValues(); let idx=-1; for (let i=1;i<vals.length;i++){ if (String(vals[i][CONFIG.CLIENTI_COLS.CODICE_FISCALE-1]).trim()===cf){ idx=i; break; } } if (idx===-1) return createJsonResponse({success:false,message:'Cliente non trovato'},404); function setIf(colKey,val){ if (val!==undefined && val!==null){ sh.getRange(idx+1, CONFIG.CLIENTI_COLS[colKey], 1, 1).setValue(val); } }
