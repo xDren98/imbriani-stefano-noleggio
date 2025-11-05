@@ -51,8 +51,7 @@
       <div class="glass-card p-4 mb-4 driver-card required">
         <h5 class="fw-bold text-white mb-3"><span class="badge bg-warning text-dark me-2">1</span> Autista principale</h5>
         <form id="driver1" class="row g-3">
-          <div class="col-md-6"><label class="form-label">Nome</label><input id="d1_nome" class="form-control form-control-modern" required></div>
-          <div class="col-md-6"><label class="form-label">Cognome</label><input id="d1_cognome" class="form-control form-control-modern" required></div>
+          <div class="col-md-6"><label class="form-label">Nome completo</label><input id="d1_nomeCompleto" class="form-control form-control-modern" required></div>
           <div class="col-md-6"><label class="form-label">Codice Fiscale</label><input id="d1_cf" class="form-control form-control-modern" maxlength="16" required></div>
           <div class="col-md-6"><label class="form-label">Cellulare</label><input id="d1_cell" class="form-control form-control-modern" required></div>
           <div class="col-md-6"><label class="form-label">Data di nascita</label><input type="date" id="d1_dob" class="form-control form-control-modern"></div>
@@ -68,8 +67,7 @@
       <div class="glass-card p-4 mb-4 driver-card">
         <h5 class="fw-bold text-white mb-3"><span class="badge bg-info me-2">2</span> Autista aggiuntivo (opzionale)</h5>
         <form id="driver2" class="row g-3">
-          <div class="col-md-6"><label class="form-label">Nome</label><input id="d2_nome" class="form-control form-control-modern"></div>
-          <div class="col-md-6"><label class="form-label">Cognome</label><input id="d2_cognome" class="form-control form-control-modern"></div>
+          <div class="col-md-6"><label class="form-label">Nome completo</label><input id="d2_nomeCompleto" class="form-control form-control-modern"></div>
           <div class="col-md-6"><label class="form-label">Codice Fiscale</label><input id="d2_cf" class="form-control form-control-modern" maxlength="16"></div>
           <div class="col-md-6"><label class="form-label">Data di nascita</label><input type="date" id="d2_dob" class="form-control form-control-modern"></div>
           <div class="col-md-6"><label class="form-label">Luogo di nascita</label><input id="d2_luogo" class="form-control form-control-modern"></div>
@@ -83,8 +81,7 @@
       <div class="glass-card p-4 mb-4 driver-card">
         <h5 class="fw-bold text-white mb-3"><span class="badge bg-info me-2">3</span> Terzo autista (opzionale)</h5>
         <form id="driver3" class="row g-3">
-          <div class="col-md-6"><label class="form-label">Nome</label><input id="d3_nome" class="form-control form-control-modern"></div>
-          <div class="col-md-6"><label class="form-label">Cognome</label><input id="d3_cognome" class="form-control form-control-modern"></div>
+          <div class="col-md-6"><label class="form-label">Nome completo</label><input id="d3_nomeCompleto" class="form-control form-control-modern"></div>
           <div class="col-md-6"><label class="form-label">Codice Fiscale</label><input id="d3_cf" class="form-control form-control-modern" maxlength="16"></div>
           <div class="col-md-6"><label class="form-label">Data di nascita</label><input type="date" id="d3_dob" class="form-control form-control-modern"></div>
           <div class="col-md-6"><label class="form-label">Luogo di nascita</label><input id="d3_luogo" class="form-control form-control-modern"></div>
@@ -116,9 +113,9 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       // Recupero dati
-      try { currentUser = JSON.parse(localStorage.getItem('imbriani_user')||'null'); } catch(_){}
-      try { selectedVehicle = JSON.parse(localStorage.getItem('imbriani_selected_vehicle')||'null'); } catch(_){}
-      try { selectedDates = JSON.parse(localStorage.getItem('imbriani_selected_dates')||'null'); } catch(_){}
+      try { currentUser = JSON.parse(localStorage.getItem('imbriani_user')||'null'); } catch(_){}}
+      try { selectedVehicle = JSON.parse(localStorage.getItem('imbriani_selected_vehicle')||'null'); } catch(_){}}
+      try { selectedDates = JSON.parse(localStorage.getItem('imbriani_selected_dates')||'null'); } catch(_){}}
 
       if (!localStorage.getItem('imbriani_preventivo_richiesto')){
         if (window.showToast) showToast('Completa prima la richiesta preventivo', 'warning');
@@ -161,9 +158,9 @@
 
     function prefillDriver1(){
       if (!currentUser) return;
-      document.getElementById('d1_nome').value = currentUser.nome || '';
-      const cognomeGuess = (currentUser.cognome||'').trim();
-      document.getElementById('d1_cognome').value = cognomeGuess;
+      // Se abbiamo già "nome" e "cognome" separati, uniscili; altrimenti usa currentUser.nome come nome completo
+      const nomeCompleto = (currentUser.nome && currentUser.cognome) ? `${currentUser.nome} ${currentUser.cognome}` : (currentUser.nome||'');
+      document.getElementById('d1_nomeCompleto').value = nomeCompleto;
       document.getElementById('d1_cf').value = currentUser.codiceFiscale || '';
       document.getElementById('d1_cell').value = currentUser.cellulare || '';
       document.getElementById('d1_dob').value = currentUser.dataNascita ? new Date(currentUser.dataNascita).toISOString().slice(0,10) : '';
@@ -176,7 +173,7 @@
     function getDriverFromForm(prefix){
       const get = (id)=> document.getElementById(id)?.value?.trim()||'';
       const base = {
-        nome: get(prefix+'_nome'), cognome: get(prefix+'_cognome'), codiceFiscale: get(prefix+'_cf'),
+        nomeCompleto: get(prefix+'_nomeCompleto'), codiceFiscale: get(prefix+'_cf'),
         dataNascita: get(prefix+'_dob'), luogoNascita: get(prefix+'_luogo'),
         numeroPatente: get(prefix+'_patente'), inizioValiditaPatente: get(prefix+'_patente_inizio'), scadenzaPatente: get(prefix+'_patente_scad')
       };
@@ -184,7 +181,7 @@
     }
 
     function validateDriver1(d){
-      if (!d.nome || !d.cognome || !d.codiceFiscale || d.codiceFiscale.length!==16){ return 'Completa nome, cognome e un CF valido (16 caratteri)'; }
+      if (!d.nomeCompleto || !d.codiceFiscale || d.codiceFiscale.length!==16){ return 'Completa nome completo e un CF valido (16 caratteri)'; }
       if (!document.getElementById('d1_cell').value.trim()) return 'Inserisci il cellulare del primo autista';
       return null;
     }
