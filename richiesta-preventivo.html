@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="it" class="h-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Richiesta Preventivo — Imbriani Stefano Noleggio</title>
+  <meta name="description" content="Richiesta preventivo obbligatoria - Imbriani Stefano Noleggio">
+  <meta name="theme-color" content="#0066FF">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚐</text></svg>">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);min-height:100vh}
+    .step-indicator{background:linear-gradient(45deg,#f59e0b,#d97706);color:#fff;font-weight:700}
+    .cta-button{transition:all .3s ease;border:2px solid transparent}
+    .cta-button:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,102,255,.3)}
+    .whatsapp-btn{background:linear-gradient(45deg,#25d366,#128c7e)}
+    .whatsapp-btn:hover{background:linear-gradient(45deg,#128c7e,#075e54)}
+    .phone-btn{background:linear-gradient(45deg,#3b82f6,#1d4ed8)}
+    .phone-btn:hover{background:linear-gradient(45deg,#1d4ed8,#1e40af)}
+    .confirmation-section{border:2px dashed #10b981;background:rgba(16,185,129,.1)}
+    .required-field{border-left:4px solid #f59e0b}
+  </style>
+</head>
+<body class="d-flex flex-column h-100">
+  <header class="py-4">
+    <div class="container">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+          <h1 class="h3 text-white fw-bold mb-1">
+            <i class="fas fa-phone-alt me-2"></i>
+            Richiesta Preventivo
+          </h1>
+          <p class="text-white-50 mb-0">Step obbligatorio per completare la prenotazione</p>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" id="back-btn" class="btn btn-outline-light btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>Indietro
+          </button>
+          <span class="step-indicator px-3 py-1 rounded-pill">Step 2 di 3</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-grow-1 py-4">
+    <div class="container">
+      <!-- Riepilogo selezione -->
+      <div class="glass-card p-4 mb-4">
+        <h5 class="fw-bold text-white mb-3">
+          <i class="fas fa-check-circle text-success me-2"></i>Riepilogo selezione
+        </h5>
+        <div id="selection-summary">
+          <div class="text-center text-muted py-3">
+            <div class="spinner-border spinner-border-sm me-2"></div>
+            Caricamento dati prenotazione...
+          </div>
+        </div>
+      </div>
+
+      <!-- Form destinazione obbligatoria -->
+      <div class="glass-card p-4 mb-4">
+        <h5 class="fw-bold text-white mb-3">
+          <i class="fas fa-map-marker-alt me-2"></i>Destinazione del viaggio
+        </h5>
+        <p class="text-white-75 mb-4">
+          <i class="fas fa-exclamation-triangle text-warning me-1"></i>
+          La destinazione è <strong>obbligatoria</strong> per richiedere il preventivo
+        </p>
+        
+        <div class="mb-4">
+          <label class="form-label fw-semibold text-white">Dove devi andare?</label>
+          <input type="text" 
+                 class="form-control form-control-modern required-field" 
+                 id="destinazione" 
+                 placeholder="es. Aeroporto di Bari, Roma Centro, Matrimonio a Lecce..."
+                 required>
+          <div class="form-text text-white-50">
+            <i class="fas fa-info-circle me-1"></i>
+            Specifica città, evento o indirizzo di destinazione
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold text-white">Note aggiuntive (opzionale)</label>
+          <textarea class="form-control form-control-modern" 
+                    id="note-aggiuntive" 
+                    rows="3" 
+                    placeholder="Eventuali richieste particolari, numero di passeggeri, bagagli, ecc."></textarea>
+        </div>
+      </div>
+
+      <!-- Bottoni CTA obbligatori -->
+      <div class="glass-card p-4 mb-4">
+        <h5 class="fw-bold text-white mb-3">
+          <i class="fas fa-phone me-2"></i>Contattaci per il preventivo
+        </h5>
+        <p class="text-white-75 mb-4">
+          <i class="fas fa-info-circle text-info me-1"></i>
+          <strong>Devi contattarci</strong> per ricevere il preventivo ufficiale prima di completare la prenotazione
+        </p>
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <button type="button" 
+                    id="whatsapp-btn" 
+                    class="btn whatsapp-btn cta-button w-100 py-3" 
+                    disabled>
+              <i class="fab fa-whatsapp me-2"></i>
+              <div>
+                <div class="fw-bold">WhatsApp</div>
+                <div class="small opacity-75">Messaggio precompilato</div>
+              </div>
+            </button>
+          </div>
+          <div class="col-md-6">
+            <a href="tel:+393286589618" 
+               class="btn phone-btn cta-button w-100 py-3 text-decoration-none">
+              <i class="fas fa-phone me-2"></i>
+              <div>
+                <div class="fw-bold text-white">Chiama ora</div>
+                <div class="small opacity-75 text-white">328 658 9618</div>
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sezione conferma contatto -->
+      <div class="glass-card confirmation-section p-4 d-none" id="confirmation-section">
+        <h5 class="fw-bold text-success mb-3">
+          <i class="fas fa-check-double me-2"></i>Conferma contatto
+        </h5>
+        <p class="text-white-75 mb-3">
+          Hai contattato l'azienda per il preventivo? Clicca qui sotto per confermare e procedere all'inserimento dei dati degli autisti.
+        </p>
+        <div class="d-flex gap-3">
+          <button type="button" id="confirm-contact-btn" class="btn btn-success">
+            <i class="fas fa-thumbs-up me-2"></i>Ho contattato l'azienda
+          </button>
+          <button type="button" id="proceed-drivers-btn" class="btn btn-premium d-none">
+            <i class="fas fa-users me-2"></i>Procedi ai dati autisti
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="toast-container" class="position-fixed top-0 end-0 p-3" style="z-index:1055"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="config.js"></script>
+  <script src="shared-utils.js"></script>
+  <script>
+    let currentUser = null;
+    let selectedDates = null;
+    let selectedVehicle = null;
+    let contactConfirmed = false;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Recupera dati utente
+      const userData = localStorage.getItem('imbriani_user');
+      if (userData) {
+        currentUser = JSON.parse(userData);
+      }
+
+      // Recupera dati selezione da URL params o localStorage
+      loadSelectionData();
+      
+      if (!selectedVehicle || !selectedDates) {
+        if (window.showToast) showToast('Dati prenotazione mancanti. Torna alla selezione veicoli.', 'error');
+        setTimeout(() => window.location.href = 'veicoli.html', 2000);
+        return;
+      }
+
+      displaySelectionSummary();
+      setupUI();
+    });
+
+    function loadSelectionData() {
+      // Prova a recuperare da URL params
+      const urlParams = new URLSearchParams(window.location.search);
+      const vehicleData = urlParams.get('vehicle');
+      const datesData = urlParams.get('dates');
+      const userData = urlParams.get('user');
+
+      if (vehicleData && datesData) {
+        try {
+          selectedVehicle = JSON.parse(decodeURIComponent(vehicleData));
+          selectedDates = JSON.parse(decodeURIComponent(datesData));
+          if (userData) {
+            currentUser = JSON.parse(decodeURIComponent(userData));
+          }
+        } catch (err) {
+          console.error('Errore parsing URL params:', err);
+        }
+      }
+
+      // Fallback a localStorage
+      if (!selectedVehicle || !selectedDates) {
+        const storedVehicle = localStorage.getItem('imbriani_selected_vehicle');
+        const storedDates = localStorage.getItem('imbriani_selected_dates');
+        
+        if (storedVehicle && storedDates) {
+          try {
+            selectedVehicle = JSON.parse(storedVehicle);
+            selectedDates = JSON.parse(storedDates);
+          } catch (err) {
+            console.error('Errore parsing localStorage:', err);
+          }
+        }
+      }
+    }
+
+    function displaySelectionSummary() {
+      const summaryEl = document.getElementById('selection-summary');
+      const formatDate = (d) => new Date(d).toLocaleDateString('it-IT');
+      
+      summaryEl.innerHTML = `
+        <div class="row align-items-center">
+          <div class="col-md-8">
+            <div class="d-flex align-items-center gap-3 mb-3">
+              <div class="bg-success p-3 rounded-3">
+                <i class="fas fa-car text-white" style="font-size:1.5rem"></i>
+              </div>
+              <div>
+                <h6 class="text-white fw-bold mb-1">${selectedVehicle.Targa}</h6>
+                <div class="text-white-75">${selectedVehicle.Marca} ${selectedVehicle.Modello}</div>
+                <div class="small text-success">
+                  <i class="fas fa-users me-1"></i>${selectedVehicle.Posti} posti
+                  ${selectedVehicle.PassoLungo ? ' • Passo Lungo' : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-end">
+              <div class="small text-white-50 mb-1">Periodo:</div>
+              <div class="text-white fw-semibold">${formatDate(selectedDates.dataInizio)} ${selectedDates.oraRitiro}</div>
+              <div class="text-white fw-semibold">${formatDate(selectedDates.dataFine)} ${selectedDates.oraRiconsegna}</div>
+              ${currentUser ? `<div class="small text-info mt-2">Cliente: ${currentUser.nome}</div>` : ''}
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function setupUI() {
+      // Back button
+      document.getElementById('back-btn')?.addEventListener('click', () => {
+        window.location.href = 'veicoli.html';
+      });
+
+      // Input destinazione
+      const destinazioneInput = document.getElementById('destinazione');
+      destinazioneInput?.addEventListener('input', updateWhatsAppButton);
+
+      // WhatsApp button
+      document.getElementById('whatsapp-btn')?.addEventListener('click', openWhatsApp);
+
+      // Conferma contatto
+      document.getElementById('confirm-contact-btn')?.addEventListener('click', confirmContact);
+      
+      // Procedi ai dati autisti
+      document.getElementById('proceed-drivers-btn')?.addEventListener('click', proceedToDrivers);
+
+      // Update WhatsApp button iniziale
+      updateWhatsAppButton();
+    }
+
+    function updateWhatsAppButton() {
+      const destinazione = document.getElementById('destinazione').value.trim();
+      const whatsappBtn = document.getElementById('whatsapp-btn');
+      
+      if (destinazione.length >= 3) {
+        whatsappBtn.disabled = false;
+        whatsappBtn.classList.remove('opacity-50');
+      } else {
+        whatsappBtn.disabled = true;
+        whatsappBtn.classList.add('opacity-50');
+      }
+    }
+
+    function openWhatsApp() {
+      const destinazione = document.getElementById('destinazione').value.trim();
+      const note = document.getElementById('note-aggiuntive').value.trim();
+      
+      if (!destinazione) {
+        if (window.showToast) showToast('Inserisci la destinazione prima di inviare il messaggio', 'error');
+        return;
+      }
+
+      const formatDate = (d) => new Date(d).toLocaleDateString('it-IT');
+      
+      let messaggio = `🚐 *RICHIESTA PREVENTIVO*\n\n`;
+      messaggio += `📅 *Periodo:* ${formatDate(selectedDates.dataInizio)} ${selectedDates.oraRitiro} → ${formatDate(selectedDates.dataFine)} ${selectedDates.oraRiconsegna}\n`;
+      messaggio += `🚗 *Veicolo:* ${selectedVehicle.Targa} (${selectedVehicle.Marca} ${selectedVehicle.Modello} - ${selectedVehicle.Posti} posti)\n`;
+      messaggio += `📍 *Destinazione:* ${destinazione}\n`;
+      
+      if (currentUser) {
+        messaggio += `👤 *Cliente:* ${currentUser.nome}\n`;
+        messaggio += `🆔 *Codice Fiscale:* ${currentUser.codiceFiscale}\n`;
+        if (currentUser.cellulare) {
+          messaggio += `📱 *Telefono:* ${currentUser.cellulare}\n`;
+        }
+      }
+      
+      if (note) {
+        messaggio += `📝 *Note:* ${note}\n`;
+      }
+      
+      messaggio += `\nGrazie! Attendo il preventivo. 🙏`;
+
+      const whatsappUrl = `https://wa.me/${CONFIG.WHATSAPP_NUMBER.replace(/\D/g, '')}?text=${encodeURIComponent(messaggio)}`;
+      
+      // Apri WhatsApp
+      window.open(whatsappUrl, '_blank');
+      
+      // Mostra sezione conferma dopo un breve delay
+      setTimeout(() => {
+        document.getElementById('confirmation-section').classList.remove('d-none');
+        document.getElementById('confirmation-section').scrollIntoView({ behavior: 'smooth' });
+        if (window.showToast) showToast('Messaggio WhatsApp inviato! Conferma il contatto qui sotto.', 'success');
+      }, 1000);
+    }
+
+    function confirmContact() {
+      contactConfirmed = true;
+      document.getElementById('confirm-contact-btn').classList.add('d-none');
+      document.getElementById('proceed-drivers-btn').classList.remove('d-none');
+      
+      if (window.showToast) showToast('Perfetto! Ora puoi procedere ai dati degli autisti.', 'success');
+    }
+
+    function proceedToDrivers() {
+      if (!contactConfirmed) {
+        if (window.showToast) showToast('Devi prima confermare di aver contattato l\'azienda', 'error');
+        return;
+      }
+
+      const destinazione = document.getElementById('destinazione').value.trim();
+      if (!destinazione) {
+        if (window.showToast) showToast('La destinazione è obbligatoria', 'error');
+        return;
+      }
+
+      // Salva la destinazione nei dati della prenotazione
+      selectedDates.destinazione = destinazione;
+      selectedDates.noteAggiuntive = document.getElementById('note-aggiuntive').value.trim();
+
+      // Salva tutto in localStorage per il prossimo step
+      localStorage.setItem('imbriani_selected_vehicle', JSON.stringify(selectedVehicle));
+      localStorage.setItem('imbriani_selected_dates', JSON.stringify(selectedDates));
+      localStorage.setItem('imbriani_preventivo_richiesto', 'true');
+
+      if (window.showToast) showToast('Reindirizzamento ai dati autisti...', 'info');
+      
+      // TODO: Redirect alla pagina dati autisti (da creare)
+      setTimeout(() => {
+        if (window.showToast) showToast('🚧 Pagina dati autisti in sviluppo. Implementare prossimo step!', 'warning');
+        console.log('🚧 NEXT: Creare pagina dati-autisti.html');
+        console.log('📝 Dati disponibili:', { selectedVehicle, selectedDates, currentUser });
+      }, 1000);
+    }
+  </script>
+</body>
+</html>
