@@ -29,36 +29,12 @@ const CONFIG = {
   EMAIL: { FROM_NAME: 'Imbriani Stefano Noleggio', FROM_EMAIL: 'imbrianistefanonoleggio@gmail.com' }
 };
 
-function createJsonResponse(data, status) {
-  var s = status || 200;
-  var resp = data;
-  resp.timestamp = new Date().toISOString();
-  resp.version = CONFIG.VERSION;
-  resp.status = s;
-  return ContentService.createTextOutput(JSON.stringify(resp)).setMimeType(ContentService.MimeType.JSON);
-}
+function createJsonResponse(data,status){ var s=status||200; var resp=data; resp.timestamp=new Date().toISOString(); resp.version=CONFIG.VERSION; resp.status=s; return ContentService.createTextOutput(JSON.stringify(resp)).setMimeType(ContentService.MimeType.JSON); }
+function validateToken(t){ return t===CONFIG.TOKEN; }
+function getAuthHeader(e){ if (e && e.parameter && e.parameter.Authorization) return e.parameter.Authorization.replace('Bearer ',''); return null; }
 
-function validateToken(token) {
-  return token === CONFIG.TOKEN;
-}
+function versionInfo(){ return { success:true, service:'imbriani-backend', version:CONFIG.VERSION, features:['stato_default_in_attesa','notifica_telegram_admin','endpoint_notifyTest','health_getVeicoli_getPrenotazioni','checkDisponibilita_updateStatiLive','getSheet_handleLogin_creaPrenotazione','aggiornaCliente_sincronizzaClienti','gmail_api_sender','email_conferma_cliente','email_conferma_stato','email_reminder_3giorni','trigger_giornaliero'], time:new Date().toISOString() }; }
 
-function getAuthHeader(e) {
-  if (e && e.parameter && e.parameter.Authorization) {
-    return e.parameter.Authorization.replace('Bearer ', '');
-  }
-  return null;
-}
+function doGet(e){ var p=(e&&e.parameter)?e.parameter:{}; var action=p.action||'health'; var token=p.token||(p.Authorization?p.Authorization.replace('Bearer ',''):''); try{ if (action==='version') return ContentService.createTextOutput(JSON.stringify(versionInfo())).setMimeType(ContentService.MimeType.JSON); if (action==='health') return createJsonResponse({ success:true, service:'imbriani-backend', spreadsheet_id:CONFIG.SPREADSHEET_ID, sheets:['PRENOTAZIONI','PULMINI','CLIENTI','MANUTENZIONI'], action:'health_supported' }); if (action==='notifyTest'){ if (!validateToken(token)) return createJsonResponse({success:false,message:'Token non valido',code:401},401); var demo={ targa:'TEST123', giornoInizio:new Date().toISOString().slice(0,10), giornoFine:new Date().toISOString().slice(0,10), oraInizio:'09:00', oraFine:'12:00', destinazione:'Test Destinazione', autista1:{ nomeCompleto:'Mario Test', codiceFiscale:'TSTMRA85M01H501Z', cellulare:'3330000000' }, email:'test@example.com' }; inviaNotificaTelegram(demo); return createJsonResponse({success:true,message:'Notifica Telegram inviata (test)'}); } if (action==='testEmail'){ if (!validateToken(token)) return createJsonResponse({success:false,message:'Token non valido',code:401},401); var to = p.to || 'melloanto@icloud.com'; var demo={ idPrenotazione:'PRE-TEST-'+Date.now(), targa:'TEST123', giornoInizio:new Date().toISOString().slice(0,10), giornoFine:new Date().toISOString().slice(0,10), oraInizio:'09:00', oraFine:'12:00', destinazione:'Test', email:to, autista1:{nomeCompleto:'Test Client'} }; inviaEmailConfermaCliente(demo); return createJsonResponse({success:true,message:'Email di test inviata a '+to}); } if (!validateToken(token)) return createJsonResponse({success:false,message:'Token non valido',code:401},401); switch(action){ case 'getVeicoli': return getVeicoli(); case 'getPrenotazioni': return getPrenotazioni(); case 'checkDisponibilita': return checkDisponibilita(p); case 'updateStatiLive': return updateStatiLive(); case 'getSheet': return getSheetGeneric(p); case 'sincronizzaClienti': return sincronizzaClienti(); case 'checkReminders': return checkReminderEmails(); default: return createJsonResponse({success:false,message:'Azione non supportata: '+action},400);} }catch(err){ return createJsonResponse({success:false,message:'Errore server: '+err.message},500);} }
 
-function versionInfo() {
-  return {
-    success: true,
-    service: 'imbriani-backend',
-    version: CONFIG.VERSION,
-    features: [
-      'gmail_api_sender','email_conferma_cliente','email_conferma_stato','email_reminder_3giorni','trigger_giornaliero',
-      'crea_prenotazione','aggiorna_stato','get_veicoli','get_prenotazioni','check_disponibilita','sincronizza_clienti',
-      'telegram_notifiche','endpoint_testEmail','gestione_clienti','gestione_manutenzioni'
-    ],
-    time: new Date().toISOString()
-  };
-}
+function doPost(e){ try{ var tokenHeader=(e&&e.parameter&&e.parameter.token)?e.parameter.token:getAuthHeader(e); var post={}; try{ post=JSON.parse(e&&e.postData?(e.postData.contents||'{}'):'{}'); }catch(_){ return createJsonResponse({success:false,message:'Invalid JSON in request body'},400); } var action=post.action||'login'; var finalToken=tokenHeader||post.token||post.AUTH_TOKEN; if (action==='login') return handleLogin(post, finalToken); if (!validateToken(finalToken)) return createJsonResponse({success:false,message:'Token non valido',code:401},401); switch(action){ case 'getPrenotazioni': return getPrenotazioni(); case 'getVeicoli': return getVeicoli(); case 'creaPrenotazione': return creaPrenotazione(post); case 'aggiornaStato': return aggiornaStatoPrenotazione(post); case 'setManutenzione': return (typeof setManutenzione==='function')?setManutenzione(post):createJsonResponse({success:false,message:'setManutenzione non implementata'},400); case 'aggiornaCliente': return aggiornaCliente(post); default: return createJsonResponse({success:false,message:'Azione POST non supportata: '+action},400);} }catch(err){ return createJsonResponse({success:false,message:'Errore POST: '+err.message},500);} }
