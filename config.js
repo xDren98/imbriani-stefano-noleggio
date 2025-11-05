@@ -1,4 +1,4 @@
-// config.js v8.3.2 - LOCAL/PROD con proxy Cloudflare per CORS risolti
+// config.js v8.3.5 - LOCAL/PROD con proxy Cloudflare per CORS risolti + numeri contatto
 (function(){
   const ENV = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'LOCAL' : 'PROD';
 
@@ -9,11 +9,15 @@
 
   const CONFIG = {
     ENV,
-    VERSION: '8.3.2',
+    VERSION: '8.3.5',
     // Usa SEMPRE il proxy (sia LOCAL che PROD) per garantire header CORS e Authorization coerenti
     API_URL: ENDPOINTS.PROXY,
-    AUTH_TOKEN: 'imbriani_secret_2025',
-    SHEETS_ID: '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns'
+    TOKEN: 'imbriani_secret_2025', // Rinominato da AUTH_TOKEN per coerenza
+    SHEETS_ID: '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns',
+    
+    // Numeri di contatto aziendali
+    PHONE_NUMBER: '+393286589618',
+    WHATSAPP_NUMBER: '+393286589618'
   };
 
   window.CONFIG = CONFIG;
@@ -28,4 +32,5 @@
   logApp('ℹ️ API URL:', CONFIG.API_URL);
   logApp('ℹ️ Token: imbriani...');
   logApp('ℹ️ Sheets ID:', CONFIG.SHEETS_ID);
-})();
+  logApp('ℹ️ WhatsApp/Phone:', CONFIG.WHATSAPP_NUMBER);
+})()
