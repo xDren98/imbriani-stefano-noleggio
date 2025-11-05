@@ -18,6 +18,7 @@
     .value{color:#e5e7eb}
     .btn-premium{background:linear-gradient(45deg,#0ea5e9,#3b82f6);border:none;color:#fff;font-weight:600}
     .btn-premium:hover{background:linear-gradient(45deg,#0284c7,#2563eb);color:#fff}
+    .btn-linklike{color:#93c5fd; cursor:pointer; text-decoration:underline}
     .warn{color:#fbbf24}
     .small-muted{color:#94a3b8;font-size:.9rem}
   </style>
@@ -39,12 +40,18 @@
 <main class="flex-grow-1 py-4">
   <div class="container">
     <div class="glass-card p-4 mb-4">
-      <h5 class="section-title mb-3"><i class="fas fa-car me-2"></i>Dati prenotazione</h5>
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="section-title mb-0"><i class="fas fa-car me-2"></i>Dati prenotazione</h5>
+        <span id="edit-booking" class="btn-linklike">Modifica dati prenotazione</span>
+      </div>
       <div id="booking-summary" class="small-muted">Caricamento...</div>
     </div>
 
     <div class="glass-card p-4 mb-4">
-      <h5 class="section-title mb-3"><i class="fas fa-id-card me-2"></i>Autisti</h5>
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="section-title mb-0"><i class="fas fa-id-card me-2"></i>Autisti</h5>
+        <span id="edit-drivers" class="btn-linklike">Modifica dati autisti</span>
+      </div>
       <div id="drivers-summary" class="small-muted">Caricamento...</div>
     </div>
 
@@ -139,13 +146,16 @@
     var el=document.getElementById('drivers-summary');
     el.innerHTML = [
       driverBlock('Autista principale', drivers.autista1),
-      drivers.autista2?.codiceFiscale? driverBlock('Autista 2', drivers.autista2): '',
-      drivers.autista3?.codiceFiscale? driverBlock('Autista 3', drivers.autista3): ''
+      drivers.autista2&&drivers.autista2.codiceFiscale? driverBlock('Autista 2', drivers.autista2): '',
+      drivers.autista3&&drivers.autista3.codiceFiscale? driverBlock('Autista 3', drivers.autista3): ''
     ].join('');
   }
 
   function bindUI(){
     var back=document.getElementById('back-btn'); if (back) back.addEventListener('click', function(){ history.back(); });
+    var editDrivers=document.getElementById('edit-drivers'); if (editDrivers) editDrivers.addEventListener('click', function(){ location.href='dati-autisti.html'; });
+    var editBooking=document.getElementById('edit-booking'); if (editBooking) editBooking.addEventListener('click', function(){ location.href='richiesta-preventivo.html'; });
+
     var btn=document.getElementById('confirm-btn'); var spn=document.getElementById('confirm-spinner');
     btn.addEventListener('click', async function(){
       if (!document.getElementById('privacyConsent').checked){ if (window.showToast) showToast('Conferma di aver verificato tutti i dati', 'warning'); return; }
@@ -162,8 +172,8 @@
           oraFine:selectedDates.oraRiconsegna,
           destinazione:selectedDates.destinazione||'',
           autista1: drivers.autista1,
-          autista2: drivers.autista2?.codiceFiscale? drivers.autista2: null,
-          autista3: drivers.autista3?.codiceFiscale? drivers.autista3: null,
+          autista2: drivers.autista2&&drivers.autista2.codiceFiscale? drivers.autista2: null,
+          autista3: drivers.autista3&&drivers.autista3.codiceFiscale? drivers.autista3: null,
           email: email || null,
           upsertClienti:true
         };
