@@ -356,12 +356,10 @@
 
       if (window.showToast) showToast('Reindirizzamento ai dati autisti...', 'info');
       
-      // TODO: Redirect alla pagina dati autisti (da creare)
+      // Redirect diretto, senza TODO e senza popup
       setTimeout(() => {
-        if (window.showToast) showToast('🚧 Pagina dati autisti in sviluppo. Implementare prossimo step!', 'warning');
-        console.log('🚧 NEXT: Creare pagina dati-autisti.html');
-        console.log('📝 Dati disponibili:', { selectedVehicle, selectedDates, currentUser });
-      }, 1000);
+        window.location.href = 'dati-autisti.html';
+      }, 600);
     }
   </script>
 </body>
