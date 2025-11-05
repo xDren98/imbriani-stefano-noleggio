@@ -2,7 +2,8 @@
  * IMBRIANI STEFANO NOLEGGIO - BACKEND v8.6.0 (Gmail API)
  * - Invio email tramite Gmail Advanced Service per mittente corretto
  * - Nessun reply-to
- * - Nessun riferimento a preventivi nelle email cliente
+ * - Nessun riferimento a preventivi/importi nelle email al cliente
+ * - Endpoint testEmail e trigger giornaliero reminder
  */
 
 const CONFIG = {
@@ -10,7 +11,17 @@ const CONFIG = {
   SPREADSHEET_ID: '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns',
   TOKEN: 'imbriani_secret_2025',
   SHEETS: { PRENOTAZIONI: 'PRENOTAZIONI', PULMINI: 'PULMINI', CLIENTI: 'CLIENTI', MANUTENZIONI: 'MANUTENZIONI' },
-  PRENOTAZIONI_COLS: { TIMESTAMP:1,NOME_AUTISTA_1:2,DATA_NASCITA_AUTISTA_1:3,LUOGO_NASCITA_AUTISTA_1:4,CODICE_FISCALE_AUTISTA_1:5,COMUNE_RESIDENZA_AUTISTA_1:6,VIA_RESIDENZA_AUTISTA_1:7,CIVICO_RESIDENZA_AUTISTA_1:8,NUMERO_PATENTE_AUTISTA_1:9,DATA_INIZIO_PATENTE_AUTISTA_1:10,SCADENZA_PATENTE_AUTISTA_1:11,TARGA:12,ORA_INIZIO:13,ORA_FINE:14,GIORNO_INIZIO:15,GIORNO_FINE:16,DESTINAZIONE:17,CELLULARE:18,DATA_CONTRATTO:19,NOME_AUTISTA_2:20,DATA_NASCITA_AUTISTA_2:21,LUOGO_NASCITA_AUTISTA_2:22,CODICE_FISCALE_AUTISTA_2:23,COMUNE_RESIDENZA_AUTISTA_2:24,VIA_RESIDENZA_AUTISTA_2:25,CIVICO_RESIDENZA_AUTISTA_2:26,NUMERO_PATENTE_AUTISTA_2:27,DATA_INIZIO_PATENTE_AUTISTA_2:28,SCADENZA_PATENTE_AUTISTA_2:29,NOME_AUTISTA_3:30,DATA_NASCITA_AUTISTA_3:31,LUOGO_NASCITA_AUTISTA_3:32,CODICE_FISCALE_AUTISTA_3:33,COMUNE_RESIDENZA_AUTISTA_3:34,VIA_RESIDENZA_AUTISTA_3:35,CIVICO_RESIDENZA_AUTISTA_3:36,NUMERO_PATENTE_AUTISTA_3:37,DATA_INIZIO_PATENTE_AUTISTA_3:38,SCADENZA_PATENTE_AUTISTA_3:39,ID_PRENOTAZIONE:40,STATO_PRENOTAZIONE:41,IMPORTO_PREVENTIVO:42,EMAIL:43,TEST:44 },
+  PRENOTAZIONI_COLS: {
+    TIMESTAMP:1,NOME_AUTISTA_1:2,DATA_NASCITA_AUTISTA_1:3,LUOGO_NASCITA_AUTISTA_1:4,CODICE_FISCALE_AUTISTA_1:5,
+    COMUNE_RESIDENZA_AUTISTA_1:6,VIA_RESIDENZA_AUTISTA_1:7,CIVICO_RESIDENZA_AUTISTA_1:8,NUMERO_PATENTE_AUTISTA_1:9,
+    DATA_INIZIO_PATENTE_AUTISTA_1:10,SCADENZA_PATENTE_AUTISTA_1:11,TARGA:12,ORA_INIZIO:13,ORA_FINE:14,GIORNO_INIZIO:15,GIORNO_FINE:16,
+    DESTINAZIONE:17,CELLULARE:18,DATA_CONTRATTO:19,NOME_AUTISTA_2:20,DATA_NASCITA_AUTISTA_2:21,LUOGO_NASCITA_AUTISTA_2:22,
+    CODICE_FISCALE_AUTISTA_2:23,COMUNE_RESIDENZA_AUTISTA_2:24,VIA_RESIDENZA_AUTISTA_2:25,CIVICO_RESIDENZA_AUTISTA_2:26,
+    NUMERO_PATENTE_AUTISTA_2:27,DATA_INIZIO_PATENTE_AUTISTA_2:28,SCADENZA_PATENTE_AUTISTA_2:29,NOME_AUTISTA_3:30,
+    DATA_NASCITA_AUTISTA_3:31,LUOGO_NASCITA_AUTISTA_3:32,CODICE_FISCALE_AUTISTA_3:33,COMUNE_RESIDENZA_AUTISTA_3:34,
+    VIA_RESIDENZA_AUTISTA_3:35,CIVICO_RESIDENZA_AUTISTA_3:36,NUMERO_PATENTE_AUTISTA_3:37,DATA_INIZIO_PATENTE_AUTISTA_3:38,
+    SCADENZA_PATENTE_AUTISTA_3:39,ID_PRENOTAZIONE:40,STATO_PRENOTAZIONE:41,IMPORTO_PREVENTIVO:42,EMAIL:43,TEST:44
+  },
   CLIENTI_COLS: { NOME:1,DATA_NASCITA:2,LUOGO_NASCITA:3,CODICE_FISCALE:4,COMUNE_RESIDENZA:5,VIA_RESIDENZA:6,CIVICO_RESIDENZA:7,NUMERO_PATENTE:8,DATA_INIZIO_PATENTE:9,SCADENZA_PATENTE:10,CELLULARE:11,EMAIL:12 },
   PULMINI_COLS: { TARGA:1,MARCA:2,MODELLO:3,POSTI:4,STATO:5,NOTE:6 },
   MANUTENZIONI_COLS: { TARGA:1,MARCA:2,MODELLO:3,POSTI:4,STATO:5,DATA_INIZIO:6,DATA_FINE:7,COSTO:8,NOTE:9 },
@@ -18,30 +29,36 @@ const CONFIG = {
   EMAIL: { FROM_NAME: 'Imbriani Stefano Noleggio', FROM_EMAIL: 'imbrianistefanonoleggio@gmail.com' }
 };
 
-function createJsonResponse(data,status){ var s=status||200; var resp=data; resp.timestamp=new Date().toISOString(); resp.version=CONFIG.VERSION; resp.status=s; return ContentService.createTextOutput(JSON.stringify(resp)).setMimeType(ContentService.MimeType.JSON); }
-function validateToken(t){ return t===CONFIG.TOKEN; }
-function getAuthHeader(e){ if (e && e.parameter && e.parameter.Authorization) return e.parameter.Authorization.replace('Bearer ',''); return null; }
+function createJsonResponse(data, status) {
+  var s = status || 200;
+  var resp = data;
+  resp.timestamp = new Date().toISOString();
+  resp.version = CONFIG.VERSION;
+  resp.status = s;
+  return ContentService.createTextOutput(JSON.stringify(resp)).setMimeType(ContentService.MimeType.JSON);
+}
 
-function versionInfo(){ return { success:true, service:'imbriani-backend', version:CONFIG.VERSION, features:['gmail_api_sender','email_conferma_cliente','email_conferma_stato','email_reminder_3giorni','trigger_giornaliero'], time:new Date().toISOString() }; }
+function validateToken(token) {
+  return token === CONFIG.TOKEN;
+}
 
-function doGet(e){ var p=(e&&e.parameter)?e.parameter:{}; var action=p.action||'health'; var token=p.token||(p.Authorization?p.Authorization.replace('Bearer ',''):''); try{ if (action==='version') return ContentService.createTextOutput(JSON.stringify(versionInfo())).setMimeType(ContentService.MimeType.JSON); if (action==='health') return createJsonResponse({ success:true, service:'imbriani-backend', spreadsheet_id:CONFIG.SPREADSHEET_ID, sheets:['PRENOTAZIONI','PULMINI','CLIENTI','MANUTENZIONI'], action:'health_supported' }); if (action==='testEmail'){ if (!validateToken(token)) return createJsonResponse({success:false,message:'Token non valido',code:401},401); var to=p.to||'melloanto@icloud.com'; var demoHtml='<h1>Test Gmail API</h1><p>Mittente: '+CONFIG.EMAIL.FROM_NAME+' &lt;'+CONFIG.EMAIL.FROM_EMAIL+'&gt;</p>'; inviaEmailViaGmailAPI(to,'TEST Gmail API - Mittente corretto',demoHtml); return createJsonResponse({success:true,message:'Email di test inviata a '+to}); } if (!validateToken(token)) return createJsonResponse({success:false,message:'Token non valido',code:401},401); switch(action){ case 'getVeicoli': return getVeicoli(); case 'getPrenotazioni': return getPrenotazioni(); case 'checkDisponibilita': return checkDisponibilita(p); case 'updateStatiLive': return updateStatiLive(); case 'getSheet': return getSheetGeneric(p); case 'sincronizzaClienti': return sincronizzaClienti(); case 'checkReminders': return checkReminderEmails(); default: return createJsonResponse({success:false,message:'Azione non supportata: '+action},400);} }catch(err){ return createJsonResponse({success:false,message:'Errore server: '+err.message},500);} }
+function getAuthHeader(e) {
+  if (e && e.parameter && e.parameter.Authorization) {
+    return e.parameter.Authorization.replace('Bearer ', '');
+  }
+  return null;
+}
 
-function doPost(e){ try{ var tokenHeader=(e&&e.parameter&&e.parameter.token)?e.parameter.token:getAuthHeader(e); var post={}; try{ post=JSON.parse(e&&e.postData?(e.postData.contents||'{}'):'{}'); }catch(_){ return createJsonResponse({success:false,message:'Invalid JSON in request body'},400); } var action=post.action||'login'; var finalToken=tokenHeader||post.token||post.AUTH_TOKEN; if (action==='login') return handleLogin(post, finalToken); if (!validateToken(finalToken)) return createJsonResponse({success:false,message:'Token non valido',code:401},401); switch(action){ case 'getPrenotazioni': return getPrenotazioni(); case 'getVeicoli': return getVeicoli(); case 'creaPrenotazione': return creaPrenotazione(post); case 'aggiornaStato': return aggiornaStatoPrenotazione(post); case 'setManutenzione': return (typeof setManutenzione==='function')?setManutenzione(post):createJsonResponse({success:false,message:'setManutenzione non implementata'},400); case 'aggiornaCliente': return aggiornaCliente(post); default: return createJsonResponse({success:false,message:'Azione POST non supportata: '+action},400);} }catch(err){ return createJsonResponse({success:false,message:'Errore POST: '+err.message},500);} }
-
-// ============ EMAIL VIA GMAIL API ============
-function inviaEmailViaGmailAPI(to, subject, htmlBody){ try{ var raw=[ 'From: '+CONFIG.EMAIL.FROM_NAME+' <'+CONFIG.EMAIL.FROM_EMAIL+'>', 'To: '+to, 'Subject: '+subject, 'MIME-Version: 1.0', 'Content-Type: text/html; charset=UTF-8', '', htmlBody ].join('\n'); var encoded=Utilities.base64EncodeWebSafe(raw, Utilities.Charset.UTF_8); Gmail.Users.Messages.send({ raw: encoded }, 'me'); }catch(err){ Logger.log('Errore Gmail API: '+err.message); throw err; } }
-
-function inviaEmailConfermaCliente(pren){ try{ var oggetto='✅ Conferma Prenotazione - '+(pren.idPrenotazione||'N/A'); var dataInizio=pren.giornoInizio?new Date(pren.giornoInizio).toLocaleDateString('it-IT'):'N/A'; var dataFine=pren.giornoFine?new Date(pren.giornoFine).toLocaleDateString('it-IT'):'N/A'; var nome=(pren.autista1&&pren.autista1.nomeCompleto)||'Cliente'; var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto}.header{background:linear-gradient(135deg,#0066FF,#004ECC);color:#fff;padding:20px;text-align:center}.content{padding:20px;background:#f9f9f9}.info-box{background:#fff;border-left:4px solid #0066FF;padding:15px;margin:15px 0}.status{background:#E3F2FD;padding:10px;border-radius:5px;text-align:center;font-weight:bold}.footer{background:#333;color:#fff;padding:15px;text-align:center;font-size:12px}.highlight{color:#0066FF;font-weight:bold}</style></head><body>' + '<div class="header"><h1>🚐 Imbriani Stefano Noleggio</h1><p>Conferma Prenotazione Ricevuta</p></div>' + '<div class="content"><h2>Gentile '+nome+',</h2><p>La Sua richiesta è stata <strong>ricevuta correttamente</strong> e sarà esaminata dal nostro staff.</p>' + '<div class="status">🔄 STATO: IN ATTESA DI CONFERMA</div>' + '<div class="info-box"><h3>📋 Dettagli Prenotazione</h3>' + '<p><strong>ID Prenotazione:</strong> <span class="highlight">'+(pren.idPrenotazione||'N/A')+'</span></p>' + '<p><strong>Veicolo:</strong> '+(pren.targa||'N/A')+'</p>' + '<p><strong>Dal:</strong> '+dataInizio+' alle '+(pren.oraInizio||'N/A')+'</p>' + '<p><strong>Al:</strong> '+dataFine+' alle '+(pren.oraFine||'N/A')+'</p>' + '<p><strong>Destinazione:</strong> '+(pren.destinazione||'Non specificata')+'</p></div>' + '<div class="info-box"><h3>⏰ Prossimi Passaggi</h3>' + '<p>• Verifica amministrativa</p><p>• Notifica di conferma</p><p>• Promemoria 3 giorni prima</p></div>' + '<div class="info-box"><h3>📞 Contatti</h3><p><strong>Email:</strong> '+CONFIG.EMAIL.FROM_EMAIL+'</p></div></div>' + '<div class="footer"><p>© 2025 Imbriani Stefano Noleggio</p></div></body></html>'; inviaEmailViaGmailAPI(pren.email, oggetto, html); }catch(err){ Logger.log('Errore invio email conferma cliente: '+err.message); } }
-
-function inviaEmailConfermaPreventivo(pren){ try{ var oggetto='✅ Prenotazione Confermata'; var dataInizio=pren.giornoInizio?new Date(pren.giornoInizio).toLocaleDateString('it-IT'):'N/A'; var dataFine=pren.giornoFine?new Date(pren.giornoFine).toLocaleDateString('it-IT'):'N/A'; var nome=(pren.autista1&&pren.autista1.nomeCompleto)||'Cliente'; var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto}.header{background:linear-gradient(135deg,#22C55E,#16A34A);color:#fff;padding:20px;text-align:center}.content{padding:20px;background:#f9f9f9}.info-box{background:#fff;border-left:4px solid #22C55E;padding:15px;margin:15px 0}.status{background:#DCFCE7;padding:10px;border-radius:5px;text-align:center;font-weight:bold;color:#166534}.footer{background:#333;color:#fff;padding:15px;text-align:center;font-size:12px}.highlight{color:#22C55E;font-weight:bold}</style></head><body>' + '<div class="header"><h1>🚐 Imbriani Stefano Noleggio</h1><p>Prenotazione Confermata</p></div>' + '<div class="content"><h2>Gentile '+nome+',</h2><p>La informiamo che la Sua prenotazione è stata <strong>confermata</strong>.</p>' + '<div class="status">✅ PRENOTAZIONE CONFERMATA</div>' + '<div class="info-box"><h3>📋 Riepilogo</h3>' + '<p><strong>ID:</strong> <span class="highlight">'+(pren.idPrenotazione||'N/A')+'</span></p>' + '<p><strong>Veicolo:</strong> '+(pren.targa||'N/A')+'</p>' + '<p><strong>Dal:</strong> '+dataInizio+' alle '+(pren.oraInizio||'N/A')+'</p>' + '<p><strong>Al:</strong> '+dataFine+' alle '+(pren.oraFine||'N/A')+'</p>' + '<p><strong>Destinazione:</strong> '+(pren.destinazione||'Non specificata')+'</p></div>' + '<div class="info-box"><h3>📝 Note</h3><p>Per modifiche o informazioni aggiuntive, risponda a questa email o ci contatti.</p></div></div>' + '<div class="footer"><p>© 2025 Imbriani Stefano Noleggio</p></div></body></html>'; inviaEmailViaGmailAPI(pren.email, oggetto, html); }catch(err){ Logger.log('Errore invio email conferma (cliente): '+err.message); } }
-
-function checkReminderEmails(){ try{ var oggi=new Date(); var treGiorni=new Date(oggi.getTime() + (3 * 24 * 60 * 60 * 1000)); var treGiorniStr=treGiorni.getFullYear()+'-'+String(treGiorni.getMonth()+1).padStart(2,'0')+'-'+String(treGiorni.getDate()).padStart(2,'0'); var sh=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI); var data=sh.getDataRange().getValues(); var sent=0; for (var i=1;i<data.length;i++){ var row=data[i]; var stato=String(row[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE - 1]||''); var di=row[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO - 1]; var email=row[CONFIG.PRENOTAZIONI_COLS.EMAIL - 1]; if (stato==='Confermata' && email && di){ var d=new Date(di); var dStr=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); if (dStr===treGiorniStr){ var pren={ idPrenotazione:row[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1], targa:row[CONFIG.PRENOTAZIONI_COLS.TARGA - 1], giornoInizio:di, giornoFine:row[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE - 1], oraInizio:row[CONFIG.PRENOTAZIONI_COLS.ORA_INIZIO - 1], oraFine:row[CONFIG.PRENOTAZIONI_COLS.ORA_FINE - 1], destinazione:row[CONFIG.PRENOTAZIONI_COLS.DESTINAZIONE - 1], email:email, autista1:{ nomeCompleto:row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1 - 1] } }; inviaEmailReminder(pren); sent++; } } } return createJsonResponse({success:true,message:'Check reminder completato', emailInviate:sent}); }catch(err){ return createJsonResponse({success:false,message:'Errore check reminder: '+err.message},500);} }
-
-function inviaEmailReminder(pren){ try{ var oggetto='⏰ Promemoria: Partenza tra 3 giorni - '+(pren.idPrenotazione||'N/A'); var dataInizio=pren.giornoInizio?new Date(pren.giornoInizio).toLocaleDateString('it-IT'):'N/A'; var dataFine=pren.giornoFine?new Date(pren.giornoFine).toLocaleDateString('it-IT'):'N/A'; var nome=(pren.autista1&&pren.autista1.nomeCompleto)||'Cliente'; var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto}.header{background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;padding:20px;text-align:center}.content{padding:20px;background:#f9f9f9}.info-box{background:#fff;border-left:4px solid #F59E0B;padding:15px;margin:15px 0}.footer{background:#333;color:#fff;padding:15px;text-align:center;font-size:12px}.highlight{color:#F59E0B;font-weight:bold}</style></head><body>' + '<div class="header"><h1>🚐 Imbriani Stefano Noleggio</h1><p>Promemoria Partenza</p></div>' + '<div class="content"><h2>Gentile '+nome+',</h2><p>Le ricordiamo che tra <strong>3 giorni</strong> inizierà il servizio prenotato.</p>' + '<div class="info-box"><h3>📋 Riepilogo</h3>' + '<p><strong>ID:</strong> <span class="highlight">'+(pren.idPrenotazione||'N/A')+'</span></p>' + '<p><strong>Veicolo:</strong> '+(pren.targa||'N/A')+'</p>' + '<p><strong>Dal:</strong> '+dataInizio+' alle '+(pren.oraInizio||'N/A')+'</p>' + '<p><strong>Al:</strong> '+dataFine+' alle '+(pren.oraFine||'N/A')+'</p>' + '<p><strong>Destinazione:</strong> '+(pren.destinazione||'Non specificata')+'</p></div>' + '<div class="footer"><p>© 2025 Imbriani Stefano Noleggio</p></div></body></html>'; inviaEmailViaGmailAPI(pren.email, oggetto, html); }catch(err){ Logger.log('Errore invio email reminder: '+err.message); } }
-
-// ============ TRIGGER ============
-function setupDailyTrigger(){ var triggers=ScriptApp.getProjectTriggers(); for (var i=0;i<triggers.length;i++){ if (triggers[i].getHandlerFunction()==='dailyReminderCheck'){ ScriptApp.deleteTrigger(triggers[i]); } } ScriptApp.newTrigger('dailyReminderCheck').timeBased().everyDays(1).atHour(9).create(); Logger.log('Trigger giornaliero configurato per le 09:00'); }
-function dailyReminderCheck(){ try{ checkReminderEmails(); updateStatiLive(); Logger.log('Check giornaliero completato: '+new Date().toISOString()); }catch(e){ Logger.log('Errore nel check giornaliero: '+e.message); } }
-
-// ====== (TUTTE LE ALTRE FUNZIONI: getPrenotazioni, getVeicoli, checkDisponibilita, updateStatiLive, creaPrenotazione, upsertClienteInCreaPrenotazione, aggiornaCliente, sincronizzaClienti, inviaNotificaTelegram) ======
-// Mantieni invariate dal tuo code.gs attuale oppure incolla qui la versione più recente
+function versionInfo() {
+  return {
+    success: true,
+    service: 'imbriani-backend',
+    version: CONFIG.VERSION,
+    features: [
+      'gmail_api_sender','email_conferma_cliente','email_conferma_stato','email_reminder_3giorni','trigger_giornaliero',
+      'crea_prenotazione','aggiorna_stato','get_veicoli','get_prenotazioni','check_disponibilita','sincronizza_clienti',
+      'telegram_notifiche','endpoint_testEmail','gestione_clienti','gestione_manutenzioni'
+    ],
+    time: new Date().toISOString()
+  };
+}
