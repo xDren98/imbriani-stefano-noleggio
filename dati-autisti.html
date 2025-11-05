@@ -1,12 +1,12 @@
+<!-- dati-autisti.html consolidato in root - versione aggiornata con campi residenza e payload compatibile backend v8.3.12 -->
 <!DOCTYPE html>
 <html lang="it" class="h-100">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dati Autisti — Imbriani Stefano Noleggio</title>
-  <meta name="description" content="Inserimento dati autisti - Imbriani Stefano Noleggio">
+  <title>Dati Autisti - Imbriani Stefano Noleggio</title>
+  <meta name="description" content="Inserimento dati autisti con residenza - Imbriani Stefano Noleggio">
   <meta name="theme-color" content="#0066FF">
-  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚐</text></svg>">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -16,229 +16,146 @@
     .driver-card{border:2px dashed #334155;background:rgba(51,65,85,.35)}
     .driver-card.required{border-color:#f59e0b}
     .muted{color:#94a3b8}
+    .form-control-modern{background:rgba(51,65,85,.5);border:1px solid #475569;color:#e2e8f0}
+    .form-control-modern:focus{background:rgba(51,65,85,.8);border-color:#0ea5e9;color:#f1f5f9}
+    .glass-card{background:rgba(15,23,42,.8);border:1px solid rgba(148,163,184,.2);border-radius:12px;backdrop-filter:blur(10px)}
+    .btn-premium{background:linear-gradient(45deg,#0ea5e9,#3b82f6);border:none;color:#fff;font-weight:600}
+    .btn-premium:hover{background:linear-gradient(45deg,#0284c7,#2563eb);color:#fff}
+    .residence-section{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);border-radius:8px;padding:16px;margin:12px 0}
+    .residence-title{color:#22c55e;font-weight:600;font-size:.9rem;margin-bottom:12px}
   </style>
 </head>
 <body class="d-flex flex-column h-100">
-  <header class="py-4">
-    <div class="container">
-      <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-        <div>
-          <h1 class="h3 text-white fw-bold mb-1">
-            <i class="fas fa-users me-2"></i>
-            Dati Autisti
-          </h1>
-          <p class="text-white-50 mb-0">Compila i dati degli autisti per completare la prenotazione</p>
-        </div>
-        <div class="d-flex gap-2">
-          <button type="button" id="back-btn" class="btn btn-outline-light btn-sm">
-            <i class="fas fa-arrow-left me-1"></i>Indietro
-          </button>
-          <span class="px-3 py-1 rounded-pill" style="background:linear-gradient(45deg,#06b6d4,#2563eb);color:#fff;font-weight:700">Step 3 di 3</span>
-        </div>
+<header class="py-4">
+  <div class="container d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div>
+      <h1 class="h3 text-white fw-bold mb-1"><i class="fas fa-users me-2"></i>Dati Autisti</h1>
+      <p class="text-white-50 mb-0">Compila i dati per completare la prenotazione</p>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="button" id="back-btn" class="btn btn-outline-light btn-sm"><i class="fas fa-arrow-left me-1"></i>Indietro</button>
+      <span class="px-3 py-1 rounded-pill" style="background:linear-gradient(45deg,#06b6d4,#2563eb);color:#fff;font-weight:700;">Step 3 di 3</span>
+    </div>
+  </div>
+</header>
+<main class="flex-grow-1 py-4">
+  <div class="container">
+    <div class="glass-card p-4 mb-4">
+      <h5 class="fw-bold text-white mb-3"><i class="fas fa-clipboard-list me-2"></i>Riepilogo</h5>
+      <div id="summary"></div>
+    </div>
+
+    <!-- Autista 1 -->
+    <div class="glass-card p-4 mb-4 driver-card required">
+      <h5 class="fw-bold text-white mb-3"><span class="badge bg-warning text-dark me-2">1</span> Autista principale</h5>
+      <form id="driver1" class="row g-3">
+        <div class="col-md-6"><label class="form-label">Nome completo</label><input id="d1nomeCompleto" class="form-control form-control-modern" required></div>
+        <div class="col-md-6"><label class="form-label">Codice Fiscale</label><input id="d1cf" class="form-control form-control-modern" maxlength="16" required></div>
+        <div class="col-md-6"><label class="form-label">Cellulare</label><input id="d1cell" class="form-control form-control-modern" required></div>
+        <div class="col-md-6"><label class="form-label">Data di nascita</label><input type="date" id="d1dob" class="form-control form-control-modern"></div>
+        <div class="col-md-6"><label class="form-label">Luogo di nascita</label><input id="d1luogo" class="form-control form-control-modern"></div>
+        <div class="col-md-6"><label class="form-label">Numero patente</label><input id="d1patente" class="form-control form-control-modern"></div>
+        <div class="col-md-3"><label class="form-label">Inizio validità patente</label><input type="date" id="d1patenteinizio" class="form-control form-control-modern"></div>
+        <div class="col-md-3"><label class="form-label">Scadenza patente</label><input type="date" id="d1patentescad" class="form-control form-control-modern"></div>
+        <div class="col-12"><div class="residence-section"><div class="residence-title"><i class="fas fa-home me-2"></i>Dati di residenza</div><div class="row g-3">
+          <div class="col-md-4"><label class="form-label">Comune</label><input id="d1comune" class="form-control form-control-modern" placeholder="es. Brindisi"></div>
+          <div class="col-md-5"><label class="form-label">Via/Indirizzo</label><input id="d1via" class="form-control form-control-modern" placeholder="es. Via Roma"></div>
+          <div class="col-md-3"><label class="form-label">Civico</label><input id="d1civico" class="form-control form-control-modern" placeholder="es. 123"></div>
+        </div></div></div>
+        <div class="col-12 muted">L'email verrà richiesta nello step successivo.</div>
+      </form>
+    </div>
+
+    <!-- Autista 2 -->
+    <div class="glass-card p-4 mb-4 driver-card">
+      <h5 class="fw-bold text-white mb-3"><span class="badge bg-info me-2">2</span> Autista aggiuntivo (opzionale)</h5>
+      <form id="driver2" class="row g-3">
+        <div class="col-md-6"><label class="form-label">Nome completo</label><input id="d2nomeCompleto" class="form-control form-control-modern"></div>
+        <div class="col-md-6"><label class="form-label">Codice Fiscale</label><input id="d2cf" class="form-control form-control-modern" maxlength="16"></div>
+        <div class="col-md-6"><label class="form-label">Data di nascita</label><input type="date" id="d2dob" class="form-control form-control-modern"></div>
+        <div class="col-md-6"><label class="form-label">Luogo di nascita</label><input id="d2luogo" class="form-control form-control-modern"></div>
+        <div class="col-md-6"><label class="form-label">Numero patente</label><input id="d2patente" class="form-control form-control-modern"></div>
+        <div class="col-md-3"><label class="form-label">Inizio validità patente</label><input type="date" id="d2patenteinizio" class="form-control form-control-modern"></div>
+        <div class="col-md-3"><label class="form-label">Scadenza patente</label><input type="date" id="d2patentescad" class="form-control form-control-modern"></div>
+        <div class="col-12"><div class="residence-section"><div class="residence-title"><i class="fas fa-home me-2"></i>Dati di residenza</div><div class="row g-3">
+          <div class="col-md-4"><label class="form-label">Comune</label><input id="d2comune" class="form-control form-control-modern"></div>
+          <div class="col-md-5"><label class="form-label">Via/Indirizzo</label><input id="d2via" class="form-control form-control-modern"></div>
+          <div class="col-md-3"><label class="form-label">Civico</label><input id="d2civico" class="form-control form-control-modern"></div>
+        </div></div></div>
+      </form>
+    </div>
+
+    <!-- Autista 3 -->
+    <div class="glass-card p-4 mb-4 driver-card">
+      <h5 class="fw-bold text-white mb-3"><span class="badge bg-info me-2">3</span> Terzo autista (opzionale)</h5>
+      <form id="driver3" class="row g-3">
+        <div class="col-md-6"><label class="form-label">Nome completo</label><input id="d3nomeCompleto" class="form-control form-control-modern"></div>
+        <div class="col-md-6"><label class="form-label">Codice Fiscale</label><input id="d3cf" class="form-control form-control-modern" maxlength="16"></div>
+        <div class="col-md-6"><label class="form-label">Data di nascita</label><input type="date" id="d3dob" class="form-control form-control-modern"></div>
+        <div class="col-md-6"><label class="form-label">Luogo di nascita</label><input id="d3luogo" class="form-control form-control-modern"></div>
+        <div class="col-md-6"><label class="form-label">Numero patente</label><input id="d3patente" class="form-control form-control-modern"></div>
+        <div class="col-md-3"><label class="form-label">Inizio validità patente</label><input type="date" id="d3patenteinizio" class="form-control form-control-modern"></div>
+        <div class="col-md-3"><label class="form-label">Scadenza patente</label><input type="date" id="d3patentescad" class="form-control form-control-modern"></div>
+        <div class="col-12"><div class="residence-section"><div class="residence-title"><i class="fas fa-home me-2"></i>Dati di residenza</div><div class="row g-3">
+          <div class="col-md-4"><label class="form-label">Comune</label><input id="d3comune" class="form-control form-control-modern"></div>
+          <div class="col-md-5"><label class="form-label">Via/Indirizzo</label><input id="d3via" class="form-control form-control-modern"></div>
+          <div class="col-md-3"><label class="form-label">Civico</label><input id="d3civico" class="form-control form-control-modern"></div>
+        </div></div></div>
+      </form>
+    </div>
+
+    <div class="glass-card p-4">
+      <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center">
+        <div class="text-white-50 small"><i class="fas fa-shield-alt me-1"></i>I dati verranno salvati nel foglio CLIENTI (upsert per Codice Fiscale). Cellulare ed email sono legati al primo autista.</div>
+        <button id="submit-btn" class="btn btn-premium"><span id="submit-spinner" class="spinner-border spinner-border-sm me-2 d-none"></span>Salva autisti e completa prenotazione</button>
       </div>
     </div>
-  </header>
+  </div>
+</main>
 
-  <main class="flex-grow-1 py-4">
-    <div class="container">
-      <!-- Riepilogo prenotazione -->
-      <div class="glass-card p-4 mb-4">
-        <h5 class="fw-bold text-white mb-3"><i class="fas fa-clipboard-list me-2"></i>Riepilogo</h5>
-        <div id="summary"></div>
-      </div>
-
-      <!-- Autista 1 (obbligatorio) -->
-      <div class="glass-card p-4 mb-4 driver-card required">
-        <h5 class="fw-bold text-white mb-3"><span class="badge bg-warning text-dark me-2">1</span> Autista principale</h5>
-        <form id="driver1" class="row g-3">
-          <div class="col-md-6"><label class="form-label">Nome completo</label><input id="d1_nomeCompleto" class="form-control form-control-modern" required></div>
-          <div class="col-md-6"><label class="form-label">Codice Fiscale</label><input id="d1_cf" class="form-control form-control-modern" maxlength="16" required></div>
-          <div class="col-md-6"><label class="form-label">Cellulare</label><input id="d1_cell" class="form-control form-control-modern" required></div>
-          <div class="col-md-6"><label class="form-label">Data di nascita</label><input type="date" id="d1_dob" class="form-control form-control-modern"></div>
-          <div class="col-md-6"><label class="form-label">Luogo di nascita</label><input id="d1_luogo" class="form-control form-control-modern"></div>
-          <div class="col-md-6"><label class="form-label">Numero patente</label><input id="d1_patente" class="form-control form-control-modern"></div>
-          <div class="col-md-3"><label class="form-label">Inizio validità patente</label><input type="date" id="d1_patente_inizio" class="form-control form-control-modern"></div>
-          <div class="col-md-3"><label class="form-label">Scadenza patente</label><input type="date" id="d1_patente_scad" class="form-control form-control-modern"></div>
-          <div class="col-12 muted">L'email verrà richiesta nello step successivo.</div>
-        </form>
-      </div>
-
-      <!-- Autista 2 opzionale -->
-      <div class="glass-card p-4 mb-4 driver-card">
-        <h5 class="fw-bold text-white mb-3"><span class="badge bg-info me-2">2</span> Autista aggiuntivo (opzionale)</h5>
-        <form id="driver2" class="row g-3">
-          <div class="col-md-6"><label class="form-label">Nome completo</label><input id="d2_nomeCompleto" class="form-control form-control-modern"></div>
-          <div class="col-md-6"><label class="form-label">Codice Fiscale</label><input id="d2_cf" class="form-control form-control-modern" maxlength="16"></div>
-          <div class="col-md-6"><label class="form-label">Data di nascita</label><input type="date" id="d2_dob" class="form-control form-control-modern"></div>
-          <div class="col-md-6"><label class="form-label">Luogo di nascita</label><input id="d2_luogo" class="form-control form-control-modern"></div>
-          <div class="col-md-6"><label class="form-label">Numero patente</label><input id="d2_patente" class="form-control form-control-modern"></div>
-          <div class="col-md-3"><label class="form-label">Inizio validità patente</label><input type="date" id="d2_patente_inizio" class="form-control form-control-modern"></div>
-          <div class="col-md-3"><label class="form-label">Scadenza patente</label><input type="date" id="d2_patente_scad" class="form-control form-control-modern"></div>
-        </form>
-      </div>
-
-      <!-- Autista 3 opzionale -->
-      <div class="glass-card p-4 mb-4 driver-card">
-        <h5 class="fw-bold text-white mb-3"><span class="badge bg-info me-2">3</span> Terzo autista (opzionale)</h5>
-        <form id="driver3" class="row g-3">
-          <div class="col-md-6"><label class="form-label">Nome completo</label><input id="d3_nomeCompleto" class="form-control form-control-modern"></div>
-          <div class="col-md-6"><label class="form-label">Codice Fiscale</label><input id="d3_cf" class="form-control form-control-modern" maxlength="16"></div>
-          <div class="col-md-6"><label class="form-label">Data di nascita</label><input type="date" id="d3_dob" class="form-control form-control-modern"></div>
-          <div class="col-md-6"><label class="form-label">Luogo di nascita</label><input id="d3_luogo" class="form-control form-control-modern"></div>
-          <div class="col-md-6"><label class="form-label">Numero patente</label><input id="d3_patente" class="form-control form-control-modern"></div>
-          <div class="col-md-3"><label class="form-label">Inizio validità patente</label><input type="date" id="d3_patente_inizio" class="form-control form-control-modern"></div>
-          <div class="col-md-3"><label class="form-label">Scadenza patente</label><input type="date" id="d3_patente_scad" class="form-control form-control-modern"></div>
-        </form>
-      </div>
-
-      <div class="glass-card p-4">
-        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center">
-          <div class="text-white-50 small"><i class="fas fa-shield-alt me-1"></i>I dati verranno salvati nel foglio CLIENTI (insert/update per CF). Il cellulare verrà associato al primo autista. L'email verrà richiesta dopo.</div>
-          <button id="submit-btn" class="btn btn-premium">
-            <span class="spinner-border spinner-border-sm me-2 d-none" id="submit-spinner"></span>
-            Salva autisti e completa prenotazione
-          </button>
-        </div>
-      </div>
-    </div>
-  </main>
-
-  <div id="toast-container" class="position-fixed top-0 end-0 p-3" style="z-index:1055"></div>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="config.js"></script>
-  <script src="shared-utils.js"></script>
-  <script>
-    let currentUser = null; let selectedDates = null; let selectedVehicle = null;
-
-    document.addEventListener('DOMContentLoaded', () => {
-      // Recupero dati
-      try { currentUser = JSON.parse(localStorage.getItem('imbriani_user')||'null'); } catch(_) {}
-      try { selectedVehicle = JSON.parse(localStorage.getItem('imbriani_selected_vehicle')||'null'); } catch(_) {}
-      try { selectedDates = JSON.parse(localStorage.getItem('imbriani_selected_dates')||'null'); } catch(_) {}
-
-      if (!localStorage.getItem('imbriani_preventivo_richiesto')){
-        if (window.showToast) showToast('Completa prima la richiesta preventivo', 'warning');
-        return setTimeout(()=>location.href='richiesta-preventivo.html',1000);
-      }
-      if (!selectedVehicle || !selectedDates){ if (window.showToast) showToast('Dati prenotazione mancanti', 'error'); return setTimeout(()=>location.href='veicoli.html',1000); }
-
-      bindUI();
-      prefillDriver1();
-      renderSummary();
-    });
-
-    function bindUI(){
-      document.getElementById('back-btn')?.addEventListener('click', ()=> history.back());
-      document.getElementById('submit-btn')?.addEventListener('click', onSubmit);
-    }
-
-    function renderSummary(){
-      const el = document.getElementById('summary');
-      const formatDate = (d)=> new Date(d).toLocaleDateString('it-IT');
-      el.innerHTML = `
-        <div class="row align-items-center">
-          <div class="col-md-8">
-            <div class="d-flex align-items-center gap-3">
-              <div class="bg-primary p-3 rounded-3"><i class="fas fa-car text-white" style="font-size:1.25rem"></i></div>
-              <div>
-                <div class="text-white fw-semibold">${selectedVehicle?.Targa||'-'} — ${selectedVehicle?.Marca||''} ${selectedVehicle?.Modello||''}</div>
-                <div class="text-white-75 small"><i class="fas fa-users me-1"></i>${selectedVehicle?.Posti||''} posti ${selectedVehicle?.PassoLungo?'• Passo Lungo':''}</div>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4 text-end">
-            <div class="small text-white-50">Periodo:</div>
-            <div class="text-white">${formatDate(selectedDates.dataInizio)} ${selectedDates.oraRitiro}</div>
-            <div class="text-white">${formatDate(selectedDates.dataFine)} ${selectedDates.oraRiconsegna}</div>
-            ${selectedDates?.destinazione?`<div class="small text-info mt-1"><i class="fas fa-map-marker-alt me-1"></i>${selectedDates.destinazione}</div>`:''}
-          </div>
-        </div>`;
-    }
-
-    function prefillDriver1(){
-      if (!currentUser) return;
-      // Se abbiamo già "nome" e "cognome" separati, uniscili; altrimenti usa currentUser.nome come nome completo
-      const nomeCompleto = (currentUser.nome && currentUser.cognome) ? `${currentUser.nome} ${currentUser.cognome}` : (currentUser.nome||'');
-      document.getElementById('d1_nomeCompleto').value = nomeCompleto;
-      document.getElementById('d1_cf').value = currentUser.codiceFiscale || '';
-      document.getElementById('d1_cell').value = currentUser.cellulare || '';
-      document.getElementById('d1_dob').value = currentUser.dataNascita ? new Date(currentUser.dataNascita).toISOString().slice(0,10) : '';
-      document.getElementById('d1_luogo').value = currentUser.luogoNascita || '';
-      document.getElementById('d1_patente').value = currentUser.numeroPatente || '';
-      document.getElementById('d1_patente_inizio').value = currentUser.inizioValiditaPatente ? new Date(currentUser.inizioValiditaPatente).toISOString().slice(0,10) : '';
-      document.getElementById('d1_patente_scad').value = currentUser.scadenzaPatente ? new Date(currentUser.scadenzaPatente).toISOString().slice(0,10) : '';
-    }
-
-    function getDriverFromForm(prefix){
-      const get = (id)=> document.getElementById(id)?.value?.trim()||'';
-      const base = {
-        nomeCompleto: get(prefix+'_nomeCompleto'), codiceFiscale: get(prefix+'_cf'),
-        dataNascita: get(prefix+'_dob'), luogoNascita: get(prefix+'_luogo'),
-        numeroPatente: get(prefix+'_patente'), inizioValiditaPatente: get(prefix+'_patente_inizio'), scadenzaPatente: get(prefix+'_patente_scad')
-      };
-      return base;
-    }
-
-    function validateDriver1(d){
-      if (!d.nomeCompleto || !d.codiceFiscale || d.codiceFiscale.length!==16){ return 'Completa nome completo e un CF valido (16 caratteri)'; }
-      if (!document.getElementById('d1_cell').value.trim()) return 'Inserisci il cellulare del primo autista';
-      return null;
-    }
-
-    async function onSubmit(){
-      const btn = document.getElementById('submit-btn'); const spn = document.getElementById('submit-spinner');
-      btn.disabled = true; spn.classList.remove('d-none');
-
-      const d1 = getDriverFromForm('d1');
-      const d2 = getDriverFromForm('d2');
-      const d3 = getDriverFromForm('d3');
-      const d1Cell = document.getElementById('d1_cell').value.trim();
-
-      const err = validateDriver1(d1);
-      if (err){ if (window.showToast) showToast(err, 'error'); btn.disabled=false; spn.classList.add('d-none'); return; }
-
-      // Costruisci payload per backend Apps Script
-      const payload = {
-        action: 'creaPrenotazione',
-        // dati prenotazione base
-        targa: selectedVehicle?.Targa,
-        giornoInizio: selectedDates?.dataInizio,
-        giornoFine: selectedDates?.dataFine,
-        oraInizio: selectedDates?.oraRitiro,
-        oraFine: selectedDates?.oraRiconsegna,
-        destinazione: selectedDates?.destinazione||'',
-        // autisti
-        autista1: { ...d1, cellulare: d1Cell },
-        autista2: d2?.codiceFiscale? d2 : null,
-        autista3: d3?.codiceFiscale? d3 : null,
-        // policy: email richiesta dopo → non inviare ora
-        emailPrimoAutista: null,
-        // flag per backend: aggiorna foglio CLIENTI (upsert per CF). Cellulare/email associati al primo autista.
-        upsertClienti: true
-      };
-
-      try{
-        const res = await fetch(CONFIG.API_URL,{
-          method:'POST',
-          headers:{ 'Content-Type':'application/json', 'Authorization': `Bearer ${CONFIG.TOKEN}` },
-          body: JSON.stringify(payload)
-        }).then(r=>r.json());
-
-        if (!res.success){ throw new Error(res.message||'Errore creazione prenotazione'); }
-
-        if (window.showToast) showToast('Prenotazione inviata! Riceverai conferma dopo verifica admin.', 'success');
-        // Pulizia flag preventivo per evitare rientri non voluti
-        localStorage.removeItem('imbriani_preventivo_richiesto');
-        // TODO: redirect a pagina riepilogo/area personale
-        setTimeout(()=>{ location.href = currentUser ? 'area-personale.html' : 'index.html'; }, 1000);
-      }catch(e){
-        console.error(e);
-        if (window.showToast) showToast(e.message, 'error');
-      }finally{
-        btn.disabled=false; spn.classList.add('d-none');
-      }
-    }
-  </script>
+<div id="toast-container" class="position-fixed top-0 end-0 p-3" style="z-index:1055;"></div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="config.js"></script>
+<script src="shared-utils.js"></script>
+<script>
+  var currentUser=null, selectedDates=null, selectedVehicle=null;
+  document.addEventListener('DOMContentLoaded', function(){
+    try{ currentUser=JSON.parse(localStorage.getItem('imbriani_user')||'null'); }catch(_){}
+    try{ selectedVehicle=JSON.parse(localStorage.getItem('imbriani_selected_vehicle')||'null'); }catch(_){ }
+    try{ selectedDates=JSON.parse(localStorage.getItem('imbriani_selected_dates')||'null'); }catch(_){ }
+    if (!localStorage.getItem('imbriani_preventivo_richiesto')){ if (window.showToast) showToast('Completa prima la richiesta preventivo','warning'); return setTimeout(function(){ location.href='richiesta-preventivo.html'; },1000); }
+    if (!selectedVehicle || !selectedDates){ if (window.showToast) showToast('Dati prenotazione mancanti','error'); return setTimeout(function(){ location.href='veicoli.html'; },1000); }
+    bindUI(); prefillDriver1(); renderSummary();
+  });
+  function bindUI(){ var b=document.getElementById('back-btn'); if (b) b.addEventListener('click', function(){ history.back(); }); var s=document.getElementById('submit-btn'); if (s) s.addEventListener('click', onSubmit); }
+  function renderSummary(){ var el=document.getElementById('summary'); if (!el) return; var fd=function(d){ return new Date(d).toLocaleDateString('it-IT'); }; el.innerHTML='\
+    <div class="row align-items-center">\
+      <div class="col-md-8">\
+        <div class="d-flex align-items-center gap-3">\
+          <div class="bg-primary p-3 rounded-3"><i class="fas fa-car text-white" style="font-size:1.25rem;"></i></div>\
+          <div>\
+            <div class="text-white fw-semibold">'+(selectedVehicle&&selectedVehicle.Targa||'')+' - '+(selectedVehicle&&selectedVehicle.Marca||'')+' '+(selectedVehicle&&selectedVehicle.Modello||'')+'</div>\
+            <div class="text-white-75 small"><i class="fas fa-users me-1"></i>'+(selectedVehicle&&selectedVehicle.Posti||'')+' posti '+((selectedVehicle&&selectedVehicle.PassoLungo)?'• Passo Lungo':'')+'</div>\
+          </div>\
+        </div>\
+      </div>\
+      <div class="col-md-4 text-end">\
+        <div class="small text-white-50">Periodo</div>\
+        <div class="text-white">'+fd(selectedDates&&selectedDates.dataInizio)+' '+(selectedDates&&selectedDates.oraRitiro||'')+'</div>\
+        <div class="text-white">'+fd(selectedDates&&selectedDates.dataFine)+' '+(selectedDates&&selectedDates.oraRiconsegna||'')+'</div>\
+        '+(selectedDates&&selectedDates.destinazione?('<div class="small text-info mt-1"><i class="fas fa-map-marker-alt me-1"></i>'+selectedDates.destinazione+'</div>'):'')+'\
+      </div>\
+    </div>';
+  }
+  function prefillDriver1(){ if (!currentUser) return; var nomeCompleto=(currentUser.nome&&currentUser.cognome)?(currentUser.nome+' '+currentUser.cognome):(currentUser.nome||''); set('d1nomeCompleto',nomeCompleto); set('d1cf',currentUser.codiceFiscale); set('d1cell',currentUser.cellulare); setDate('d1dob',currentUser.dataNascita); set('d1luogo',currentUser.luogoNascita); set('d1patente',currentUser.numeroPatente); setDate('d1patenteinizio',currentUser.inizioValiditaPatente); setDate('d1patentescad',currentUser.scadenzaPatente); set('d1comune',currentUser.comuneResidenza); set('d1via',currentUser.viaResidenza); set('d1civico',currentUser.civicoResidenza); }
+  function set(id,val){ var el=document.getElementById(id); if (el) el.value=val||''; }
+  function setDate(id,val){ if (!val) return; try{ var d=new Date(val); var s=d.toISOString().slice(0,10); set(id,s); }catch(_){}}
+  function getDriver(prefix){ function g(id){ var el=document.getElementById(id); return el?String(el.value||'').trim():''; } return { nomeCompleto:g(prefix+'nomeCompleto'), codiceFiscale:g(prefix+'cf'), dataNascita:g(prefix+'dob'), luogoNascita:g(prefix+'luogo'), numeroPatente:g(prefix+'patente'), inizioValiditaPatente:g(prefix+'patenteinizio'), scadenzaPatente:g(prefix+'patentescad'), comuneResidenza:g(prefix+'comune'), viaResidenza:g(prefix+'via'), civicoResidenza:g(prefix+'civico') }; }
+  function validateDriver1(d){ if (!d.nomeCompleto || !d.codiceFiscale || d.codiceFiscale.length!==16) return 'Completa nome completo e un CF valido (16 caratteri)'; var c=document.getElementById('d1cell'); if (!c || !String(c.value||'').trim()) return 'Inserisci il cellulare del primo autista'; return null; }
+  async function onSubmit(){ var btn=document.getElementById('submit-btn'), spn=document.getElementById('submit-spinner'); btn.disabled=true; spn.classList.remove('d-none'); var d1=getDriver('d1'); var d2=getDriver('d2'); var d3=getDriver('d3'); var d1Cell=document.getElementById('d1cell')?String(document.getElementById('d1cell').value||'').trim():''; var err=validateDriver1(d1); if (err){ if (window.showToast) showToast(err,'error'); btn.disabled=false; spn.classList.add('d-none'); return; }
+    var payload={ action:'creaPrenotazione', targa:selectedVehicle&&selectedVehicle.Targa, giornoInizio:selectedDates&&selectedDates.dataInizio, giornoFine:selectedDates&&selectedDates.dataFine, oraInizio:selectedDates&&selectedDates.oraRitiro, oraFine:selectedDates&&selectedDates.oraRiconsegna, destinazione:selectedDates&&selectedDates.destinazione, autista1:Object.assign({},d1,{cellulare:d1Cell}), autista2:(d2&&d2.codiceFiscale)?d2:null, autista3:(d3&&d3.codiceFiscale)?d3:null, upsertClienti:true };
+    try{ var res=await fetch(CONFIG.API_URL,{ method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+CONFIG.TOKEN }, body:JSON.stringify(payload)}).then(function(r){return r.json();}); if (!res.success) throw new Error(res.message||'Errore creazione prenotazione'); if (window.showToast) showToast('Prenotazione inviata! Riceverai conferma dopo verifica admin.','success'); localStorage.removeItem('imbriani_preventivo_richiesto'); setTimeout(function(){ location.href=currentUser?'area-personale.html':'index.html'; },1000); } catch(e){ console.error(e); if (window.showToast) showToast(e.message,'error'); } finally{ btn.disabled=false; spn.classList.add('d-none'); }
+  }
+</script>
 </body>
 </html>
