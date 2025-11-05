@@ -113,9 +113,9 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       // Recupero dati
-      try { currentUser = JSON.parse(localStorage.getItem('imbriani_user')||'null'); } catch(_){}}
-      try { selectedVehicle = JSON.parse(localStorage.getItem('imbriani_selected_vehicle')||'null'); } catch(_){}}
-      try { selectedDates = JSON.parse(localStorage.getItem('imbriani_selected_dates')||'null'); } catch(_){}}
+      try { currentUser = JSON.parse(localStorage.getItem('imbriani_user')||'null'); } catch(_) {}
+      try { selectedVehicle = JSON.parse(localStorage.getItem('imbriani_selected_vehicle')||'null'); } catch(_) {}
+      try { selectedDates = JSON.parse(localStorage.getItem('imbriani_selected_dates')||'null'); } catch(_) {}
 
       if (!localStorage.getItem('imbriani_preventivo_richiesto')){
         if (window.showToast) showToast('Completa prima la richiesta preventivo', 'warning');
