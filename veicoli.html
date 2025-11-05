@@ -132,7 +132,7 @@
               <i class="fas fa-exchange-alt me-1"></i>Cambia veicolo
             </button>
             <button type="button" id="proceed-next-step" class="btn btn-premium">
-              <i class="fas fa-arrow-right me-2"></i>Procedi al prossimo step
+              <i class="fas fa-phone me-2"></i>Richiedi preventivo
             </button>
           </div>
         </div>
@@ -198,16 +198,40 @@
         selectedVehicle = null;
       });
 
-      document.getElementById('proceed-next-step')?.addEventListener('click', () => {
-        if (window.showToast) showToast('🛑 STOP: Avvisami ora per il prossimo step da implementare!', 'warning');
-        console.log('🛑 NEXT STEP REQUIRED - Selected vehicle:', selectedVehicle);
-        console.log('📅 Selected dates:', selectedDates);
-        console.log('👤 Current user:', currentUser);
-      });
+      document.getElementById('proceed-next-step')?.addEventListener('click', proceedToQuoteRequest);
 
       const today = new Date().toISOString().split('T')[0];
       document.getElementById('data_inizio').min = today;
       document.getElementById('data_fine').min = today;
+    }
+
+    function proceedToQuoteRequest() {
+      if (!selectedVehicle || !selectedDates) {
+        if (window.showToast) showToast('Errore: dati selezione mancanti', 'error');
+        return;
+      }
+
+      // Salva i dati in localStorage per la prossima pagina
+      localStorage.setItem('imbriani_selected_vehicle', JSON.stringify(selectedVehicle));
+      localStorage.setItem('imbriani_selected_dates', JSON.stringify(selectedDates));
+      if (currentUser) {
+        localStorage.setItem('imbriani_user', JSON.stringify(currentUser));
+      }
+
+      if (window.showToast) showToast('Reindirizzamento alla richiesta preventivo...', 'info');
+      
+      // Redirect con parametri URL come fallback
+      const params = new URLSearchParams({
+        vehicle: encodeURIComponent(JSON.stringify(selectedVehicle)),
+        dates: encodeURIComponent(JSON.stringify(selectedDates))
+      });
+      if (currentUser) {
+        params.set('user', encodeURIComponent(JSON.stringify(currentUser)));
+      }
+      
+      setTimeout(() => {
+        window.location.href = `richiesta-preventivo.html?${params.toString()}`;
+      }, 800);
     }
 
     async function handleSearchVehicles(e) {
