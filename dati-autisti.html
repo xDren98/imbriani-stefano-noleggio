@@ -1,4 +1,4 @@
-<!-- dati-autisti.html consolidato in root - versione aggiornata con campi residenza e payload compatibile backend v8.3.12 -->
+<!-- dati-autisti.html aggiornato: Step 3 → salva autisti in localStorage e reindirizza a riepilogo-prenotazione.html -->
 <!DOCTYPE html>
 <html lang="it" class="h-100">
 <head>
@@ -34,7 +34,7 @@
     </div>
     <div class="d-flex gap-2">
       <button type="button" id="back-btn" class="btn btn-outline-light btn-sm"><i class="fas fa-arrow-left me-1"></i>Indietro</button>
-      <span class="px-3 py-1 rounded-pill" style="background:linear-gradient(45deg,#06b6d4,#2563eb);color:#fff;font-weight:700;">Step 3 di 3</span>
+      <span class="px-3 py-1 rounded-pill" style="background:linear-gradient(45deg,#06b6d4,#2563eb);color:#fff;font-weight:700;">Step 3 di 4</span>
     </div>
   </div>
 </header>
@@ -107,7 +107,7 @@
     <div class="glass-card p-4">
       <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center">
         <div class="text-white-50 small"><i class="fas fa-shield-alt me-1"></i>I dati verranno salvati nel foglio CLIENTI (upsert per Codice Fiscale). Cellulare ed email sono legati al primo autista.</div>
-        <button id="submit-btn" class="btn btn-premium"><span id="submit-spinner" class="spinner-border spinner-border-sm me-2 d-none"></span>Salva autisti e completa prenotazione</button>
+        <button id="submit-btn" class="btn btn-premium"><span id="submit-spinner" class="spinner-border spinner-border-sm me-2 d-none"></span>Procedi al riepilogo</button>
       </div>
     </div>
   </div>
@@ -153,8 +153,7 @@
   function getDriver(prefix){ function g(id){ var el=document.getElementById(id); return el?String(el.value||'').trim():''; } return { nomeCompleto:g(prefix+'nomeCompleto'), codiceFiscale:g(prefix+'cf'), dataNascita:g(prefix+'dob'), luogoNascita:g(prefix+'luogo'), numeroPatente:g(prefix+'patente'), inizioValiditaPatente:g(prefix+'patenteinizio'), scadenzaPatente:g(prefix+'patentescad'), comuneResidenza:g(prefix+'comune'), viaResidenza:g(prefix+'via'), civicoResidenza:g(prefix+'civico') }; }
   function validateDriver1(d){ if (!d.nomeCompleto || !d.codiceFiscale || d.codiceFiscale.length!==16) return 'Completa nome completo e un CF valido (16 caratteri)'; var c=document.getElementById('d1cell'); if (!c || !String(c.value||'').trim()) return 'Inserisci il cellulare del primo autista'; return null; }
   async function onSubmit(){ var btn=document.getElementById('submit-btn'), spn=document.getElementById('submit-spinner'); btn.disabled=true; spn.classList.remove('d-none'); var d1=getDriver('d1'); var d2=getDriver('d2'); var d3=getDriver('d3'); var d1Cell=document.getElementById('d1cell')?String(document.getElementById('d1cell').value||'').trim():''; var err=validateDriver1(d1); if (err){ if (window.showToast) showToast(err,'error'); btn.disabled=false; spn.classList.add('d-none'); return; }
-    var payload={ action:'creaPrenotazione', targa:selectedVehicle&&selectedVehicle.Targa, giornoInizio:selectedDates&&selectedDates.dataInizio, giornoFine:selectedDates&&selectedDates.dataFine, oraInizio:selectedDates&&selectedDates.oraRitiro, oraFine:selectedDates&&selectedDates.oraRiconsegna, destinazione:selectedDates&&selectedDates.destinazione, autista1:Object.assign({},d1,{cellulare:d1Cell}), autista2:(d2&&d2.codiceFiscale)?d2:null, autista3:(d3&&d3.codiceFiscale)?d3:null, upsertClienti:true };
-    try{ var res=await fetch(CONFIG.API_URL,{ method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+CONFIG.TOKEN }, body:JSON.stringify(payload)}).then(function(r){return r.json();}); if (!res.success) throw new Error(res.message||'Errore creazione prenotazione'); if (window.showToast) showToast('Prenotazione inviata! Riceverai conferma dopo verifica admin.','success'); localStorage.removeItem('imbriani_preventivo_richiesto'); setTimeout(function(){ location.href=currentUser?'area-personale.html':'index.html'; },1000); } catch(e){ console.error(e); if (window.showToast) showToast(e.message,'error'); } finally{ btn.disabled=false; spn.classList.add('d-none'); }
+    try{ var drivers={ autista1:Object.assign({},d1,{cellulare:d1Cell}), autista2:(d2&&d2.codiceFiscale)?d2:null, autista3:(d3&&d3.codiceFiscale)?d3:null }; localStorage.setItem('imbriani_drivers', JSON.stringify(drivers)); if (window.showToast) showToast('Riepilogo pronto. Verifica e conferma nella pagina successiva.','success'); setTimeout(function(){ location.href='riepilogo-prenotazione.html'; }, 400); } catch(e){ console.error(e); if (window.showToast) showToast('Errore preparazione riepilogo: '+e.message,'error'); } finally{ btn.disabled=false; spn.classList.add('d-none'); }
   }
 </script>
 </body>
