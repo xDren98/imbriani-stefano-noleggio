@@ -53,3 +53,60 @@ function versionInfo(){
     time: new Date().toISOString()
   };
 }
+
+function doGet(e){
+  var p=(e&&e.parameter)?e.parameter:{}; var action=p.action||'health';
+  var token=p.token||(p.Authorization?p.Authorization.replace('Bearer ',''):'');
+  try{
+    if (action==='version')
+      return ContentService.createTextOutput(JSON.stringify(versionInfo())).setMimeType(ContentService.MimeType.JSON);
+    if (action==='health')
+      return createJsonResponse({ success:true, service:'imbriani-backend', spreadsheet_id:CONFIG.SPREADSHEET_ID, sheets:['PRENOTAZIONI','PULMINI','CLIENTI','MANUTENZIONI'], action:'health_supported' });
+
+    if (action==='notifyTest'){
+      if (!validateToken(token)) return createJsonResponse({success:false,message:'Token non valido',code:401},401);
+      var demo={ targa:'TEST123', giornoInizio:new Date().toISOString().slice(0,10), giornoFine:new Date().toISOString().slice(0,10), oraInizio:'09:00', oraFine:'12:00', destinazione:'Test Destinazione', autista1:{ nomeCompleto:'Mario Test', codiceFiscale:'TSTMRA85M01H501Z', cellulare:'3330000000' }, email:'test@example.com' };
+      inviaNotificaTelegram(demo);
+      return createJsonResponse({success:true,message:'Notifica Telegram inviata (test)'});
+    }
+
+    if (action==='testEmail'){
+      if (!validateToken(token)) return createJsonResponse({success:false,message:'Token non valido',code:401},401);
+      var to = p.to || 'melloanto@icloud.com';
+      var demo={
+        idPrenotazione:'PRE-TEST-'+Date.now(), targa:'TEST123',
+        giornoInizio:new Date().toISOString().slice(0,10), giornoFine:new Date().toISOString().slice(0,10),
+        oraInizio:'09:00', oraFine:'12:00', destinazione:'Test', email:to, autista1:{nomeCompleto:'Test Client'}
+      };
+      inviaEmailConfermaCliente(demo);
+      return createJsonResponse({success:true,message:'Email di test inviata a '+to});
+    }
+
+    if (!validateToken(token)) return createJsonResponse({success:false,message:'Token non valido',code:401},401);
+
+    switch(action){
+      case 'getVeicoli': return getVeicoli();
+      case 'getPrenotazioni': return getPrenotazioni();
+      case 'checkDisponibilita': return checkDisponibilita(p);
+      case 'updateStatiLive': return updateStatiLive();
+      case 'getSheet': return getSheetGeneric(p);
+      case 'sincronizzaClienti': return sincronizzaClienti();
+      case 'checkReminders': return checkReminderEmails();
+      default: return createJsonResponse({success:false,message:'Azione non supportata: '+action},400);
+    }
+  }catch(err){
+    return createJsonResponse({success:false,message:'Errore server: '+err.message},500);
+  }
+}
+
+function doPost(e){
+  try{
+    var tokenHeader=(e&&e.parameter&&e.parameter.token)?e.parameter.token:getAuthHeader(e);
+    var post={};
+    try{ post=JSON.parse(e&&e.postData?(e.postData.contents||'{}'):'{}'); }
+    catch(_){ return createJsonResponse({success:false,message:'Invalid JSON in request body'},400); }
+    var action=post.action||'login';
+    var finalToken=tokenHeader||post.token||post.AUTH_TOKEN;
+
+    if (action==='login') return handleLogin(post, finalToken);
+    if (!validateToken(finalToken)) return createJsonResponse({success:false,message:'Token non valido',code:401},401);
