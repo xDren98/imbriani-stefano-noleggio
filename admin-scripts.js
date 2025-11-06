@@ -1,6 +1,6 @@
-// admin-scripts.js v3.1 - Same complete logic as frontend + admin sections
+// admin-scripts.js v3.2 - Same complete logic as frontend + admin sections
 (function(){
-  const ADMIN_CONFIG = { VERSION: '3.1', REFRESH_INTERVAL: 30000, ITEMS_PER_PAGE: 50 };
+  const ADMIN_CONFIG = { VERSION: '3.2', REFRESH_INTERVAL: 30000, ITEMS_PER_PAGE: 50 };
   let adminData = { prenotazioni: [], clienti: [], flotta: [], manutenzioni: [], stats: {} };
   
   function qs(id){ return document.getElementById(id); }
@@ -351,7 +351,7 @@
     } catch(e) { window.showToast?.('❌ Errore di rete', 'error'); } finally { window.showLoader?.(false); }
   }
 
-  // EXISTING ADMIN SECTIONS (kept from original)
+  // EXISTING ADMIN SECTIONS
   function loadAdminSection(section) {
     const root = qs('admin-root'); if (!root) return;
     window.showLoader?.(true, `Caricamento ${section}...`);
@@ -374,7 +374,16 @@
     <div class="row g-4"><div class="col-12"><div class="card"><div class="card-body text-center py-5"><h5 class="text-muted">Dashboard</h5><p class="text-muted">Statistiche in arrivo</p></div></div></div></div>`;
   }
 
-  async function loadPrenotazioni() { window.showLoader?.(false); const root = qs('admin-root'); root.innerHTML = '<div class="card"><div class="card-body text-center py-5"><h5>Prenotazioni</h5><p class="text-muted">Sezione in costruzione</p></div></div>'; }
+  async function loadPrenotazioni() {
+    if (typeof window.loadPrenotazioniSection === 'function') {
+      window.loadPrenotazioniSection();
+    } else {
+      window.showLoader?.(false);
+      const root = qs('admin-root');
+      root.innerHTML = '<div class="alert alert-warning">⚠️ Modulo prenotazioni non caricato. Verifica che admin-prenotazioni.js sia incluso.</div>';
+    }
+  }
+  
   async function loadFlotta() { window.showLoader?.(false); const root = qs('admin-root'); root.innerHTML = '<div class="card"><div class="card-body text-center py-5"><h5>Flotta</h5><p class="text-muted">Sezione in costruzione</p></div></div>'; }
   async function loadManutenzioni() { window.showLoader?.(false); const root = qs('admin-root'); root.innerHTML = '<div class="card"><div class="card-body text-center py-5"><h5>Manutenzioni</h5><p class="text-muted">Sezione in costruzione</p></div></div>'; }
 
