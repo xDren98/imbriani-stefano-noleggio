@@ -297,14 +297,33 @@ function updateStatiLive(){
     var ss=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
     var shP=ss.getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
     var valsP=shP.getDataRange().getValues();
+    
     for (var i=1;i<valsP.length;i++){
       var r=valsP[i]; var stato=String(r[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE-1]||'');
       var di=new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO-1]); var df=new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE-1]); var next=stato;
-      if ((stato==='In corso' && today>df) || ((stato==='Confermata' || stato==='Programmata' || stato==='In attesa') && today>df)) next='Completata';
-      else if ((stato==='Programmata' || stato==='Confermata' || stato==='In attesa') && today>=di && today<=df) next='In corso';
-      else if ((stato==='Confermata' || stato==='In attesa') && today<di) next='Programmata';
-      if (next!==stato){ shP.getRange(i+1, CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE, 1, 1).setValue(next); }
+      
+      // NON toccare "In attesa" - deve rimanere fino all'approvazione manuale
+      if (stato === 'In attesa') {
+        continue; // Salta completamente le prenotazioni in attesa
+      }
+      
+      // Solo prenotazioni CONFERMATE possono progredire automaticamente
+      if (stato === 'Confermata' && today < di) {
+        next = 'Programmata';
+      }
+      else if ((stato === 'Programmata' || stato === 'Confermata') && today >= di && today <= df) {
+        next = 'In corso';
+      }
+      else if ((stato === 'In corso' || stato === 'Programmata' || stato === 'Confermata') && today > df) {
+        next = 'Completata';
+      }
+      
+      if (next !== stato) { 
+        shP.getRange(i+1, CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE, 1, 1).setValue(next); 
+      }
     }
+    
+    // Manutenzioni (rimane uguale)
     var shM=ss.getSheetByName(CONFIG.SHEETS.MANUTENZIONI);
     if (shM){
       var valsM=shM.getDataRange().getValues();
