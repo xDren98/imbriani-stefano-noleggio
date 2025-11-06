@@ -1,5 +1,8 @@
-// scripts.js v9.4 - login with redirect to area-personale and session management
+// scripts.js v10.0 - Flusso unificato homepage: guest users + logged users
 (function(){
+  let isGuestFlow = false;
+  let guestBookingData = null;
+
   function bindLogin(){
     const btn = document.getElementById('login-btn');
     if(!btn){ console.warn('[LOGIN] bottone non trovato'); return; }
@@ -84,14 +87,150 @@
     btn.addEventListener('click', handler, { capture:true, passive:false });
     console.log('[LOGIN] handler agganciato (capture)');
   }
+
+  // NUOVO: Gestione flusso guest users
+  function bindGuestBooking(){
+    const checkBtn = document.getElementById('check-disponibilita');
+    if (!checkBtn) {
+      console.warn('[GUEST] Bottone verifica disponibilità non trovato');
+      return;
+    }
+
+    checkBtn.addEventListener('click', async function(e){
+      e.preventDefault();
+      
+      try {
+        // Leggi dati dal form guest
+        const dataRitiro = document.getElementById('new-data-ritiro')?.value;
+        const oraRitiro = document.getElementById('new-ora-ritiro')?.value;
+        const dataConsegna = document.getElementById('new-data-consegna')?.value;
+        const oraConsegna = document.getElementById('new-ora-consegna')?.value;
+        const posti = document.getElementById('new-posti')?.value;
+        
+        // Validazione
+        if (!dataRitiro || !dataConsegna || !oraRitiro || !oraConsegna) {
+          if (window.showToast) showToast('⚠️ Compila tutti i campi data/ora', 'warning');
+          else alert('Compila tutti i campi data/ora');
+          return;
+        }
+        
+        const ritiro = new Date(dataRitiro);
+        const consegna = new Date(dataConsegna);
+        const oggi = new Date();
+        oggi.setHours(0, 0, 0, 0);
+        
+        if (ritiro < oggi) {
+          if (window.showToast) showToast('❌ La data di ritiro non può essere nel passato', 'error');
+          else alert('La data di ritiro non può essere nel passato');
+          return;
+        }
+        
+        if (consegna < ritiro) {
+          if (window.showToast) showToast('❌ La data di consegna deve essere successiva al ritiro', 'error');
+          else alert('La data di consegna deve essere successiva al ritiro');
+          return;
+        }
+        
+        if (dataRitiro === dataConsegna && oraConsegna <= oraRitiro) {
+          if (window.showToast) showToast('❌ Per lo stesso giorno, l\'ora di consegna deve essere successiva', 'error');
+          else alert('Per lo stesso giorno, l\'ora di consegna deve essere successiva');
+          return;
+        }
+        
+        // Imposta loading
+        const originalText = checkBtn.innerHTML;
+        checkBtn.disabled = true;
+        checkBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Verifica in corso...';
+        
+        // Salva dati per il prossimo step
+        guestBookingData = {
+          dataInizio: dataRitiro,
+          dataFine: dataConsegna, 
+          oraRitiro: oraRitiro,
+          oraRiconsegna: oraConsegna,
+          posti: parseInt(posti, 10) || 9,
+          isGuest: true
+        };
+        
+        // Salva in localStorage per la pagina veicoli
+        localStorage.setItem('imbriani_guest_booking', JSON.stringify(guestBookingData));
+        
+        // Feedback positivo
+        if (window.showToast) {
+          showToast('✅ Date verificate! Reindirizzamento...', 'success');
+          
+          setTimeout(() => {
+            // Redirect alla pagina veicoli con parametri
+            const params = new URLSearchParams({
+              dal: dataRitiro,
+              al: dataConsegna,
+              guest: '1'
+            });
+            window.location.href = `veicoli.html?${params.toString()}`;
+          }, 1200);
+          
+        } else {
+          alert('Disponibilità verificata! Redirezione...');
+          setTimeout(() => {
+            window.location.href = `veicoli.html?dal=${dataRitiro}&al=${dataConsegna}&guest=1`;
+          }, 500);
+        }
+        
+      } catch (error) {
+        console.error('[GUEST] Errore verifica disponibilità:', error);
+        
+        // Ripristina bottone
+        checkBtn.disabled = false;
+        checkBtn.innerHTML = originalText;
+        
+        if (window.showToast) showToast('❌ Errore durante la verifica', 'error');
+        else alert('Errore durante la verifica: ' + error.message);
+      }
+    });
+    
+    console.log('[GUEST] Handler verifica disponibilità attivato');
+  }
   
-  // Auto-bind quando DOM è pronto
+  // Inizializzazione automatica
+  function initializeHomepage(){
+    try {
+      // Imposta date minime
+      const oggi = new Date().toISOString().split('T')[0];
+      const dataRitiroEl = document.getElementById('new-data-ritiro');
+      const dataConsegnaEl = document.getElementById('new-data-consegna');
+      
+      if (dataRitiroEl) {
+        dataRitiroEl.min = oggi;
+        dataRitiroEl.value = oggi; // Default oggi
+      }
+      if (dataConsegnaEl) {
+        dataConsegnaEl.min = oggi;
+        
+        // Default: domani
+        const domani = new Date();
+        domani.setDate(domani.getDate() + 1);
+        dataConsegnaEl.value = domani.toISOString().split('T')[0];
+      }
+      
+      // Bind handlers
+      bindLogin();
+      bindGuestBooking();
+      
+      console.log('✅ Homepage inizializzata - flusso unificato guest/logged');
+      
+    } catch (error) {
+      console.error('[INIT] Errore inizializzazione homepage:', error);
+    }
+  }
+  
+  // Auto-init quando DOM è pronto
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bindLogin);
+    document.addEventListener('DOMContentLoaded', initializeHomepage);
   } else {
-    bindLogin();
+    initializeHomepage();
   }
   
   // Esporta per compatibilità
-  window.bindCFHandlers = bindLogin;
+  window.bindCFHandlers = initializeHomepage;
+  window.guestBookingData = guestBookingData;
 })();
