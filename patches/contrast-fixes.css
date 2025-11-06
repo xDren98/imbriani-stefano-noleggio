@@ -1,0 +1,14 @@
+/* Contrast fixes for loading text and summary in results */
+#vehicles-list .text-muted, #search-summary { 
+  color: rgba(255,255,255,0.92) !important;
+}
+#vehicles-list .spinner-border { 
+  border-color: rgba(255,255,255,0.35);
+  border-top-color: #60A5FA; /* primary light */
+}
+/* Add subtle backdrop for readability */
+.results-overlay-info{ 
+  background: rgba(15,23,42,0.35);
+  padding: 10px 12px;
+  border-radius: 8px;
+}
