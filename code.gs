@@ -1,14 +1,16 @@
 /**
- * IMBRIANI STEFANO NOLEGGIO - BACKEND v8.5.2
+ * IMBRIANI STEFANO NOLEGGIO - BACKEND v8.5.3
  * - Email cliente inviate con mittente forzato: imbrianistefanonoleggio@gmail.com
  * - Nessun reply-to
  * - Nessun riferimento a preventivi/importi nelle email al cliente
  * - Endpoint testEmail e trigger giornaliero reminder
  * - FIX: token letto da Authorization header (POST via proxy), query e body
+ * - FEAT: ID prenotazioni dinamico formato BOOK-ANNO-xxx
+ * - FEAT: Census prenotazioni esistenti con assegnazione ID mancanti
  */
 
 const CONFIG = {
-  VERSION: '8.5.2',
+  VERSION: '8.5.3',
   SPREADSHEET_ID: '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns',
   TOKEN: 'imbriani_secret_2025',
   SHEETS: { PRENOTAZIONI: 'PRENOTAZIONI', PULMINI: 'PULMINI', CLIENTI: 'CLIENTI', MANUTENZIONI: 'MANUTENZIONI' },
@@ -50,7 +52,7 @@ function getAuthHeader(e) {
     return String(e.parameter.token);
   }
 
-  // 2) Body JSON (ora il proxy mette il token qui)
+  // 2) Body JSON fallback (proxy inserisce il token qui)
   try {
     if (e && e.postData && e.postData.contents) {
       const payload = JSON.parse(e.postData.contents || '{}');
@@ -62,6 +64,39 @@ function getAuthHeader(e) {
   return null;
 }
 
+// Genera ID prenotazione dinamico: BOOK-ANNO-xxx
+function generaNuovoIdBooking() {
+  try {
+    var sh = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    var data = sh.getDataRange().getValues();
+    
+    // Anno corrente
+    var annoCorrente = new Date().getFullYear();
+    var prefisso = 'BOOK-' + annoCorrente + '-';
+    
+    // Trova il progressivo più alto per l'anno corrente
+    var maxProgressivo = 0;
+    for (var i = 1; i < data.length; i++) {
+      var id = String(data[i][CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1] || '');
+      if (id.startsWith(prefisso)) {
+        var numero = parseInt(id.replace(prefisso, ''), 10);
+        if (!isNaN(numero) && numero > maxProgressivo) {
+          maxProgressivo = numero;
+        }
+      }
+    }
+    
+    // Prossimo ID disponibile per l'anno corrente
+    var nuovoProgressivo = maxProgressivo + 1;
+    return prefisso + String(nuovoProgressivo).padStart(3, '0');
+    
+  } catch (error) {
+    // Fallback in caso di errore
+    var anno = new Date().getFullYear();
+    return 'BOOK-' + anno + '-' + String(Date.now()).slice(-3);
+  }
+}
+
 function versionInfo(){
   return {
     success: true,
@@ -71,7 +106,7 @@ function versionInfo(){
       'stato_default_in_attesa','notifica_telegram_admin','endpoint_notifyTest','health_getVeicoli_getPrenotazioni',
       'checkDisponibilita_updateStatiLive','getSheet_handleLogin_creaPrenotazione','aggiornaCliente_sincronizzaClienti',
       'email_mittente_gmail_forzato','email_conferma_cliente','email_conferma_stato','email_reminder_3giorni','trigger_giornaliero',
-      'auth_header_body_fallback'
+      'auth_header_body_fallback','booking_id_dinamico_anno','census_prenotazioni_esistenti'
     ],
     time: new Date().toISOString()
   };
@@ -98,6 +133,7 @@ function doGet(e){
       case 'getSheet': return getSheetGeneric(p);
       case 'sincronizzaClienti': return sincronizzaClienti();
       case 'checkReminders': return checkReminderEmails();
+      case 'assegnaId': return assegnaIdPrenotazioniEsistenti();
       case 'notifyTest': 
         var demo={ targa:'TEST123', giornoInizio:new Date().toISOString().slice(0,10), giornoFine:new Date().toISOString().slice(0,10), oraInizio:'09:00', oraFine:'12:00', destinazione:'Test Destinazione', autista1:{ nomeCompleto:'Mario Test', codiceFiscale:'TSTMRA85M01H501Z', cellulare:'3330000000' }, email:'test@example.com' };
         inviaNotificaTelegram(demo);
@@ -105,7 +141,7 @@ function doGet(e){
       case 'testEmail':
         var to = p.to || 'melloanto@icloud.com';
         var demo2={
-          idPrenotazione:'PRE-TEST-'+Date.now(), targa:'TEST123',
+          idPrenotazione:'BOOK-2025-999', targa:'TEST123',
           giornoInizio:new Date().toISOString().slice(0,10), giornoFine:new Date().toISOString().slice(0,10),
           oraInizio:'09:00', oraFine:'12:00', destinazione:'Test', email:to, autista1:{nomeCompleto:'Test Client'}
         };
@@ -140,6 +176,7 @@ function doPost(e){
       case 'aggiornaCliente': return aggiornaCliente(post);
       case 'sincronizzaClienti': return sincronizzaClienti();
       case 'checkReminders': return checkReminderEmails();
+      case 'assegnaId': return assegnaIdPrenotazioniEsistenti();
       default: return createJsonResponse({success:false,message:'Azione POST non supportata: '+action},400);
     }
   }catch(err){
@@ -291,6 +328,7 @@ function checkDisponibilita(p){
   }
 }
 
+// Aggiornamento stati live CORRETTO: non tocca "In attesa"
 function updateStatiLive(){
   try{
     var now=new Date(); var today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
@@ -393,7 +431,8 @@ function creaPrenotazione(post){
       row[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_3-1]=post.autista3.scadenzaPatente||'';
     }
 
-    var id='PRE-'+Date.now();
+    // Genera ID dinamico BOOK-ANNO-xxx
+    var id = generaNuovoIdBooking();
     row[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE-1]=id;
     sh.appendRow(row);
 
@@ -415,6 +454,120 @@ function creaPrenotazione(post){
     return createJsonResponse({success:true,message:'Prenotazione creata',idPrenotazione:id});
   }catch(err){
     return createJsonResponse({success:false,message:'Errore creazione prenotazione: '+err.message},500);
+  }
+}
+
+// Census prenotazioni esistenti con assegnazione ID BOOK-ANNO-xxx
+function assegnaIdPrenotazioniEsistenti(){
+  try {
+    var sh = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    var data = sh.getDataRange().getValues();
+    
+    if (data.length <= 1) {
+      return createJsonResponse({
+        success: true,
+        message: 'Nessuna prenotazione trovata',
+        processate: 0
+      });
+    }
+    
+    // Raggruppa per anno per gestire ID separati
+    var prenotazioniPerAnno = {};
+    var maxProgressiviPerAnno = {};
+    
+    // Prima passata: analizza ID esistenti per anno
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var idEsistente = String(row[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1] || '').trim();
+      
+      // Determina l'anno dalla data o usa anno corrente
+      var annoPrenotazione;
+      var timestamp = row[CONFIG.PRENOTAZIONI_COLS.TIMESTAMP - 1];
+      var dataContratto = row[CONFIG.PRENOTAZIONI_COLS.DATA_CONTRATTO - 1];
+      var giornoInizio = row[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO - 1];
+      
+      if (timestamp && timestamp instanceof Date) {
+        annoPrenotazione = timestamp.getFullYear();
+      } else if (dataContratto && dataContratto instanceof Date) {
+        annoPrenotazione = dataContratto.getFullYear();
+      } else if (giornoInizio && giornoInizio instanceof Date) {
+        annoPrenotazione = giornoInizio.getFullYear();
+      } else {
+        annoPrenotazione = new Date().getFullYear(); // Default anno corrente
+      }
+      
+      // Inizializza strutture per l'anno
+      if (!prenotazioniPerAnno[annoPrenotazione]) {
+        prenotazioniPerAnno[annoPrenotazione] = [];
+        maxProgressiviPerAnno[annoPrenotazione] = 0;
+      }
+      
+      prenotazioniPerAnno[annoPrenotazione].push({
+        riga: i + 1,
+        row: row,
+        idEsistente: idEsistente,
+        anno: annoPrenotazione
+      });
+      
+      // Trova max progressivo esistente per questo anno
+      var prefisso = 'BOOK-' + annoPrenotazione + '-';
+      if (idEsistente.startsWith(prefisso)) {
+        var numero = parseInt(idEsistente.replace(prefisso, ''), 10);
+        if (!isNaN(numero) && numero > maxProgressiviPerAnno[annoPrenotazione]) {
+          maxProgressiviPerAnno[annoPrenotazione] = numero;
+        }
+      }
+    }
+    
+    // Seconda passata: assegna ID mancanti per anno
+    var processate = 0;
+    var aggiornate = 0;
+    var dettagli = [];
+    
+    for (var anno in prenotazioniPerAnno) {
+      var prossimoProgressivo = maxProgressiviPerAnno[anno] + 1;
+      var prefisso = 'BOOK-' + anno + '-';
+      
+      for (var j = 0; j < prenotazioniPerAnno[anno].length; j++) {
+        var prenotazione = prenotazioniPerAnno[anno][j];
+        
+        if (!prenotazione.idEsistente || prenotazione.idEsistente === '') {
+          var nuovoId = prefisso + String(prossimoProgressivo).padStart(3, '0');
+          
+          // Aggiorna la cella
+          sh.getRange(prenotazione.riga, CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE).setValue(nuovoId);
+          
+          dettagli.push({
+            riga: prenotazione.riga,
+            anno: anno,
+            targa: prenotazione.row[CONFIG.PRENOTAZIONI_COLS.TARGA - 1] || 'N/A',
+            cliente: prenotazione.row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1 - 1] || 'N/A',
+            stato: prenotazione.row[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE - 1] || 'N/A',
+            nuovoId: nuovoId
+          });
+          
+          prossimoProgressivo++;
+          aggiornate++;
+        }
+        processate++;
+      }
+    }
+    
+    return createJsonResponse({
+      success: true,
+      message: 'ID assegnati con formato BOOK-ANNO-xxx dinamico',
+      processate: processate,
+      aggiornate: aggiornate,
+      anniTrovati: Object.keys(prenotazioniPerAnno),
+      maxProgressiviPerAnno: maxProgressiviPerAnno,
+      dettagli: dettagli
+    });
+    
+  } catch (error) {
+    return createJsonResponse({
+      success: false,
+      message: 'Errore assegnazione ID: ' + error.message
+    }, 500);
   }
 }
 
