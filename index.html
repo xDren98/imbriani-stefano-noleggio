@@ -7,12 +7,12 @@
   <meta name="description" content="Imbriani Stefano Noleggio - Prenotazione e accesso clienti. Verifica disponibilità e richiesta preventivo.">
   <meta name="theme-color" content="#0066FF">
   <!-- PWA -->
-  <link rel="manifest" href="/pwa/manifest.json">
+  <link rel="manifest" href="pwa/manifest.json">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Imbriani">
-  <link rel="apple-touch-icon" href="/pwa/icons/apple-icon-180x180.png">
-  <link rel="icon" type="image/png" sizes="180x180" href="/pwa/icons/apple-icon-180x180.png">
+  <link rel="apple-touch-icon" href="pwa/icons/apple-icon-180x180.png">
+  <link rel="icon" type="image/png" sizes="180x180" href="pwa/icons/apple-icon-180x180.png">
   <!-- CSS Frameworks & Fonts -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
@@ -124,12 +124,12 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/pwa/service-worker.js')
+        navigator.serviceWorker.register('pwa/service-worker.js')
           .then((registration) => { console.log('✅ Service Worker registrato:', registration.scope); })
           .catch((error) => { console.error('❌ Errore registrazione SW:', error); });
       });
     }
   </script>
-  <script src="/pwa/push-notifications.js"></script>
+  <script src="pwa/push-notifications.js"></script>
 </body>
 </html>
