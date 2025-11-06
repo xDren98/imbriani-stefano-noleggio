@@ -1,13 +1,14 @@
 /**
- * IMBRIANI STEFANO NOLEGGIO - BACKEND v8.5.1
+ * IMBRIANI STEFANO NOLEGGIO - BACKEND v8.5.2
  * - Email cliente inviate con mittente forzato: imbrianistefanonoleggio@gmail.com
  * - Nessun reply-to
  * - Nessun riferimento a preventivi/importi nelle email al cliente
  * - Endpoint testEmail e trigger giornaliero reminder
+ * - FIX: token letto da Authorization header (POST via proxy), query e body
  */
 
 const CONFIG = {
-  VERSION: '8.5.1',
+  VERSION: '8.5.2',
   SPREADSHEET_ID: '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns',
   TOKEN: 'imbriani_secret_2025',
   SHEETS: { PRENOTAZIONI: 'PRENOTAZIONI', PULMINI: 'PULMINI', CLIENTI: 'CLIENTI', MANUTENZIONI: 'MANUTENZIONI' },
@@ -38,7 +39,28 @@ function createJsonResponse(data,status){
   return ContentService.createTextOutput(JSON.stringify(resp)).setMimeType(ContentService.MimeType.JSON);
 }
 function validateToken(t){ return t===CONFIG.TOKEN; }
-function getAuthHeader(e){ if (e && e.parameter && e.parameter.Authorization) return e.parameter.Authorization.replace('Bearer ',''); return null; }
+
+// Token robusto: query -> headers (lowercase) -> body
+function getAuthHeader(e) {
+  // 1) Query string param (GET/test manuali)
+  if (e && e.parameter && e.parameter.Authorization) {
+    return e.parameter.Authorization.replace('Bearer ', '');
+  }
+  if (e && e.parameter && e.parameter.token) {
+    return String(e.parameter.token);
+  }
+
+  // 2) Body JSON (ora il proxy mette il token qui)
+  try {
+    if (e && e.postData && e.postData.contents) {
+      const payload = JSON.parse(e.postData.contents || '{}');
+      if (payload.token) return String(payload.token);
+      if (payload.AUTH_TOKEN) return String(payload.AUTH_TOKEN);
+    }
+  } catch (_) {}
+
+  return null;
+}
 
 function versionInfo(){
   return {
@@ -48,40 +70,24 @@ function versionInfo(){
     features: [
       'stato_default_in_attesa','notifica_telegram_admin','endpoint_notifyTest','health_getVeicoli_getPrenotazioni',
       'checkDisponibilita_updateStatiLive','getSheet_handleLogin_creaPrenotazione','aggiornaCliente_sincronizzaClienti',
-      'email_mittente_gmail_forzato','email_conferma_cliente','email_conferma_stato','email_reminder_3giorni','trigger_giornaliero'
+      'email_mittente_gmail_forzato','email_conferma_cliente','email_conferma_stato','email_reminder_3giorni','trigger_giornaliero',
+      'auth_header_body_fallback'
     ],
     time: new Date().toISOString()
   };
 }
 
 function doGet(e){
-  var p=(e&&e.parameter)?e.parameter:{}; var action=p.action||'health';
-  var token=p.token||(p.Authorization?p.Authorization.replace('Bearer ',''):'');
+  var p=(e&&e.parameter)?e.parameter:{}; 
+  var action=p.action||'health';
   try{
     if (action==='version')
       return ContentService.createTextOutput(JSON.stringify(versionInfo())).setMimeType(ContentService.MimeType.JSON);
     if (action==='health')
       return createJsonResponse({ success:true, service:'imbriani-backend', spreadsheet_id:CONFIG.SPREADSHEET_ID, sheets:['PRENOTAZIONI','PULMINI','CLIENTI','MANUTENZIONI'], action:'health_supported' });
 
-    if (action==='notifyTest'){
-      if (!validateToken(token)) return createJsonResponse({success:false,message:'Token non valido',code:401},401);
-      var demo={ targa:'TEST123', giornoInizio:new Date().toISOString().slice(0,10), giornoFine:new Date().toISOString().slice(0,10), oraInizio:'09:00', oraFine:'12:00', destinazione:'Test Destinazione', autista1:{ nomeCompleto:'Mario Test', codiceFiscale:'TSTMRA85M01H501Z', cellulare:'3330000000' }, email:'test@example.com' };
-      inviaNotificaTelegram(demo);
-      return createJsonResponse({success:true,message:'Notifica Telegram inviata (test)'});
-    }
-
-    if (action==='testEmail'){
-      if (!validateToken(token)) return createJsonResponse({success:false,message:'Token non valido',code:401},401);
-      var to = p.to || 'melloanto@icloud.com';
-      var demo={
-        idPrenotazione:'PRE-TEST-'+Date.now(), targa:'TEST123',
-        giornoInizio:new Date().toISOString().slice(0,10), giornoFine:new Date().toISOString().slice(0,10),
-        oraInizio:'09:00', oraFine:'12:00', destinazione:'Test', email:to, autista1:{nomeCompleto:'Test Client'}
-      };
-      inviaEmailConfermaCliente(demo);
-      return createJsonResponse({success:true,message:'Email di test inviata a '+to});
-    }
-
+    // Token da header/query/body
+    var token = getAuthHeader(e);
     if (!validateToken(token)) return createJsonResponse({success:false,message:'Token non valido',code:401},401);
 
     switch(action){
@@ -92,6 +98,19 @@ function doGet(e){
       case 'getSheet': return getSheetGeneric(p);
       case 'sincronizzaClienti': return sincronizzaClienti();
       case 'checkReminders': return checkReminderEmails();
+      case 'notifyTest': 
+        var demo={ targa:'TEST123', giornoInizio:new Date().toISOString().slice(0,10), giornoFine:new Date().toISOString().slice(0,10), oraInizio:'09:00', oraFine:'12:00', destinazione:'Test Destinazione', autista1:{ nomeCompleto:'Mario Test', codiceFiscale:'TSTMRA85M01H501Z', cellulare:'3330000000' }, email:'test@example.com' };
+        inviaNotificaTelegram(demo);
+        return createJsonResponse({success:true,message:'Notifica Telegram inviata (test)'});
+      case 'testEmail':
+        var to = p.to || 'melloanto@icloud.com';
+        var demo2={
+          idPrenotazione:'PRE-TEST-'+Date.now(), targa:'TEST123',
+          giornoInizio:new Date().toISOString().slice(0,10), giornoFine:new Date().toISOString().slice(0,10),
+          oraInizio:'09:00', oraFine:'12:00', destinazione:'Test', email:to, autista1:{nomeCompleto:'Test Client'}
+        };
+        inviaEmailConfermaCliente(demo2);
+        return createJsonResponse({success:true,message:'Email di test inviata a '+to});
       default: return createJsonResponse({success:false,message:'Azione non supportata: '+action},400);
     }
   }catch(err){
@@ -101,12 +120,13 @@ function doGet(e){
 
 function doPost(e){
   try{
-    var tokenHeader=(e&&e.parameter&&e.parameter.token)?e.parameter.token:getAuthHeader(e);
     var post={};
     try{ post=JSON.parse(e&&e.postData?(e.postData.contents||'{}'):'{}'); }
     catch(_){ return createJsonResponse({success:false,message:'Invalid JSON in request body'},400); }
+
     var action=post.action||'login';
-    var finalToken=tokenHeader||post.token||post.AUTH_TOKEN;
+    // Token da header/body/query centralizzato
+    var finalToken = getAuthHeader(e);
 
     if (action==='login') return handleLogin(post, finalToken);
     if (!validateToken(finalToken)) return createJsonResponse({success:false,message:'Token non valido',code:401},401);
@@ -118,6 +138,8 @@ function doPost(e){
       case 'aggiornaStato': return aggiornaStatoPrenotazione(post);
       case 'setManutenzione': return (typeof setManutenzione==='function')?setManutenzione(post):createJsonResponse({success:false,message:'setManutenzione non implementata'},400);
       case 'aggiornaCliente': return aggiornaCliente(post);
+      case 'sincronizzaClienti': return sincronizzaClienti();
+      case 'checkReminders': return checkReminderEmails();
       default: return createJsonResponse({success:false,message:'Azione POST non supportata: '+action},400);
     }
   }catch(err){
@@ -486,33 +508,6 @@ function sincronizzaClienti(){
       if (a3.codiceFiscale) upsertCliente(a3,false);
     }
     return createJsonResponse({success:true,message:'Sincronizzazione CLIENTI completata',created:created,updated:updated,skipped:skipped});
-
-    function upsertCliente(data,isPrimary){
-      var cf=String(data.codiceFiscale||'').trim();
-      if (!cf||cf.length!==16){ skipped++; return; }
-      var rowIndex=idxByCF[cf];
-      function setIfRow(row,colKey,val){ if (val!==undefined && val!==null && val!==''){ row[CONFIG.CLIENTI_COLS[colKey]-1]=val; } }
-      if (!rowIndex){
-        var row=new Array(Object.keys(CONFIG.CLIENTI_COLS).length); for (var k=0;k<row.length;k++) row[k]='';
-        setIfRow(row,'NOME', data.nomeCompleto||data.nome||''); setIfRow(row,'DATA_NASCITA', data.dataNascita||''); setIfRow(row,'LUOGO_NASCITA', data.luogoNascita||'');
-        setIfRow(row,'CODICE_FISCALE', cf); setIfRow(row,'COMUNE_RESIDENZA', data.comuneResidenza||''); setIfRow(row,'VIA_RESIDENZA', data.viaResidenza||''); setIfRow(row,'CIVICO_RESIDENZA', data.civicoResidenza||'');
-        setIfRow(row,'NUMERO_PATENTE', data.numeroPatente||''); setIfRow(row,'DATA_INIZIO_PATENTE', data.inizioValiditaPatente||data.dataInizioPatente||''); setIfRow(row,'SCADENZA_PATENTE', data.scadenzaPatente||'');
-        if (isPrimary){ setIfRow(row,'CELLULARE', data.cellulare||''); setIfRow(row,'EMAIL', data.email||''); }
-        shC.appendRow(row); var last=shC.getLastRow(); idxByCF[cf]=last; created++;
-      } else {
-        function updateCell(colKey,val){ if (val!==undefined && val!==null && val!==''){ shC.getRange(rowIndex, CONFIG.CLIENTI_COLS[colKey]).setValue(val); } }
-        updateCell('NOME', data.nomeCompleto||data.nome||'');
-        updateCell('DATA_NASCITA', data.dataNascita||'');
-        updateCell('LUOGO_NASCITA', data.luogoNascita||'');
-        updateCell('COMUNE_RESIDENZA', data.comuneResidenza||'');
-        updateCell('VIA_RESIDENZA', data.viaResidenza||'');
-        updateCell('CIVICO_RESIDENZA', data.civicoResidenza||'');
-        updateCell('NUMERO_PATENTE', data.numeroPatente||'');
-        updateCell('DATA_INIZIO_PATENTE', data.inizioValiditaPatente||data.dataInizioPatente||'');
-        updateCell('SCADENZA_PATENTE', data.scadenzaPatente||'');
-        if (isPrimary){ updateCell('CELLULARE', data.cellulare||''); updateCell('EMAIL', data.email||''); } updated++;
-      }
-    }
   }catch(err){
     return createJsonResponse({success:false,message:'Errore sincronizzaClienti: '+err.message},500);
   }
@@ -541,41 +536,36 @@ function inviaNotificaTelegram(pren){
   }catch(e){ Logger.log('Errore invio Telegram: '+(e&&e.message)); }
 }
 
-/* ======================
-   EMAIL: mittente forzato Gmail noleggio
-   - Nessun preventivo/importo nelle email cliente
-   ====================== */
-
+// EMAIL: mittente forzato Gmail noleggio
 function inviaEmailConfermaCliente(prenotazione){
   try {
-    var oggetto = '✅ Conferma Prenotazione - ' + (prenotazione.idPrenotazione || 'N/A');
+    var oggetto = 'Conferma Prenotazione - ' + (prenotazione.idPrenotazione || 'N/A');
     var dataInizio = prenotazione.giornoInizio ? new Date(prenotazione.giornoInizio).toLocaleDateString('it-IT') : 'N/A';
     var dataFine = prenotazione.giornoFine ? new Date(prenotazione.giornoFine).toLocaleDateString('it-IT') : 'N/A';
     var nomeCliente = (prenotazione.autista1 && prenotazione.autista1.nomeCompleto) || 'Cliente';
 
-    var corpo = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto}.header{background:linear-gradient(135deg,#0066FF,#004ECC);color:#fff;padding:20px;text-align:center}.content{padding:20px;background:#f9f9f9}.info-box{background:#fff;border-left:4px solid #0066FF;padding:15px;margin:15px 0}.status{background:#E3F2FD;padding:10px;border-radius:5px;text-align:center;font-weight:bold}.footer{background:#333;color:#fff;padding:15px;text-align:center;font-size:12px}.highlight{color:#0066FF;font-weight:bold}</style></head><body>'
-      + '<div class="header"><h1>🚐 Imbriani Stefano Noleggio</h1><p>Conferma Prenotazione Ricevuta</p></div>'
-      + '<div class="content"><h2>Gentile '+nomeCliente+',</h2><p>La Sua richiesta è stata <strong>ricevuta correttamente</strong> e sarà esaminata dal nostro staff.</p>'
-      + '<div class="status">🔄 STATO: IN ATTESA DI CONFERMA</div>'
-      + '<div class="info-box"><h3>📋 Dettagli Prenotazione</h3>'
-      + '<p><strong>ID Prenotazione:</strong> <span class="highlight">'+(prenotazione.idPrenotazione || 'N/A')+'</span></p>'
-      + '<p><strong>Veicolo:</strong> '+(prenotazione.targa || 'N/A')+'</p>'
-      + '<p><strong>Dal:</strong> '+dataInizio+' alle '+(prenotazione.oraInizio || 'N/A')+'</p>'
-      + '<p><strong>Al:</strong> '+dataFine+' alle '+(prenotazione.oraFine || 'N/A')+'</p>'
-      + '<p><strong>Destinazione:</strong> '+(prenotazione.destinazione || 'Non specificata')+'</p></div>'
-      + '<div class="info-box"><h3>⏰ Prossimi Passaggi</h3>'
-      + '<p>• Il nostro team verificherà disponibilità e dettagli.</p>'
-      + '<p>• Riceverà una comunicazione di <strong>conferma</strong> quando l’ordine sarà approvato.</p>'
-      + '<p>• Le invieremo un <strong>promemoria</strong> 3 giorni prima della partenza.</p></div>'
-      + '<div class="info-box"><h3>📞 Contatti</h3><p><strong>Email:</strong> '+CONFIG.EMAIL.FROM_EMAIL+'</p></div></div>'
-      + '<div class="footer"><p>© 2025 Imbriani Stefano Noleggio</p></div></body></html>';
+    var corpo = 'Gentile ' + nomeCliente + ',\n\n' +
+      'La Sua richiesta di prenotazione è stata ricevuta correttamente e sarà esaminata dal nostro staff.\n\n' +
+      'STATO: IN ATTESA DI CONFERMA\n\n' +
+      'Dettagli Prenotazione:\n' +
+      'ID Prenotazione: ' + (prenotazione.idPrenotazione || 'N/A') + '\n' +
+      'Veicolo: ' + (prenotazione.targa || 'N/A') + '\n' +
+      'Dal: ' + dataInizio + ' alle ' + (prenotazione.oraInizio || 'N/A') + '\n' +
+      'Al: ' + dataFine + ' alle ' + (prenotazione.oraFine || 'N/A') + '\n' +
+      'Destinazione: ' + (prenotazione.destinazione || 'Non specificata') + '\n\n' +
+      'Prossimi Passaggi:\n' +
+      '• Il nostro team verificherà disponibilità e dettagli\n' +
+      '• Riceverà una comunicazione di conferma quando la prenotazione sarà approvata\n' +
+      '• Le invieremo un promemoria 3 giorni prima della partenza\n\n' +
+      'Cordiali saluti,\n' +
+      'Imbriani Stefano Noleggio\n' +
+      'Email: ' + CONFIG.EMAIL.FROM_EMAIL;
 
     MailApp.sendEmail({
       to: prenotazione.email,
       subject: oggetto,
-      htmlBody: corpo,
-      name: CONFIG.EMAIL.FROM_NAME,
-      from: CONFIG.EMAIL.FROM_EMAIL
+      body: corpo,
+      name: CONFIG.EMAIL.FROM_NAME
     });
   } catch (error) {
     Logger.log('Errore invio email conferma cliente: ' + error.message);
@@ -584,33 +574,31 @@ function inviaEmailConfermaCliente(prenotazione){
 
 function inviaEmailConfermaPreventivo(prenotazione){
   try {
-    var oggetto = '✅ Prenotazione Confermata';
+    var oggetto = 'Prenotazione Confermata - ' + (prenotazione.idPrenotazione || 'N/A');
     var dataInizio = prenotazione.giornoInizio ? new Date(prenotazione.giornoInizio).toLocaleDateString('it-IT') : 'N/A';
     var dataFine = prenotazione.giornoFine ? new Date(prenotazione.giornoFine).toLocaleDateString('it-IT') : 'N/A';
     var nomeCliente = (prenotazione.autista1 && prenotazione.autista1.nomeCompleto) || 'Cliente';
 
-    var corpo = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto}.header{background:linear-gradient(135deg,#22C55E,#16A34A);color:#fff;padding:20px;text-align:center}.content{padding:20px;background:#f9f9f9}.info-box{background:#fff;border-left:4px solid #22C55E;padding:15px;margin:15px 0}.status{background:#DCFCE7;padding:10px;border-radius:5px;text-align:center;font-weight:bold;color:#166534}.footer{background:#333;color:#fff;padding:15px;text-align:center;font-size:12px}.highlight{color:#22C55E;font-weight:bold}</style></head><body>'
-      + '<div class="header"><h1>🚐 Imbriani Stefano Noleggio</h1><p>Prenotazione Confermata</p></div>'
-      + '<div class="content"><h2>Gentile '+nomeCliente+',</h2><p>La informiamo che la Sua prenotazione è stata <strong>confermata</strong>.</p>'
-      + '<div class="status">✅ PRENOTAZIONE CONFERMATA</div>'
-      + '<div class="info-box"><h3>📋 Riepilogo</h3>'
-      + '<p><strong>ID:</strong> <span class="highlight">'+(prenotazione.idPrenotazione || 'N/A')+'</span></p>'
-      + '<p><strong>Veicolo:</strong> '+(prenotazione.targa || 'N/A')+'</p>'
-      + '<p><strong>Dal:</strong> '+dataInizio+' alle '+(prenotazione.oraInizio || 'N/A')+'</p>'
-      + '<p><strong>Al:</strong> '+dataFine+' alle '+(prenotazione.oraFine || 'N/A')+'</p>'
-      + '<p><strong>Destinazione:</strong> '+(prenotazione.destinazione || 'Non specificata')+'</p></div>'
-      + '<div class="info-box"><h3>📝 Note</h3><p>Per modifiche o informazioni aggiuntive, risponda a questa email o ci contatti.</p></div></div>'
-      + '<div class="footer"><p>© 2025 Imbriani Stefano Noleggio</p></div></body></html>';
+    var corpo = 'Gentile ' + nomeCliente + ',\n\n' +
+      'La informiamo che la Sua prenotazione è stata CONFERMATA.\n\n' +
+      'Riepilogo:\n' +
+      'ID: ' + (prenotazione.idPrenotazione || 'N/A') + '\n' +
+      'Veicolo: ' + (prenotazione.targa || 'N/A') + '\n' +
+      'Dal: ' + dataInizio + ' alle ' + (prenotazione.oraInizio || 'N/A') + '\n' +
+      'Al: ' + dataFine + ' alle ' + (prenotazione.oraFine || 'N/A') + '\n' +
+      'Destinazione: ' + (prenotazione.destinazione || 'Non specificata') + '\n\n' +
+      'Per modifiche o informazioni aggiuntive, risponda a questa email o ci contatti.\n\n' +
+      'Cordiali saluti,\n' +
+      'Imbriani Stefano Noleggio';
 
     MailApp.sendEmail({
       to: prenotazione.email,
       subject: oggetto,
-      htmlBody: corpo,
-      name: CONFIG.EMAIL.FROM_NAME,
-      from: CONFIG.EMAIL.FROM_EMAIL
+      body: corpo,
+      name: CONFIG.EMAIL.FROM_NAME
     });
   } catch (error) {
-    Logger.log('Errore invio email conferma (cliente): ' + error.message);
+    Logger.log('Errore invio email conferma: ' + error.message);
   }
 }
 
@@ -659,35 +647,33 @@ function checkReminderEmails(){
 
 function inviaEmailReminder(prenotazione){
   try {
-    var oggetto = '⏰ Promemoria: Partenza tra 3 giorni - ' + (prenotazione.idPrenotazione || 'N/A');
+    var oggetto = 'Promemoria: Partenza tra 3 giorni - ' + (prenotazione.idPrenotazione || 'N/A');
     var dataInizio = prenotazione.giornoInizio ? new Date(prenotazione.giornoInizio).toLocaleDateString('it-IT') : 'N/A';
     var dataFine = prenotazione.giornoFine ? new Date(prenotazione.giornoFine).toLocaleDateString('it-IT') : 'N/A';
     var nomeCliente = (prenotazione.autista1 && prenotazione.autista1.nomeCompleto) || 'Cliente';
 
-    var corpo = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto}.header{background:linear-gradient(135deg,#F59E0B,#D97706);color:#fff;padding:20px;text-align:center}.content{padding:20px;background:#f9f9f9}.info-box{background:#fff;border-left:4px solid #F59E0B;padding:15px;margin:15px 0}.footer{background:#333;color:#fff;padding:15px;text-align:center;font-size:12px}.highlight{color:#F59E0B;font-weight:bold}</style></head><body>'
-      + '<div class="header"><h1>🚐 Imbriani Stefano Noleggio</h1><p>Promemoria Partenza</p></div>'
-      + '<div class="content"><h2>Gentile '+nomeCliente+',</h2><p>Le ricordiamo che tra <strong>3 giorni</strong> inizierà il servizio prenotato.</p>'
-      + '<div class="info-box"><h3>📋 Riepilogo</h3>'
-      + '<p><strong>ID:</strong> <span class="highlight">'+(prenotazione.idPrenotazione || 'N/A')+'</span></p>'
-      + '<p><strong>Veicolo:</strong> '+(prenotazione.targa || 'N/A')+'</p>'
-      + '<p><strong>Dal:</strong> '+dataInizio+' alle '+(prenotazione.oraInizio || 'N/A')+'</p>'
-      + '<p><strong>Al:</strong> '+dataFine+' alle '+(prenotazione.oraFine || 'N/A')+'</p>'
-      + '<p><strong>Destinazione:</strong> '+(prenotazione.destinazione || 'Non specificata')+'</p></div></div>'
-      + '<div class="footer"><p>© 2025 Imbriani Stefano Noleggio</p></div></body></html>';
+    var corpo = 'Gentile ' + nomeCliente + ',\n\n' +
+      'Le ricordiamo che tra 3 giorni inizierà il servizio prenotato.\n\n' +
+      'Riepilogo:\n' +
+      'ID: ' + (prenotazione.idPrenotazione || 'N/A') + '\n' +
+      'Veicolo: ' + (prenotazione.targa || 'N/A') + '\n' +
+      'Dal: ' + dataInizio + ' alle ' + (prenotazione.oraInizio || 'N/A') + '\n' +
+      'Al: ' + dataFine + ' alle ' + (prenotazione.oraFine || 'N/A') + '\n' +
+      'Destinazione: ' + (prenotazione.destinazione || 'Non specificata') + '\n\n' +
+      'Cordiali saluti,\n' +
+      'Imbriani Stefano Noleggio';
 
     MailApp.sendEmail({
       to: prenotazione.email,
       subject: oggetto,
-      htmlBody: corpo,
-      name: CONFIG.EMAIL.FROM_NAME,
-      from: CONFIG.EMAIL.FROM_EMAIL
+      body: corpo,
+      name: CONFIG.EMAIL.FROM_NAME
     });
   } catch (error) {
     Logger.log('Errore invio email reminder: ' + error.message);
   }
 }
 
-/* ============ TRIGGER ============ */
 function setupDailyTrigger(){
   var triggers = ScriptApp.getProjectTriggers();
   for (var i=0;i<triggers.length;i++){
