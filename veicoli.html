@@ -17,6 +17,7 @@
     .vehicle-card:hover{transform:translateY(-4px);border-color:#0066ff30}
     .vehicle-card.selected{border-color:#0066ff;box-shadow:0 8px 25px rgba(0,102,255,.3)}
     .badge-passo-lungo{background:linear-gradient(45deg,#f59e0b,#d97706);color:#fff}
+    .guest-badge{background:linear-gradient(45deg,#10b981,#059669);color:#fff;font-size:0.75rem}
   </style>
 </head>
 <body class="d-flex flex-column h-100">
@@ -31,6 +32,9 @@
           <p class="text-white-50 mb-0" id="header-subtitle">Scegli date e orari per vedere i veicoli disponibili</p>
         </div>
         <div class="d-flex gap-2">
+          <span id="user-type-badge" class="badge guest-badge d-none">
+            <i class="fas fa-user-plus me-1"></i>Guest
+          </span>
           <button type="button" id="back-btn" class="btn btn-outline-light btn-sm">
             <i class="fas fa-arrow-left me-1"></i>Indietro
           </button>
@@ -132,7 +136,8 @@
               <i class="fas fa-exchange-alt me-1"></i>Cambia veicolo
             </button>
             <button type="button" id="proceed-next-step" class="btn btn-premium">
-              <i class="fas fa-phone me-2"></i>Richiedi preventivo
+              <i class="fas fa-arrow-right me-2"></i>
+              <span id="next-step-text">Procedi alla prenotazione</span>
             </button>
           </div>
         </div>
@@ -147,39 +152,69 @@
   <script src="shared-utils.js"></script>
   <script>
     let currentUser = null;
+    let isGuestUser = false;
     let selectedDates = null;
     let selectedVehicle = null;
     let availableVehicles = [];
 
     document.addEventListener('DOMContentLoaded', async () => {
+      // Determina se è guest o logged user
+      const urlParams = new URLSearchParams(window.location.search);
+      const isGuestParam = urlParams.get('guest') === '1';
       const userData = localStorage.getItem('imbriani_user');
-      if (userData) {
+      
+      if (userData && !isGuestParam) {
+        // User loggato
         currentUser = JSON.parse(userData);
+        isGuestUser = false;
         document.getElementById('logout-btn').classList.remove('d-none');
         document.getElementById('header-subtitle').textContent = `Ciao ${currentUser.nome}, scegli il tuo veicolo`;
+      } else {
+        // Guest user
+        isGuestUser = true;
+        document.getElementById('user-type-badge').classList.remove('d-none');
+        document.getElementById('header-subtitle').textContent = 'Seleziona il veicolo per la tua prenotazione';
+        document.getElementById('next-step-text').innerHTML = '<i class="fas fa-phone me-1"></i>Richiedi preventivo';
       }
 
-      const urlParams = new URLSearchParams(window.location.search);
+      // Carica dati da URL params o localStorage
       const dal = urlParams.get('dal');
       const al = urlParams.get('al');
+      const guestData = localStorage.getItem('imbriani_guest_booking');
+      
       if (dal && al) {
         document.getElementById('data_inizio').value = dal;
         document.getElementById('data_fine').value = al;
-        setTimeout(() => document.getElementById('availability-form').dispatchEvent(new Event('submit')), 300);
+        
+        // Se ci sono anche orari in localStorage, usali
+        if (guestData) {
+          const guest = JSON.parse(guestData);
+          if (guest.oraRitiro) document.getElementById('ora_ritiro').value = guest.oraRitiro;
+          if (guest.oraRiconsegna) document.getElementById('ora_riconsegna').value = guest.oraRiconsegna;
+        }
+        
+        // Auto-search con delay per permettere il rendering
+        setTimeout(() => document.getElementById('availability-form').dispatchEvent(new Event('submit')), 500);
       }
 
       setupUI();
     });
 
     function setupUI() {
+      // Back button intelligente
       document.getElementById('back-btn')?.addEventListener('click', () => {
-        window.location.href = currentUser ? 'area-personale.html' : 'index.html';
+        if (isGuestUser) {
+          window.location.href = 'index.html';
+        } else {
+          window.location.href = currentUser ? 'area-personale.html' : 'index.html';
+        }
       });
 
       document.getElementById('logout-btn')?.addEventListener('click', (e) => {
         e.preventDefault();
         localStorage.removeItem('imbriani_user');
         localStorage.removeItem('imbriani_session');
+        localStorage.removeItem('imbriani_guest_booking');
         if (window.showToast) showToast('Logout effettuato', 'info');
         setTimeout(() => window.location.href = 'index.html', 600);
       });
@@ -198,40 +233,44 @@
         selectedVehicle = null;
       });
 
-      document.getElementById('proceed-next-step')?.addEventListener('click', proceedToQuoteRequest);
+      document.getElementById('proceed-next-step')?.addEventListener('click', proceedToNextStep);
 
       const today = new Date().toISOString().split('T')[0];
       document.getElementById('data_inizio').min = today;
       document.getElementById('data_fine').min = today;
     }
 
-    function proceedToQuoteRequest() {
+    function proceedToNextStep() {
       if (!selectedVehicle || !selectedDates) {
         if (window.showToast) showToast('Errore: dati selezione mancanti', 'error');
         return;
       }
 
-      // Salva i dati in localStorage per la prossima pagina
+      // Salva i dati per la prossima pagina
       localStorage.setItem('imbriani_selected_vehicle', JSON.stringify(selectedVehicle));
       localStorage.setItem('imbriani_selected_dates', JSON.stringify(selectedDates));
-      if (currentUser) {
+      
+      if (isGuestUser) {
+        // Guest: vai alla richiesta preventivo con WhatsApp
+        localStorage.setItem('imbriani_guest_booking', JSON.stringify({
+          ...selectedDates,
+          vehicle: selectedVehicle,
+          isGuest: true
+        }));
+        
+        if (window.showToast) showToast('📞 Reindirizzamento a richiesta preventivo...', 'info');
+        setTimeout(() => {
+          window.location.href = 'richiesta-preventivo.html?guest=1';
+        }, 1000);
+      } else {
+        // User loggato: vai al form dati precompilato 
         localStorage.setItem('imbriani_user', JSON.stringify(currentUser));
+        
+        if (window.showToast) showToast('📄 Vai al completamento prenotazione...', 'info');
+        setTimeout(() => {
+          window.location.href = 'dati-autisti.html';
+        }, 1000);
       }
-
-      if (window.showToast) showToast('Reindirizzamento alla richiesta preventivo...', 'info');
-      
-      // Redirect con parametri URL come fallback
-      const params = new URLSearchParams({
-        vehicle: encodeURIComponent(JSON.stringify(selectedVehicle)),
-        dates: encodeURIComponent(JSON.stringify(selectedDates))
-      });
-      if (currentUser) {
-        params.set('user', encodeURIComponent(JSON.stringify(currentUser)));
-      }
-      
-      setTimeout(() => {
-        window.location.href = `richiesta-preventivo.html?${params.toString()}`;
-      }, 800);
     }
 
     async function handleSearchVehicles(e) {
@@ -374,7 +413,8 @@
       resultsSection.classList.remove('d-none');
 
       const formatDate = (d) => new Date(d).toLocaleDateString('it-IT');
-      searchSummary.innerHTML = `<i class="fas fa-info-circle me-1"></i> Ricerca: ${formatDate(selectedDates.dataInizio)} ${selectedDates.oraRitiro} → ${formatDate(selectedDates.dataFine)} ${selectedDates.oraRiconsegna}`;
+      const userTypeText = isGuestUser ? 'Guest' : (currentUser ? currentUser.nome : 'Cliente');
+      searchSummary.innerHTML = `<i class="fas fa-info-circle me-1"></i> ${userTypeText} - Ricerca: ${formatDate(selectedDates.dataInizio)} ${selectedDates.oraRitiro} → ${formatDate(selectedDates.dataFine)} ${selectedDates.oraRiconsegna}`;
 
       if (availableVehicles.length === 0){ vehiclesList.classList.add('d-none'); noVehicles.classList.remove('d-none'); return; }
 
@@ -421,7 +461,11 @@
         </div>`;
       document.getElementById('results-section').classList.add('d-none');
       document.getElementById('vehicle-selected-section').classList.remove('d-none');
-      if (window.showToast) showToast(`Veicolo ${selectedVehicle.Targa} selezionato`, 'success');
+      
+      const successMsg = isGuestUser 
+        ? `🚐 Veicolo ${selectedVehicle.Targa} selezionato! Procedi per richiedere il preventivo` 
+        : `✅ Veicolo ${selectedVehicle.Targa} selezionato!`;
+      if (window.showToast) showToast(successMsg, 'success');
     }
   </script>
 </body>
