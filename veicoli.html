@@ -75,26 +75,144 @@
   <script src="shared-utils.js"></script>
   <script>
     let currentUser=null,isGuestUser=false,selectedDates=null,selectedVehicle=null,availableVehicles=[];
-    document.addEventListener('DOMContentLoaded',async()=>{
-      const urlParams=new URLSearchParams(window.location.search);const isGuestParam=urlParams.get('guest')==='1';const userData=localStorage.getItem('imbriani_user');
-      if(userData&&!isGuestParam){currentUser=JSON.parse(userData);isGuestUser=false;document.getElementById('logout-btn').classList.remove('d-none');document.getElementById('header-subtitle').textContent=`Ciao ${currentUser.nome}, scegli il tuo veicolo`;}
-      else{isGuestUser=true;document.getElementById('user-type-badge').classList.remove('d-none');document.getElementById('header-subtitle').textContent='Seleziona il veicolo per la tua prenotazione';document.getElementById('next-step-text').innerHTML='<i class="fas fa-phone me-1"></i>Richiedi preventivo';}
-      const dal=urlParams.get('dal');const al=urlParams.get('al');const guestDataRaw=localStorage.getItem('imbriani_guest_booking');let guestData=null;try{guestData=guestDataRaw?JSON.parse(guestDataRaw):null;}catch(_){ }
-      const dataInizio=dal||guestData?.dataInizio||new Date().toISOString().slice(0,10);const dataFine=al||guestData?.dataFine||new Date(Date.now()+86400000).toISOString().slice(0,10);const oraRitiro=guestData?.oraRitiro||'08:00';const oraRiconsegna=guestData?.oraRiconsegna||'20:00';
-      document.getElementById('data_inizio').value=dataInizio;document.getElementById('data_fine').value=dataFine;document.getElementById('ora_ritiro').value=oraRitiro;document.getElementById('ora_riconsegna').value=oraRiconsegna;
-      document.getElementById('results-section').classList.remove('d-none');await handleSearchVehicles(new Event('submit'));setupUI();});
-    function setupUI(){document.getElementById('back-btn')?.addEventListener('click',()=>{if(isGuestUser){window.location.href='index.html';}else{window.location.href=currentUser?'area-personale.html':'index.html';}});document.getElementById('logout-btn')?.addEventListener('click',e=>{e.preventDefault();localStorage.removeItem('imbriani_user');localStorage.removeItem('imbriani_session');localStorage.removeItem('imbriani_guest_booking');if(window.showToast)showToast('Logout effettuato','info');setTimeout(()=>window.location.href='index.html',600);});document.getElementById('availability-form')?.addEventListener('submit',handleSearchVehicles);document.getElementById('modify-dates')?.addEventListener('click',()=>{document.getElementById('date-form-section').classList.remove('d-none');document.getElementById('results-section').classList.add('d-none');document.getElementById('vehicle-selected-section').classList.add('d-none');selectedVehicle=null;});document.getElementById('change-vehicle')?.addEventListener('click',()=>{document.getElementById('vehicle-selected-section').classList.add('d-none');document.getElementById('results-section').classList.remove('d-none');selectedVehicle=null;});document.getElementById('proceed-next-step')?.addEventListener('click',proceedToNextStep);}
-    async function handleSearchVehicles(e){e?.preventDefault?.();const dataInizio=document.getElementById('data_inizio').value;const dataFine=document.getElementById('data_fine').value;const oraRitiro=document.getElementById('ora_ritiro').value;const oraRiconsegna=document.getElementById('ora_riconsegna').value;if(!dataInizio||!dataFine||!oraRitiro||!oraRiconsegna){if(window.showToast)showToast('Compila tutti i campi data/ora','error');return;}if(new Date(dataFine)<new Date(dataInizio)){if(window.showToast)showToast('La fine deve essere successiva all\'inizio','error');return;}if(dataInizio===dataFine&&oraRiconsegna<=oraRitiro){if(window.showToast)showToast('Per lo stesso giorno serve un\'ora di riconsegna successiva','error');return;}selectedDates={dataInizio,dataFine,oraRitiro,oraRiconsegna};try{await fetch(`${CONFIG.API_URL}?action=updateStatiLive&token=${encodeURIComponent(CONFIG.TOKEN)}`);}catch(_){ }
-      const searchBtn=document.querySelector('#availability-form button[type="submit"]');const searchSpinner=document.getElementById('search-spinner');const searchBtnText=document.getElementById('search-btn-text');if(searchBtn){searchBtn.disabled=true;}if(searchSpinner){searchSpinner.classList.remove('d-none');}if(searchBtnText){searchBtnText.textContent='Ricerca in corso...';}
-      try{await searchAvailableVehicles();}finally{if(searchBtn){searchBtn.disabled=false;}if(searchSpinner){searchSpinner.classList.add('d-none');}if(searchBtnText){searchBtnText.textContent='Cerca veicoli disponibili';}}}
-    function toDate(d){return new Date(d+'T00:00:00');}function hasDateOverlap(reqStart,reqEnd,blkStart,blkEnd){return !(reqEnd<blkStart||reqStart>blkEnd);}function hasDateTimeOverlap(req,pre){const rStart=toDate(req.dataInizio);const rEnd=toDate(req.dataFine);const pStart=new Date(pre.giornoInizio);const pEnd=new Date(pre.giornoFine);if(!hasDateOverlap(rStart,rEnd,pStart,pEnd))return false;const sameStartDay=rStart.toDateString()===pStart.toDateString();const sameEndDay=rEnd.toDateString()===pEnd.toDateString();const toHour=hhmm=>parseInt(hhmm.split(':')[0],10);const reqStartH=toHour(req.oraRitiro);const reqEndH=toHour(req.oraRiconsegna);const preStartH=toHour(pre.oraInizio||'08:00');let preEndH=toHour(pre.oraFine||'20:00');preEndH=Math.min(22,preEndH+2);if(sameStartDay&&reqStartH<preEndH)return true; if(sameEndDay&&reqEndH>preStartH)return true; return true;}
-    function hasMaintenanceOverlap(req,man){const stato=(man.stato||'').toLowerCase();if(!(stato.includes('programmata')||stato.includes('in corso')))return false;const rStart=toDate(req.dataInizio);const rEnd=toDate(req.dataFine);const mStart=new Date(man.dataInizio);const mEnd=new Date(man.dataFine);return hasDateOverlap(rStart,rEnd,mStart,mEnd);}
-    async function searchAvailableVehicles(){try{const [vehiclesResponse,prenotazioniResponse]=await Promise.all([api.call({action:'getVeicoli'}),api.call({action:'getPrenotazioni'})]);if(!vehiclesResponse.success){if(window.showToast)showToast('Errore caricamento veicoli','error');return;}const allVehicles=vehiclesResponse.data||[];const allPren=(prenotazioniResponse.success?prenotazioniResponse.data:[])||[];let manut=[];try{const url=`${CONFIG.API_URL}?action=getSheet&name=MANUTENZIONI&token=${encodeURIComponent(CONFIG.TOKEN)}`;const resp=await fetch(url).then(r=>r.json());manut=(resp.success?resp.data:[])||[];}catch(_){}
-      const maintRows=manut.map(r=>({targa:r.Targa||r.targa||r[0],stato:r.Stato||r.stato||r[4],dataInizio:r['Data Inizio Manutenzione']||r.dataInizio||r[5],dataFine:r['Data Fine Manutenzione']||r.dataFine||r[6],})).filter(m=>m.targa&&m.dataInizio&&m.dataFine);
-      availableVehicles=[];for(const v of allVehicles){if(!v.Disponibile)continue;const prenV=allPren.filter(p=>p.targa===v.Targa&&!['Rifiutata','Completata','Da confermare'].includes(p.stato));const manV=maintRows.filter(m=>m.targa===v.Targa);const manOverlap=manV.some(m=>hasMaintenanceOverlap(selectedDates,m));if(manOverlap)continue;const preOverlap=prenV.some(p=>hasDateTimeOverlap(selectedDates,p));if(preOverlap)continue;availableVehicles.push(v);}displayVehicleResults();}catch(err){console.error('Errore ricerca:',err);if(window.showToast)showToast('Errore ricerca veicoli','error');}}
-    function displayVehicleResults(){const resultsSection=document.getElementById('results-section');const vehiclesList=document.getElementById('vehicles-list');const noVehicles=document.getElementById('no-vehicles');const searchSummary=document.getElementById('search-summary');document.getElementById('date-form-section').classList.add('d-none');resultsSection.classList.remove('d-none');const formatDate=d=>new Date(d).toLocaleDateString('it-IT');const userTypeText=isGuestUser?'Guest':(currentUser?currentUser.nome:'Cliente');searchSummary.innerHTML=`<i class="fas fa-info-circle me-1"></i> ${userTypeText} - Ricerca: ${formatDate(selectedDates.dataInizio)} ${selectedDates.oraRitiro} → ${formatDate(selectedDates.dataFine)} ${selectedDates.oraRiconsegna}`;if(availableVehicles.length===0){vehiclesList.classList.add('d-none');noVehicles.classList.remove('d-none');return;}noVehicles.classList.add('d-none');vehiclesList.classList.remove('d-none');vehiclesList.innerHTML=`<div class="row g-4">${availableVehicles.map(vehicle=>`<div class="col-lg-4 col-md-6"><div class="glass-card vehicle-card p-4 h-100 cursor-pointer" data-targa="${vehicle.Targa}"><div class="d-flex align-items-center justify-content-between mb-3"><h6 class="fw-bold text-white mb-0">${vehicle.Targa}</h6>${vehicle.PassoLungo?'<span class="badge badge-passo-lungo">Passo Lungo</span>':''}</div><div class="mb-2"><span class="text-white fw-semibold">${vehicle.Marca} ${vehicle.Modello}</span></div><div class="mb-3"><span class="badge bg-success"><i class="fas fa-users me-1"></i>${vehicle.Posti} posti</span><span class="badge bg-info ms-1"><i class="fas fa-check-circle me-1"></i>Disponibile</span></div>${vehicle.Note?`<div class="small text-white-50 mb-3">${vehicle.Note}</div>`:''}<button type="button" class="btn btn-premium w-100" onclick="selectVehicle('${vehicle.Targa}')"><i class="fas fa-hand-pointer me-2"></i>Seleziona questo veicolo</button></div></div>`).join('')}</div>`;}
-    function proceedToNextStep(){if(!selectedVehicle||!selectedDates){if(window.showToast)showToast('Errore: dati selezione mancanti','error');return;}localStorage.setItem('imbriani_selected_vehicle',JSON.stringify(selectedVehicle));localStorage.setItem('imbriani_selected_dates',JSON.stringify(selectedDates));if(isGuestUser){localStorage.setItem('imbriani_guest_booking',JSON.stringify({...selectedDates,vehicle:selectedVehicle,isGuest:true}));if(window.showToast)showToast('📞 Reindirizzamento a richiesta preventivo...','info');setTimeout(()=>{window.location.href='richiesta-preventivo.html?guest=1';},1000);}else{localStorage.setItem('imbriani_user',JSON.stringify(currentUser));if(window.showToast)showToast('📄 Vai al completamento prenotazione...','info');setTimeout(()=>{window.location.href='dati-autisti.html';},1000);}}
-    function selectVehicle(targa){selectedVehicle=availableVehicles.find(v=>v.Targa===targa);if(!selectedVehicle)return;const selectedInfo=document.getElementById('selected-vehicle-info');selectedInfo.innerHTML=`<div class="row align-items-center"><div class="col-md-8"><div class="d-flex align-items-center gap-3"><div class="bg-success p-3 rounded-3"><i class="fas fa-car text-white" style="font-size:1.5rem"></i></div><div><h6 class="text-white fw-bold mb-1">${selectedVehicle.Targa}</h6><div class="text-white-75">${selectedVehicle.Marca} ${selectedVehicle.Modello}</div><div class="small text-success"><i class="fas fa-users me-1"></i>${selectedVehicle.Posti} posti ${selectedVehicle.PassoLungo?' • Passo Lungo':''}</div></div></div></div><div class="col-md-4 text-end"><div class="small text-white-50">Periodo selezionato:</div><div class="text-white">${new Date(selectedDates.dataInizio).toLocaleDateString('it-IT')} ${selectedDates.oraRitiro}</div><div class="text-white">${new Date(selectedDates.dataFine).toLocaleDateString('it-IT')} ${selectedDates.oraRiconsegna}</div></div></div>`;document.getElementById('results-section').classList.add('d-none');document.getElementById('vehicle-selected-section').classList.remove('d-none');const successMsg=isGuestUser?`🚐 Veicolo ${selectedVehicle.Targa} selezionato! Procedi per richiedere il preventivo`:`✅ Veicolo ${selectedVehicle.Targa} selezionato!`;if(window.showToast)showToast(successMsg,'success');}
+    function safeAutoStart(){
+      const url=new URLSearchParams(location.search);
+      const dal=url.get('dal'), al=url.get('al');
+      const guestRaw=localStorage.getItem('imbriani_guest_booking');
+      let guest=null; try{ guest=guestRaw?JSON.parse(guestRaw):null; }catch(_){ }
+      const dataInizio = dal || guest?.dataInizio || new Date().toISOString().slice(0,10);
+      const dataFine   = al  || guest?.dataFine   || new Date(Date.now()+86400000).toISOString().slice(0,10);
+      const oraRitiro = guest?.oraRitiro || '08:00';
+      const oraRiconsegna = guest?.oraRiconsegna || '20:00';
+      const di = document.getElementById('data_inizio');
+      const df = document.getElementById('data_fine');
+      const or = document.getElementById('ora_ritiro');
+      const oc = document.getElementById('ora_riconsegna');
+      if(!di||!df||!or||!oc){ console.info('[AUTO]', 'Inputs non pronti, retry...'); return false; }
+      di.value = dataInizio; df.value = dataFine; or.value = oraRitiro; oc.value = oraRiconsegna;
+      document.getElementById('results-section').classList.remove('d-none');
+      console.info('[AUTO]', 'Invio submit con:', {dataInizio,dataFine,oraRitiro,oraRiconsegna});
+      document.getElementById('availability-form').dispatchEvent(new Event('submit'));
+      return true;
+    }
+
+    document.addEventListener('DOMContentLoaded',()=>{
+      console.info('[BOOT] DOM pronto');
+      // Setup basic UI
+      const urlParams=new URLSearchParams(window.location.search);
+      const isGuestParam=urlParams.get('guest')==='1';
+      const userData=localStorage.getItem('imbriani_user');
+      if(userData&&!isGuestParam){ currentUser=JSON.parse(userData); isGuestUser=false; document.getElementById('logout-btn').classList.remove('d-none'); document.getElementById('header-subtitle').textContent=`Ciao ${currentUser.nome}, scegli il tuo veicolo`; }
+      else { isGuestUser=true; document.getElementById('user-type-badge').classList.remove('d-none'); document.getElementById('header-subtitle').textContent='Seleziona il veicolo per la tua prenotazione'; document.getElementById('next-step-text').innerHTML='<i class="fas fa-phone me-1"></i>Richiedi preventivo'; }
+
+      // Auto start immediato + fallback retry
+      if(!safeAutoStart()) {
+        setTimeout(()=>{ if(!safeAutoStart()) { console.info('[AUTO]', 'Secondo tentativo fallito'); } }, 250);
+      }
+
+      setupUI();
+    });
+
+    function setupUI(){
+      document.getElementById('back-btn')?.addEventListener('click',()=>{ location.href = isGuestUser ? 'index.html' : (currentUser?'area-personale.html':'index.html'); });
+      document.getElementById('logout-btn')?.addEventListener('click',e=>{ e.preventDefault(); localStorage.removeItem('imbriani_user'); localStorage.removeItem('imbriani_session'); localStorage.removeItem('imbriani_guest_booking'); if(window.showToast) showToast('Logout effettuato','info'); setTimeout(()=> location.href='index.html', 600); });
+      document.getElementById('availability-form')?.addEventListener('submit', handleSearchVehicles);
+      document.getElementById('modify-dates')?.addEventListener('click',()=>{ document.getElementById('date-form-section').classList.remove('d-none'); document.getElementById('results-section').classList.add('d-none'); document.getElementById('vehicle-selected-section').classList.add('d-none'); selectedVehicle=null; });
+      document.getElementById('change-vehicle')?.addEventListener('click',()=>{ document.getElementById('vehicle-selected-section').classList.add('d-none'); document.getElementById('results-section').classList.remove('d-none'); selectedVehicle=null; });
+      document.getElementById('proceed-next-step')?.addEventListener('click', proceedToNextStep);
+    }
+
+    async function handleSearchVehicles(e){
+      e?.preventDefault?.();
+      const dataInizio=document.getElementById('data_inizio').value;
+      const dataFine=document.getElementById('data_fine').value;
+      const oraRitiro=document.getElementById('ora_ritiro').value;
+      const oraRiconsegna=document.getElementById('ora_riconsegna').value;
+      console.info('[SEARCH] Parametri', {dataInizio,dataFine,oraRitiro,oraRiconsegna});
+      if(!dataInizio||!dataFine||!oraRitiro||!oraRiconsegna){ console.warn('[SEARCH] Campi mancanti'); return; }
+      selectedDates={dataInizio,dataFine,oraRitiro,oraRiconsegna};
+      try { await fetch(`${CONFIG.API_URL}?action=updateStatiLive&token=${encodeURIComponent(CONFIG.TOKEN)}`); } catch(_){ }
+      try { await searchAvailableVehicles(); } catch(err) { console.error('[SEARCH] Errore', err); }
+    }
+
+    function toDate(d){ return new Date(d+'T00:00:00'); }
+    function hasDateOverlap(a,b,c,d){ return !(b<c || a>d); }
+    function hasDateTimeOverlap(req, pre){
+      const rStart = toDate(req.dataInizio), rEnd = toDate(req.dataFine);
+      const pStart = new Date(pre.giornoInizio), pEnd = new Date(pre.giornoFine);
+      if(!hasDateOverlap(rStart,rEnd,pStart,pEnd)) return false;
+      return true; // semplificato: il filtro fine resta idem
+    }
+    function hasMaintenanceOverlap(req, man){
+      const stato=(man.stato||'').toLowerCase();
+      if(!(stato.includes('programmata')||stato.includes('in corso'))) return false;
+      const rStart=toDate(req.dataInizio), rEnd=toDate(req.dataFine);
+      const mStart=new Date(man.dataInizio), mEnd=new Date(man.dataFine);
+      return hasDateOverlap(rStart,rEnd,mStart,mEnd);
+    }
+
+    async function searchAvailableVehicles(){
+      console.info('[API] Carico veicoli/prenotazioni...');
+      const [vehiclesResponse, prenotazioniResponse] = await Promise.all([
+        api.call({ action:'getVeicoli' }),
+        api.call({ action:'getPrenotazioni' })
+      ]);
+      console.info('[API] Risposte', {vehiclesResponse, prenotazioniResponse});
+      if(!vehiclesResponse.success){ console.warn('[API] getVeicoli fallita'); return; }
+      const allVehicles = vehiclesResponse.data||[];
+      const allPren = (prenotazioniResponse.success?prenotazioniResponse.data:[])||[];
+      let manut = [];
+      try{
+        const url = `${CONFIG.API_URL}?action=getSheet&name=MANUTENZIONI&token=${encodeURIComponent(CONFIG.TOKEN)}`;
+        const resp = await fetch(url).then(r=>r.json());
+        manut = (resp.success?resp.data:[])||[];
+      }catch(_){ }
+      const maintRows = manut.map(r=>({ targa:r.Targa||r.targa||r[0], stato:r.Stato||r.stato||r[4], dataInizio:r['Data Inizio Manutenzione']||r.dataInizio||r[5], dataFine:r['Data Fine Manutenzione']||r.dataFine||r[6], })).filter(m=>m.targa&&m.dataInizio&&m.dataFine);
+      availableVehicles = [];
+      for(const v of allVehicles){
+        if(!v.Disponibile) continue;
+        const prenV = allPren.filter(p=>p.targa===v.Targa && !['Rifiutata','Completata','Da confermare'].includes(p.stato));
+        const manV = maintRows.filter(m=>m.targa===v.Targa);
+        if( manV.some(m=>hasMaintenanceOverlap(selectedDates,m)) ) continue;
+        if( prenV.some(p=>hasDateTimeOverlap(selectedDates,p)) ) continue;
+        availableVehicles.push(v);
+      }
+      console.info('[RENDER] Veicoli disponibili', availableVehicles.length);
+      displayVehicleResults();
+    }
+
+    function displayVehicleResults(){
+      const resultsSection=document.getElementById('results-section');
+      const vehiclesList=document.getElementById('vehicles-list');
+      const noVehicles=document.getElementById('no-vehicles');
+      const searchSummary=document.getElementById('search-summary');
+      document.getElementById('date-form-section').classList.add('d-none');
+      resultsSection.classList.remove('d-none');
+      const f=d=>new Date(d).toLocaleDateString('it-IT');
+      const who=isGuestUser?'Guest':(currentUser?currentUser.nome:'Cliente');
+      searchSummary.innerHTML = `<i class="fas fa-info-circle me-1"></i> ${who} - Ricerca: ${f(selectedDates.dataInizio)} ${selectedDates.oraRitiro} → ${f(selectedDates.dataFine)} ${selectedDates.oraRiconsegna}`;
+      if(availableVehicles.length===0){ vehiclesList.classList.add('d-none'); noVehicles.classList.remove('d-none'); return; }
+      noVehicles.classList.add('d-none'); vehiclesList.classList.remove('d-none');
+      vehiclesList.innerHTML = `<div class="row g-4">${availableVehicles.map(v=>`
+        <div class="col-lg-4 col-md-6">
+          <div class="glass-card vehicle-card p-4 h-100 cursor-pointer" data-targa="${v.Targa}">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <h6 class="fw-bold text-white mb-0">${v.Targa}</h6>
+              ${v.PassoLungo?'<span class="badge badge-passo-lungo">Passo Lungo</span>':''}
+            </div>
+            <div class="mb-2"><span class="text-white fw-semibold">${v.Marca} ${v.Modello}</span></div>
+            <div class="mb-3">
+              <span class="badge bg-success"><i class="fas fa-users me-1"></i>${v.Posti} posti</span>
+              <span class="badge bg-info ms-1"><i class="fas fa-check-circle me-1"></i>Disponibile</span>
+            </div>
+            ${v.Note?`<div class="small text-white-50 mb-3">${v.Note}</div>`:''}
+            <button type="button" class="btn btn-premium w-100" onclick="selectVehicle('${v.Targa}')"><i class="fas fa-hand-pointer me-2"></i>Seleziona questo veicolo</button>
+          </div>
+        </div>`).join('')}</div>`;
+    }
+
+    function proceedToNextStep(){ if(!selectedVehicle||!selectedDates){ if(window.showToast) showToast('Errore: dati selezione mancanti','error'); return; } localStorage.setItem('imbriani_selected_vehicle',JSON.stringify(selectedVehicle)); localStorage.setItem('imbriani_selected_dates',JSON.stringify(selectedDates)); if(isGuestUser){ localStorage.setItem('imbriani_guest_booking',JSON.stringify({...selectedDates,vehicle:selectedVehicle,isGuest:true})); if(window.showToast) showToast('📞 Reindirizzamento a richiesta preventivo...','info'); setTimeout(()=>{ location.href='richiesta-preventivo.html?guest=1'; },1000); } else { localStorage.setItem('imbriani_user',JSON.stringify(currentUser)); if(window.showToast) showToast('📄 Vai al completamento prenotazione...','info'); setTimeout(()=>{ location.href='dati-autisti.html'; },1000); } }
+    function selectVehicle(targa){ selectedVehicle = availableVehicles.find(v=>v.Targa===targa); if(!selectedVehicle) return; const box=document.getElementById('selected-vehicle-info'); box.innerHTML = `<div class="row align-items-center"><div class="col-md-8"><div class="d-flex align-items-center gap-3"><div class="bg-success p-3 rounded-3"><i class="fas fa-car text-white" style="font-size:1.5rem"></i></div><div><h6 class="text-white fw-bold mb-1">${selectedVehicle.Targa}</h6><div class="text-white-75">${selectedVehicle.Marca} ${selectedVehicle.Modello}</div><div class="small text-success"><i class="fas fa-users me-1"></i>${selectedVehicle.Posti} posti ${selectedVehicle.PassoLungo?' • Passo Lungo':''}</div></div></div></div><div class="col-md-4 text-end"><div class="small text-white-50">Periodo selezionato:</div><div class="text-white">${new Date(selectedDates.dataInizio).toLocaleDateString('it-IT')} ${selectedDates.oraRitiro}</div><div class="text-white">${new Date(selectedDates.dataFine).toLocaleDateString('it-IT')} ${selectedDates.oraRiconsegna}</div></div></div>`; document.getElementById('results-section').classList.add('d-none'); document.getElementById('vehicle-selected-section').classList.remove('d-none'); if(window.showToast) showToast(`🚐 Veicolo ${selectedVehicle.Targa} selezionato!`, 'success'); }
   </script>
 </body>
 </html>
