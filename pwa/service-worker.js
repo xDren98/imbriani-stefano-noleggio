@@ -5,11 +5,11 @@
 
 const CACHE_NAME = 'imbriani-pwa-v1';
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/styles.css',
-  '/pwa/manifest.json',
-  '/pwa/push-notifications.js'
+  './',
+  './index.html',
+  './styles.css',
+  'pwa/manifest.json',
+  'pwa/push-notifications.js'
 ];
 
 // Install event - cache assets
@@ -68,7 +68,7 @@ self.addEventListener('fetch', (event) => {
           })
           .catch(() => {
             // Offline fallback
-            return caches.match('/index.html');
+            return caches.match('./index.html');
           });
       })
   );
@@ -81,8 +81,8 @@ self.addEventListener('push', (event) => {
   let notificationData = {
     title: 'Imbriani Noleggio',
     body: 'Hai un nuovo aggiornamento',
-    icon: '/pwa/icons/icon-192x192.png',
-    badge: '/pwa/icons/icon-192x192.png',
+    icon: 'icons/android-icon-192x192.png',
+    badge: 'icons/android-icon-192x192.png',
     vibrate: [200, 100, 200],
     tag: 'imbriani-notification',
     requireInteraction: false
@@ -124,13 +124,13 @@ self.addEventListener('notificationclick', (event) => {
         // Check if app is already open
         for (let i = 0; i < clientList.length; i++) {
           const client = clientList[i];
-          if (client.url === '/' && 'focus' in client) {
+          if (client.url.endsWith('./') && 'focus' in client) {
             return client.focus();
           }
         }
         // Open new window if not open
         if (clients.openWindow) {
-          const urlToOpen = event.notification.data?.url || '/';
+          const urlToOpen = event.notification.data?.url || './';
           return clients.openWindow(urlToOpen);
         }
       })
