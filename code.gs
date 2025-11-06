@@ -1,5 +1,8 @@
 /**
- * IMBRIANI STEFANO NOLEGGIO - BACKEND v8.6 * - Email cliente inviate con mittente forzato: imbrianistefanonoleggio@gmail.com
+ * IMBRIANI STEFANO NOLEGGIO - BACKEND v8.7
+ * - FEAT: Funzione aggiornaStatoPrenotazione con email automatica
+ * - FEAT: Log avanzati per debug admin panel
+ * - Email cliente inviate con mittente forzato: imbrianistefanonoleggio@gmail.com
  * - Nessun reply-to
  * - Nessun riferimento a preventivi/importi nelle email al cliente
  * - Endpoint testEmail e trigger giornaliero reminder
@@ -7,10 +10,11 @@
  * - FEAT: ID prenotazioni dinamico formato BOOK-ANNO-xxx
  * - FEAT: Census prenotazioni esistenti con assegnazione ID mancanti
  * - FIX v8.6: Disponibilita veicoli basata su date manutenzione, non solo stato
+ * - FIX v8.7: Aggiunta funzione aggiornaStatoPrenotazione per admin panel
  */
 
 const CONFIG = {
-  VERSION: '8.6',
+  VERSION: '8.7',
   SPREADSHEET_ID: '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns',
   TOKEN: 'imbriani_secret_2025',
   SHEETS: { PRENOTAZIONI: 'PRENOTAZIONI', PULMINI: 'PULMINI', CLIENTI: 'CLIENTI', MANUTENZIONI: 'MANUTENZIONI' },
@@ -106,13 +110,14 @@ function versionInfo(){
       'stato_default_in_attesa','notifica_telegram_admin','endpoint_notifyTest','health_getVeicoli_getPrenotazioni',
       'checkDisponibilita_updateStatiLive','getSheet_handleLogin_creaPrenotazione','aggiornaCliente_sincronizzaClienti',
       'email_mittente_gmail_forzato','email_conferma_cliente','email_conferma_stato','email_reminder_3giorni','trigger_giornaliero',
-      'auth_header_body_fallback','booking_id_dinamico_anno','census_prenotazioni_esistenti'
+      'auth_header_body_fallback','booking_id_dinamico_anno','census_prenotazioni_esistenti','aggiornaStatoPrenotazione'
     ],
     time: new Date().toISOString()
   };
 }
 
 function doGet(e){
+  Logger.log('[doGet] Chiamata ricevuta: ' + JSON.stringify(e.parameter));
   var p=(e&&e.parameter)?e.parameter:{}; 
   var action=p.action||'health';
   try{
@@ -123,8 +128,12 @@ function doGet(e){
 
     // Token da header/query/body
     var token = getAuthHeader(e);
-    if (!validateToken(token)) return createJsonResponse({success:false,message:'Token non valido',code:401},401);
+    if (!validateToken(token)) {
+      Logger.log('[doGet] Token non valido');
+      return createJsonResponse({success:false,message:'Token non valido',code:401},401);
+    }
 
+    Logger.log('[doGet] Action: ' + action);
     switch(action){
       case 'getVeicoli': return getVeicoli();
       case 'getPrenotazioni': return getPrenotazioni();
@@ -157,23 +166,30 @@ function doGet(e){
       default: return createJsonResponse({success:false,message:'Azione non supportata: '+action},400);
     }
   }catch(err){
+    Logger.log('[doGet] Errore: ' + err.message);
     return createJsonResponse({success:false,message:'Errore server: '+err.message},500);
   }
 }
 
 function doPost(e){
+  Logger.log('[doPost] Chiamata ricevuta');
   try{
     var post={};
     try{ post=JSON.parse(e&&e.postData?(e.postData.contents||'{}'):'{}'); }
     catch(_){ return createJsonResponse({success:false,message:'Invalid JSON in request body'},400); }
 
+    Logger.log('[doPost] Payload: ' + JSON.stringify(post));
     var action=post.action||'login';
     // Token da header/body/query centralizzato
     var finalToken = getAuthHeader(e);
 
     if (action==='login') return handleLogin(post, finalToken);
-    if (!validateToken(finalToken)) return createJsonResponse({success:false,message:'Token non valido',code:401},401);
+    if (!validateToken(finalToken)) {
+      Logger.log('[doPost] Token non valido');
+      return createJsonResponse({success:false,message:'Token non valido',code:401},401);
+    }
 
+    Logger.log('[doPost] Action: ' + action);
     switch(action){
       case 'getPrenotazioni': return getPrenotazioni();
       case 'getVeicoli': return getVeicoli();
@@ -187,7 +203,98 @@ function doPost(e){
       default: return createJsonResponse({success:false,message:'Azione POST non supportata: '+action},400);
     }
   }catch(err){
+    Logger.log('[doPost] Errore: ' + err.message);
     return createJsonResponse({success:false,message:'Errore POST: '+err.message},500);
+  }
+}
+
+/**
+ * Aggiorna lo stato di una prenotazione esistente
+ * POST: {action: 'aggiornaStato', idPrenotazione: 'BOOK-2025-001', nuovoStato: 'Confermata', importo: 500}
+ */
+function aggiornaStatoPrenotazione(post){
+  Logger.log('[aggiornaStatoPrenotazione] Input: ' + JSON.stringify(post));
+  try{
+    var idPrenotazione = post.idPrenotazione;
+    var nuovoStato = post.nuovoStato;
+    var importo = post.importo;
+    
+    if (!idPrenotazione || !nuovoStato) {
+      Logger.log('[aggiornaStatoPrenotazione] Parametri mancanti');
+      return createJsonResponse({success:false, message:'ID prenotazione e nuovo stato richiesti'}, 400);
+    }
+    
+    var sh = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    var data = sh.getDataRange().getValues();
+    var rowIndex = -1;
+    
+    // Trova la riga con questo ID
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1]) === String(idPrenotazione)) {
+        rowIndex = i + 1;
+        Logger.log('[aggiornaStatoPrenotazione] Prenotazione trovata alla riga: ' + rowIndex);
+        break;
+      }
+    }
+    
+    if (rowIndex === -1) {
+      Logger.log('[aggiornaStatoPrenotazione] Prenotazione non trovata con ID: ' + idPrenotazione);
+      return createJsonResponse({success:false, message:'Prenotazione non trovata con ID: ' + idPrenotazione}, 404);
+    }
+    
+    // Aggiorna lo stato
+    sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE).setValue(nuovoStato);
+    Logger.log('[aggiornaStatoPrenotazione] Stato aggiornato a: ' + nuovoStato);
+    
+    // Se c'è un importo e stato è Confermata, aggiorna anche l'importo
+    if (importo && nuovoStato === 'Confermata') {
+      sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.IMPORTO_PREVENTIVO).setValue(importo);
+      Logger.log('[aggiornaStatoPrenotazione] Importo aggiornato a: ' + importo);
+    }
+    
+    // Invia email se stato è Confermata
+    if (nuovoStato === 'Confermata') {
+      var row = data[rowIndex - 1];
+      var email = row[CONFIG.PRENOTAZIONI_COLS.EMAIL - 1];
+      
+      if (email) {
+        Logger.log('[aggiornaStatoPrenotazione] Invio email conferma a: ' + email);
+        var prenotazione = {
+          idPrenotazione: idPrenotazione,
+          targa: row[CONFIG.PRENOTAZIONI_COLS.TARGA - 1],
+          giornoInizio: row[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO - 1],
+          giornoFine: row[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE - 1],
+          oraInizio: row[CONFIG.PRENOTAZIONI_COLS.ORA_INIZIO - 1],
+          oraFine: row[CONFIG.PRENOTAZIONI_COLS.ORA_FINE - 1],
+          destinazione: row[CONFIG.PRENOTAZIONI_COLS.DESTINAZIONE - 1],
+          email: email,
+          autista1: {
+            nomeCompleto: row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1 - 1]
+          }
+        };
+        
+        try {
+          inviaEmailConfermaPreventivo(prenotazione);
+          Logger.log('[aggiornaStatoPrenotazione] Email conferma inviata con successo');
+        } catch(e) {
+          Logger.log('[aggiornaStatoPrenotazione] Errore invio email conferma: ' + e.message);
+        }
+      } else {
+        Logger.log('[aggiornaStatoPrenotazione] Nessuna email trovata per questa prenotazione');
+      }
+    }
+    
+    Logger.log('[aggiornaStatoPrenotazione] Operazione completata con successo');
+    return createJsonResponse({
+      success: true, 
+      message: 'Stato aggiornato con successo',
+      nuovoStato: nuovoStato,
+      idPrenotazione: idPrenotazione
+    });
+    
+  } catch(err) {
+    Logger.log('[aggiornaStatoPrenotazione] Errore: ' + err.message);
+    return createJsonResponse({success:false, message:'Errore aggiornamento stato: ' + err.message}, 500);
   }
 }
 
@@ -282,11 +389,18 @@ function getVeicoli(){
 }
 
 function getPrenotazioni(){
+  Logger.log('[getPrenotazioni] Chiamata ricevuta');
   try{
     var sh=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName('PRENOTAZIONI');
-    if (!sh) return createJsonResponse({success:false,message:'Foglio PRENOTAZIONI non trovato'},500);
+    if (!sh) {
+      Logger.log('[getPrenotazioni] Foglio PRENOTAZIONI non trovato');
+      return createJsonResponse({success:false,message:'Foglio PRENOTAZIONI non trovato'},500);
+    }
     var data=sh.getDataRange().getValues();
-    if (data.length<=1) return createJsonResponse({success:true,message:'Nessuna prenotazione trovata',data:[]});
+    if (data.length<=1) {
+      Logger.log('[getPrenotazioni] Nessuna prenotazione trovata');
+      return createJsonResponse({success:true,message:'Nessuna prenotazione trovata',data:[]});
+    }
     var out=[];
     for (var i=1;i<data.length;i++){
       var r=data[i]; var t=r[CONFIG.PRENOTAZIONI_COLS.TARGA-1]; var cf=r[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_1-1];
@@ -313,8 +427,10 @@ function getPrenotazioni(){
         timestamp:r[CONFIG.PRENOTAZIONI_COLS.TIMESTAMP-1]||''
       });
     }
+    Logger.log('[getPrenotazioni] Trovate ' + out.length + ' prenotazioni');
     return createJsonResponse({success:true,message:'Trovate '+out.length+' prenotazioni',data:out,count:out.length});
   }catch(err){
+    Logger.log('[getPrenotazioni] Errore: ' + err.message);
     return createJsonResponse({success:false,message:'Errore caricamento prenotazioni: '+err.message},500);
   }
 }
