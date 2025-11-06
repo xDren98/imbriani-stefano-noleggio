@@ -29,7 +29,7 @@
             <i class="fas fa-car me-2"></i>
             Selezione Veicoli
           </h1>
-          <p class="text-white-50 mb-0" id="header-subtitle">Scegli date e orari per vedere i veicoli disponibili</p>
+          <p class="text-white-50 mb-0" id="header-subtitle">Scegli il veicolo per la tua prenotazione</p>
         </div>
         <div class="d-flex gap-2">
           <span id="user-type-badge" class="badge guest-badge d-none">
@@ -48,7 +48,7 @@
 
   <main class="flex-grow-1 py-4">
     <div class="container">
-      <div class="glass-card p-4 mb-4" id="date-form-section">
+      <div class="glass-card p-4 mb-4 d-none" id="date-form-section">
         <h5 class="fw-bold text-white mb-3">
           <i class="fas fa-calendar-alt me-2"></i>Quando hai bisogno del veicolo?
         </h5>
@@ -160,70 +160,51 @@
     let selectedDates = null;
     let selectedVehicle = null;
     let availableVehicles = [];
-    let hasUrlParams = false;
 
     document.addEventListener('DOMContentLoaded', async () => {
-      // Determina se è guest o logged user
       const urlParams = new URLSearchParams(window.location.search);
       const isGuestParam = urlParams.get('guest') === '1';
       const userData = localStorage.getItem('imbriani_user');
-      
-      // Controlla se ha parametri URL per il redirect diretto
-      const dal = urlParams.get('dal');
-      const al = urlParams.get('al');
-      hasUrlParams = !!(dal && al);
-      
-      // Se ha parametri URL, nascondi il form inizialmente per evitare il flash
-      if (hasUrlParams) {
-        document.getElementById('date-form-section').style.display = 'none';
-      }
-      
+
       if (userData && !isGuestParam) {
-        // User loggato
         currentUser = JSON.parse(userData);
         isGuestUser = false;
         document.getElementById('logout-btn').classList.remove('d-none');
         document.getElementById('header-subtitle').textContent = `Ciao ${currentUser.nome}, scegli il tuo veicolo`;
       } else {
-        // Guest user
         isGuestUser = true;
         document.getElementById('user-type-badge').classList.remove('d-none');
         document.getElementById('header-subtitle').textContent = 'Seleziona il veicolo per la tua prenotazione';
         document.getElementById('next-step-text').innerHTML = '<i class="fas fa-phone me-1"></i>Richiedi preventivo';
       }
 
-      // Carica dati da URL params o localStorage
-      const guestData = localStorage.getItem('imbriani_guest_booking');
-      
-      if (hasUrlParams) {
-        document.getElementById('data_inizio').value = dal;
-        document.getElementById('data_fine').value = al;
-        
-        // Se ci sono anche orari in localStorage, usali
-        if (guestData) {
-          const guest = JSON.parse(guestData);
-          if (guest.oraRitiro) document.getElementById('ora_ritiro').value = guest.oraRitiro;
-          if (guest.oraRiconsegna) document.getElementById('ora_riconsegna').value = guest.oraRiconsegna;
-        }
-        
-        // Auto-search IMMEDIATO senza delay per evitare il flash
-        document.getElementById('availability-form').dispatchEvent(new Event('submit'));
-      } else {
-        // Se non ha parametri, mostra il form normalmente
-        document.getElementById('date-form-section').style.display = 'block';
-      }
+      // Recupera dati da URL o localStorage, con fallback sicuro
+      const dal = urlParams.get('dal');
+      const al = urlParams.get('al');
+      const guestDataRaw = localStorage.getItem('imbriani_guest_booking');
+      let guestData = null;
+      try { guestData = guestDataRaw ? JSON.parse(guestDataRaw) : null; } catch(_) {}
 
-      setupUI();
+      const dataInizio = dal || guestData?.dataInizio || new Date().toISOString().slice(0,10);
+      const dataFine   = al  || guestData?.dataFine   || new Date(Date.now()+24*60*60*1000).toISOString().slice(0,10);
+      const oraRitiro = guestData?.oraRitiro || '08:00';
+      const oraRiconsegna = guestData?.oraRiconsegna || '20:00';
+
+      // Popola (anche se il form è nascosto)
+      document.getElementById('data_inizio').value = dataInizio;
+      document.getElementById('data_fine').value = dataFine;
+      document.getElementById('ora_ritiro').value = oraRitiro;
+      document.getElementById('ora_riconsegna').value = oraRiconsegna;
+
+      // Avvia subito ricerca e mostra il contenitore risultati
+      document.getElementById('results-section').classList.remove('d-none');
+      await handleSearchVehicles(new Event('submit'));
     });
 
     function setupUI() {
-      // Back button intelligente
       document.getElementById('back-btn')?.addEventListener('click', () => {
-        if (isGuestUser) {
-          window.location.href = 'index.html';
-        } else {
-          window.location.href = currentUser ? 'area-personale.html' : 'index.html';
-        }
+        if (isGuestUser) { window.location.href = 'index.html'; }
+        else { window.location.href = currentUser ? 'area-personale.html' : 'index.html'; }
       });
 
       document.getElementById('logout-btn')?.addEventListener('click', (e) => {
@@ -238,7 +219,6 @@
       document.getElementById('availability-form')?.addEventListener('submit', handleSearchVehicles);
       document.getElementById('modify-dates')?.addEventListener('click', () => {
         document.getElementById('date-form-section').classList.remove('d-none');
-        document.getElementById('date-form-section').style.display = 'block';
         document.getElementById('results-section').classList.add('d-none');
         document.getElementById('vehicle-selected-section').classList.add('d-none');
         selectedVehicle = null;
@@ -251,54 +231,18 @@
       });
 
       document.getElementById('proceed-next-step')?.addEventListener('click', proceedToNextStep);
-
-      const today = new Date().toISOString().split('T')[0];
-      document.getElementById('data_inizio').min = today;
-      document.getElementById('data_fine').min = today;
-    }
-
-    function proceedToNextStep() {
-      if (!selectedVehicle || !selectedDates) {
-        if (window.showToast) showToast('Errore: dati selezione mancanti', 'error');
-        return;
-      }
-
-      // Salva i dati per la prossima pagina
-      localStorage.setItem('imbriani_selected_vehicle', JSON.stringify(selectedVehicle));
-      localStorage.setItem('imbriani_selected_dates', JSON.stringify(selectedDates));
-      
-      if (isGuestUser) {
-        // Guest: vai alla richiesta preventivo con WhatsApp
-        localStorage.setItem('imbriani_guest_booking', JSON.stringify({
-          ...selectedDates,
-          vehicle: selectedVehicle,
-          isGuest: true
-        }));
-        
-        if (window.showToast) showToast('📞 Reindirizzamento a richiesta preventivo...', 'info');
-        setTimeout(() => {
-          window.location.href = 'richiesta-preventivo.html?guest=1';
-        }, 1000);
-      } else {
-        // User loggato: vai al form dati precompilato 
-        localStorage.setItem('imbriani_user', JSON.stringify(currentUser));
-        
-        if (window.showToast) showToast('📄 Vai al completamento prenotazione...', 'info');
-        setTimeout(() => {
-          window.location.href = 'dati-autisti.html';
-        }, 1000);
-      }
     }
 
     async function handleSearchVehicles(e) {
-      e.preventDefault();
+      e?.preventDefault?.();
       const dataInizio = document.getElementById('data_inizio').value;
       const dataFine = document.getElementById('data_fine').value;
       const oraRitiro = document.getElementById('ora_ritiro').value;
       const oraRiconsegna = document.getElementById('ora_riconsegna').value;
 
+      // Validazione robusta con default già impostati
       if (!dataInizio || !dataFine || !oraRitiro || !oraRiconsegna) {
-        if (window.showToast) showToast('Compila tutti i campi richiesti', 'error');
+        if (window.showToast) showToast('Compila tutti i campi data/ora', 'error');
         return;
       }
       if (new Date(dataFine) < new Date(dataInizio)) {
@@ -312,29 +256,27 @@
 
       selectedDates = { dataInizio, dataFine, oraRitiro, oraRiconsegna };
 
-      // Aggiorna stati live prima della ricerca
-      try {
-        const upd = await fetch(`${CONFIG.API_URL}?action=updateStatiLive&token=${encodeURIComponent(CONFIG.TOKEN)}`).then(r=>r.json());
-        console.log('updateStatiLive:', upd);
-      } catch (err) {
-        console.warn('updateStatiLive non disponibile, continuo');
-      }
+      // Aggiorna stati live prima della ricerca (best-effort)
+      try { await fetch(`${CONFIG.API_URL}?action=updateStatiLive&token=${encodeURIComponent(CONFIG.TOKEN)}`); } catch (_) {}
 
       const searchBtn = document.querySelector('#availability-form button[type="submit"]');
       const searchSpinner = document.getElementById('search-spinner');
       const searchBtnText = document.getElementById('search-btn-text');
-      searchBtn.disabled = true; searchSpinner.classList.remove('d-none'); searchBtnText.textContent = 'Ricerca in corso...';
+      if (searchBtn) { searchBtn.disabled = true; }
+      if (searchSpinner) { searchSpinner.classList.remove('d-none'); }
+      if (searchBtnText) { searchBtnText.textContent = 'Ricerca in corso...'; }
 
       try { await searchAvailableVehicles(); }
-      catch (error) { console.error('Errore ricerca veicoli:', error); if (window.showToast) showToast('Errore durante la ricerca veicoli', 'error'); }
-      finally { searchBtn.disabled = false; searchSpinner.classList.add('d-none'); searchBtnText.textContent = 'Cerca veicoli disponibili'; }
+      finally {
+        if (searchBtn) { searchBtn.disabled = false; }
+        if (searchSpinner) { searchSpinner.classList.add('d-none'); }
+        if (searchBtnText) { searchBtnText.textContent = 'Cerca veicoli disponibili'; }
+      }
     }
 
     function toDate(d){ return new Date(d + 'T00:00:00'); }
 
-    function hasDateOverlap(reqStart, reqEnd, blkStart, blkEnd){
-      return !(reqEnd < blkStart || reqStart > blkEnd);
-    }
+    function hasDateOverlap(reqStart, reqEnd, blkStart, blkEnd){ return !(reqEnd < blkStart || reqStart > blkEnd); }
 
     function hasDateTimeOverlap(req, pre){
       const rStart = toDate(req.dataInizio);
@@ -350,7 +292,7 @@
       const reqEndH = toHour(req.oraRiconsegna);
       const preStartH = toHour(pre.oraInizio||'08:00');
       let preEndH = toHour(pre.oraFine||'20:00');
-      preEndH = Math.min(22, preEndH + 2); // buffer +2h
+      preEndH = Math.min(22, preEndH + 2);
 
       if (sameStartDay && reqStartH < preEndH) return true;
       if (sameEndDay && reqEndH > preStartH) return true;
@@ -358,10 +300,8 @@
     }
 
     function hasMaintenanceOverlap(req, man){
-      // Filtra solo stati richiesti: Programmata o In corso
       const stato = (man.stato || '').toLowerCase();
       if (!(stato.includes('programmata') || stato.includes('in corso'))) return false;
-
       const rStart = toDate(req.dataInizio);
       const rEnd = toDate(req.dataFine);
       const mStart = new Date(man.dataInizio);
@@ -379,13 +319,12 @@
         const allVehicles = vehiclesResponse.data || [];
         const allPren = (prenotazioniResponse.success ? prenotazioniResponse.data : []) || [];
 
-        // Carica manutenzioni dal foglio via API generica
         let manut = [];
         try {
           const url = `${CONFIG.API_URL}?action=getSheet&name=MANUTENZIONI&token=${encodeURIComponent(CONFIG.TOKEN)}`;
           const resp = await fetch(url).then(r => r.json());
           manut = (resp.success ? resp.data : []) || [];
-        } catch(err) { console.warn('MANUTENZIONI non disponibili via API generica'); }
+        } catch(_) {}
 
         const maintRows = manut.map(r => ({
           targa: r.Targa || r.targa || r[0],
@@ -397,19 +336,12 @@
         availableVehicles = [];
         for (const v of allVehicles){
           if (!v.Disponibile) continue;
-
           const prenV = allPren.filter(p => p.targa === v.Targa && !['Rifiutata','Completata','Da confermare'].includes(p.stato));
           const manV = maintRows.filter(m => m.targa === v.Targa);
-
           const manOverlap = manV.some(m => hasMaintenanceOverlap(selectedDates, m));
-          if (manOverlap) {
-            console.log(`🔧 ${v.Targa}: Escluso per manutenzione`);
-            continue;
-          }
-
+          if (manOverlap) continue;
           const preOverlap = prenV.some(p => hasDateTimeOverlap(selectedDates, p));
           if (preOverlap) continue;
-
           availableVehicles.push(v);
         }
 
@@ -426,64 +358,32 @@
       const noVehicles = document.getElementById('no-vehicles');
       const searchSummary = document.getElementById('search-summary');
 
-      // Nascondi il form date e mostra i risultati
       document.getElementById('date-form-section').classList.add('d-none');
       resultsSection.classList.remove('d-none');
 
       const formatDate = (d) => new Date(d).toLocaleDateString('it-IT');
       const userTypeText = isGuestUser ? 'Guest' : (currentUser ? currentUser.nome : 'Cliente');
-      searchSummary.innerHTML = `<i class="fas fa-info-circle me-1"></i> ${userTypeText} - Ricerca: ${formatDate(selectedDates.dataInizio)} ${selectedDates.oraRitiro} → ${formatDate(selectedDates.dataFine)} ${selectedDates.oraRiconsegna}`;
+      searchSummary.innerHTML = `<i class=\"fas fa-info-circle me-1\"></i> ${userTypeText} - Ricerca: ${formatDate(selectedDates.dataInizio)} ${selectedDates.oraRitiro} → ${formatDate(selectedDates.dataFine)} ${selectedDates.oraRiconsegna}`;
 
       if (availableVehicles.length === 0){ vehiclesList.classList.add('d-none'); noVehicles.classList.remove('d-none'); return; }
 
       noVehicles.classList.add('d-none'); vehiclesList.classList.remove('d-none');
-      vehiclesList.innerHTML = `<div class="row g-4">${availableVehicles.map(vehicle => `
-        <div class="col-lg-4 col-md-6">
-          <div class="glass-card vehicle-card p-4 h-100 cursor-pointer" data-targa="${vehicle.Targa}">
-            <div class="d-flex align-items-center justify-content-between mb-3">
-              <h6 class="fw-bold text-white mb-0">${vehicle.Targa}</h6>
-              ${vehicle.PassoLungo ? '<span class="badge badge-passo-lungo">Passo Lungo</span>' : ''}
+      vehiclesList.innerHTML = `<div class=\"row g-4\">${availableVehicles.map(vehicle => `
+        <div class=\"col-lg-4 col-md-6\">
+          <div class=\"glass-card vehicle-card p-4 h-100 cursor-pointer\" data-targa=\"${vehicle.Targa}\">
+            <div class=\"d-flex align-items-center justify-content-between mb-3\">
+              <h6 class=\"fw-bold text-white mb-0\">${vehicle.Targa}</h6>
+              ${vehicle.PassoLungo ? '<span class=\"badge badge-passo-lungo\">Passo Lungo</span>' : ''}
             </div>
-            <div class="mb-2"><span class="text-white fw-semibold">${vehicle.Marca} ${vehicle.Modello}</span></div>
-            <div class="mb-3">
-              <span class="badge bg-success"><i class="fas fa-users me-1"></i>${vehicle.Posti} posti</span>
-              <span class="badge bg-info ms-1"><i class="fas fa-check-circle me-1"></i>Disponibile</span>
+            <div class=\"mb-2\"><span class=\"text-white fw-semibold\">${vehicle.Marca} ${vehicle.Modello}</span></div>
+            <div class=\"mb-3\">
+              <span class=\"badge bg-success\"><i class=\"fas fa-users me-1\"></i>${vehicle.Posti} posti</span>
+              <span class=\"badge bg-info ms-1\"><i class=\"fas fa-check-circle me-1\"></i>Disponibile</span>
             </div>
-            ${vehicle.Note ? `<div class="small text-white-50 mb-3">${vehicle.Note}</div>` : ''}
-            <button type="button" class="btn btn-premium w-100" onclick="selectVehicle('${vehicle.Targa}')"><i class="fas fa-hand-pointer me-2"></i>Seleziona questo veicolo</button>
+            ${vehicle.Note ? `<div class=\"small text-white-50 mb-3\">${vehicle.Note}</div>` : ''}
+            <button type=\"button\" class=\"btn btn-premium w-100\" onclick=\"selectVehicle('${vehicle.Targa}')\"><i class=\"fas fa-hand-pointer me-2\"></i>Seleziona questo veicolo</button>
           </div>
         </div>`).join('')}</div>`;
-    }
-
-    function selectVehicle(targa){
-      selectedVehicle = availableVehicles.find(v => v.Targa === targa);
-      if (!selectedVehicle) return;
-      const selectedInfo = document.getElementById('selected-vehicle-info');
-      selectedInfo.innerHTML = `
-        <div class="row align-items-center">
-          <div class="col-md-8">
-            <div class="d-flex align-items-center gap-3">
-              <div class="bg-success p-3 rounded-3"><i class="fas fa-car text-white" style="font-size:1.5rem"></i></div>
-              <div>
-                <h6 class="text-white fw-bold mb-1">${selectedVehicle.Targa}</h6>
-                <div class="text-white-75">${selectedVehicle.Marca} ${selectedVehicle.Modello}</div>
-                <div class="small text-success"><i class="fas fa-users me-1"></i>${selectedVehicle.Posti} posti ${selectedVehicle.PassoLungo ? ' • Passo Lungo' : ''}</div>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4 text-end">
-            <div class="small text-white-50">Periodo selezionato:</div>
-            <div class="text-white">${new Date(selectedDates.dataInizio).toLocaleDateString('it-IT')} ${selectedDates.oraRitiro}</div>
-            <div class="text-white">${new Date(selectedDates.dataFine).toLocaleDateString('it-IT')} ${selectedDates.oraRiconsegna}</div>
-          </div>
-        </div>`;
-      document.getElementById('results-section').classList.add('d-none');
-      document.getElementById('vehicle-selected-section').classList.remove('d-none');
-      
-      const successMsg = isGuestUser 
-        ? `🚐 Veicolo ${selectedVehicle.Targa} selezionato! Procedi per richiedere il preventivo` 
-        : `✅ Veicolo ${selectedVehicle.Targa} selezionato!`;
-      if (window.showToast) showToast(successMsg, 'success');
     }
   </script>
 </body>
