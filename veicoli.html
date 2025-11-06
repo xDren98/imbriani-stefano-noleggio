@@ -55,11 +55,15 @@
         <form id="availability-form" class="row g-3">
           <div class="col-md-6">
             <label class="form-label">Data inizio</label>
-            <input type="date" class="form-control form-control-modern" id="data_inizio" required>
+            <div class="input-with-calendar">
+              <input type="date" class="form-control form-control-modern" id="data_inizio" required>
+            </div>
           </div>
           <div class="col-md-6">
             <label class="form-label">Data fine</label>
-            <input type="date" class="form-control form-control-modern" id="data_fine" required>
+            <div class="input-with-calendar">
+              <input type="date" class="form-control form-control-modern" id="data_fine" required>
+            </div>
           </div>
           <div class="col-md-6">
             <label class="form-label">Ora ritiro</label>
@@ -421,18 +425,18 @@
       noVehicles.classList.add('d-none'); vehiclesList.classList.remove('d-none');
       vehiclesList.innerHTML = `<div class="row g-4">${availableVehicles.map(vehicle => `
         <div class="col-lg-4 col-md-6">
-          <div class="glass-card vehicle-card p-4 h-100 cursor-pointer" data-targa="${vehicle.Targa}">
+          <div class="glass-card vehicle-card p-4 h-100 cursor-pointer" data-targa="${'${vehicle.Targa}'}">
             <div class="d-flex align-items-center justify-content-between mb-3">
-              <h6 class="fw-bold text-white mb-0">${vehicle.Targa}</h6>
-              ${vehicle.PassoLungo ? '<span class="badge badge-passo-lungo">Passo Lungo</span>' : ''}
+              <h6 class="fw-bold text-white mb-0">${'${vehicle.Targa}'}</h6>
+              ${'${vehicle.PassoLungo ? \'<span class="badge badge-passo-lungo">Passo Lungo</span>\' : \'\'}'}
             </div>
-            <div class="mb-2"><span class="text-white fw-semibold">${vehicle.Marca} ${vehicle.Modello}</span></div>
+            <div class="mb-2"><span class="text-white fw-semibold">${'${vehicle.Marca} ${vehicle.Modello}'}</span></div>
             <div class="mb-3">
-              <span class="badge bg-success"><i class="fas fa-users me-1"></i>${vehicle.Posti} posti</span>
+              <span class="badge bg-success"><i class="fas fa-users me-1"></i>${'${vehicle.Posti}'} posti</span>
               <span class="badge bg-info ms-1"><i class="fas fa-check-circle me-1"></i>Disponibile</span>
             </div>
-            ${vehicle.Note ? `<div class="small text-white-50 mb-3">${vehicle.Note}</div>` : ''}
-            <button type="button" class="btn btn-premium w-100" onclick="selectVehicle('${vehicle.Targa}')"><i class="fas fa-hand-pointer me-2"></i>Seleziona questo veicolo</button>
+            ${'${vehicle.Note ? `<div class="small text-white-50 mb-3">${vehicle.Note}</div>` : ``}'}
+            <button type="button" class="btn btn-premium w-100" onclick="selectVehicle('${'${vehicle.Targa}'}')"><i class="fas fa-hand-pointer me-2"></i>Seleziona questo veicolo</button>
           </div>
         </div>`).join('')}</div>`;
     }
@@ -447,24 +451,24 @@
             <div class="d-flex align-items-center gap-3">
               <div class="bg-success p-3 rounded-3"><i class="fas fa-car text-white" style="font-size:1.5rem"></i></div>
               <div>
-                <h6 class="text-white fw-bold mb-1">${selectedVehicle.Targa}</h6>
-                <div class="text-white-75">${selectedVehicle.Marca} ${selectedVehicle.Modello}</div>
-                <div class="small text-success"><i class="fas fa-users me-1"></i>${selectedVehicle.Posti} posti ${selectedVehicle.PassoLungo ? ' • Passo Lungo' : ''}</div>
+                <h6 class="text-white fw-bold mb-1">${'${selectedVehicle.Targa}'}</h6>
+                <div class="text-white-75">${'${selectedVehicle.Marca} ${selectedVehicle.Modello}'}</div>
+                <div class="small text-success"><i class="fas fa-users me-1"></i>${'${selectedVehicle.Posti}'} posti ${'${selectedVehicle.PassoLungo ? \' • Passo Lungo\' : \'\'}'}</div>
               </div>
             </div>
           </div>
           <div class="col-md-4 text-end">
             <div class="small text-white-50">Periodo selezionato:</div>
-            <div class="text-white">${new Date(selectedDates.dataInizio).toLocaleDateString('it-IT')} ${selectedDates.oraRitiro}</div>
-            <div class="text-white">${new Date(selectedDates.dataFine).toLocaleDateString('it-IT')} ${selectedDates.oraRiconsegna}</div>
+            <div class="text-white">${'${new Date(selectedDates.dataInizio).toLocaleDateString(\'it-IT\')}'} ${'${selectedDates.oraRitiro}'}</div>
+            <div class="text-white">${'${new Date(selectedDates.dataFine).toLocaleDateString(\'it-IT\')}'} ${'${selectedDates.oraRiconsegna}'}</div>
           </div>
         </div>`;
       document.getElementById('results-section').classList.add('d-none');
       document.getElementById('vehicle-selected-section').classList.remove('d-none');
       
       const successMsg = isGuestUser 
-        ? `🚐 Veicolo ${selectedVehicle.Targa} selezionato! Procedi per richiedere il preventivo` 
-        : `✅ Veicolo ${selectedVehicle.Targa} selezionato!`;
+        ? `🚐 Veicolo ${'${selectedVehicle.Targa}'} selezionato! Procedi per richiedere il preventivo` 
+        : `✅ Veicolo ${'${selectedVehicle.Targa}'} selezionato!`;
       if (window.showToast) showToast(successMsg, 'success');
     }
   </script>
