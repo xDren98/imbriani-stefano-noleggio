@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Conferma Prenotazione - Imbriani Stefano Noleggio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { background: #F5F5F5; color: #1F2937; font-family: 'Inter', Arial, sans-serif; margin:0; padding:0; }
+    .container { background: #fff; max-width: 500px; margin: 30px auto; box-shadow: 0 8px 32px rgba(0,0,0,0.09); border-radius: 18px; overflow:hidden; }
+    .header { background: #0066FF; color: #FFF; padding: 24px 0; text-align:center; }
+    .logo { font-size: 1.4em; font-weight: 800; letter-spacing:0.04em; }
+    .badge { background: #FAC214; color: #212121; display:inline-block; padding: 6px 18px; border-radius: 16px; font-weight:600; font-size:1em; margin:16px auto 0; }
+    .main { padding: 28px 28px 4px 28px; }
+    .section-title { font-size:1.16em; font-weight:700; margin-bottom:8px; color:#0066FF;}
+    .card { background: #F9FAFB; border-radius: 16px; padding: 18px 14px; margin: 8px 0 18px 0; box-shadow: 0 2px 12px rgba(0,102,255,0.04);}
+    .card-row { margin:8px 0; }
+    .key { font-weight:500; color:#4F46E5; text-transform:uppercase; letter-spacing:0.03em;}
+    .value { color:#222; font-weight:600; }
+    .steps { list-style:none; padding:0; margin-top:18px; margin-bottom:0;}
+    .steps li { display:flex; align-items:center; font-size:1em; margin-bottom:8px; }
+    .step-dot { width:12px; height:12px; border-radius:50%; background:#0066FF; margin-right:10px; display:inline-block;}
+    .step-ok { background:#10B981; }
+    .footer { background:#F5F5F9; color:#7A869A; font-size:.96em; text-align:center; padding:16px; border-top:1px solid #EFEFEF; }
+    .contacts { margin:5px 0; color:#0066FF; font-weight:500;}
+    @media(max-width:550px) { .container { max-width: 99vw; border-radius:0; } .main { padding:18px 8px 4px 8px; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">Imbriani Stefano Noleggio</div>
+      <div class="badge">Richiesta Prenotazione Ricevuta</div>
+    </div>
+    <div class="main">
+      <div class="section-title">Dettagli della tua richiesta</div>
+      <div class="card">
+        <div class="card-row"><span class="key">ID Prenotazione:</span> <span class="value">{{ID_PRENOTAZIONE}}</span></div>
+        <div class="card-row"><span class="key">Veicolo:</span> <span class="value">{{TARGA}} - {{MODELLO}}</span></div>
+        <div class="card-row"><span class="key">Periodo:</span> <span class="value">{{GIORNO_INIZIO}} → {{GIORNO_FINE}} ({{ORA_INIZIO}} - {{ORA_FINE}})</span></div>
+        <div class="card-row"><span class="key">Destinazione:</span> <span class="value">{{DESTINAZIONE}}</span></div>
+        <div class="card-row"><span class="key">Autista:</span> <span class="value">{{AUTISTA_NOME}}</span></div>
+      </div>
+      <div style="margin:18px 0;">
+        <strong>Prossimi passi:</strong>
+        <ul class="steps">
+          <li><span class="step-dot step-ok"></span>Ricevuto: <b>La richiesta è stata registrata</b></li>
+          <li><span class="step-dot"></span>Approvazione staff (entro 24h)</li>
+          <li><span class="step-dot"></span>Email di conferma</li>
+          <li><span class="step-dot"></span>Promemoria 3 giorni prima della partenza</li>
+          <li><span class="step-dot"></span>Ritiro veicolo e partenza!</li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer">
+      <div>Servizio Clienti: <span class="contacts">328-1234567 - info@imbrianinoleggio.it</span></div>
+      <div>Via Imbriani, 22 &middot; Benevento (BN)</div>
+      <div style="margin-top:7px;">&copy; 2025 Imbriani Stefano Noleggio</div>
+    </div>
+  </div>
+</body>
+</html>
