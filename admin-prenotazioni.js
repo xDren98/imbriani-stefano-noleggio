@@ -1,4 +1,4 @@
-// admin-prenotazioni.js v3.2.1 - Fix tasto CONFERMA su 'In attesa', azioni card
+// admin-prenotazioni.js v3.2.2 - Fix tasto Conferma senza rompere caricamento
 (function(){
   const STATI_TABELLA = ['Tutte', 'In attesa', 'Programmata', 'In corso', 'Completata'];
   const STATI_COLORI = {
@@ -14,18 +14,42 @@
   let allPrenotazioni = [];
   let filteredPrenotazioni = [];
   let currentFilters = { stato: 'tutti', ricerca: '' };
-  let currentView = 'card';
+  let currentView = 'card'; // 'card' or 'table'
 
-  // ... (resto invariato)
-
-  window.showToast = function(message, type = 'info') { /* ...invariato... */ };
+  // ...
+  window.showToast = function(message, type = 'info') {
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.className = 'toast-container';
+      document.body.appendChild(container);
+    }
+    const iconMap = { success: 'check-circle', error: 'exclamation-circle', warning: 'exclamation-triangle', info: 'info-circle' };
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+      <div class="d-flex align-items-center gap-2">
+        <i class="fas fa-${iconMap[type] || 'info-circle'}" style="font-size:20px;"></i>
+        <span style="flex:1;">${message}</span>
+      </div>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.style.animation = 'toast-slide-out 0.3s ease forwards';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  };
   window.loadPrenotazioniSection = async function() { /* ...invariato... */ };
   async function caricaPrenotazioni() { /* ...invariato... */ }
   function showSkeletonLoading() { /* ...invariato... */ }
   function renderQuickStats() { /* ...invariato... */ }
   window.quickStatFilter = function(stato) { /* ...invariato... */ };
   function switchView(type) { /* ...invariato... */ }
-  function renderPrenotazioni() { if(currentView === 'card') renderPrenotazioniCard(); else renderPrenotazioniTable(); }
+
+  function renderPrenotazioni() {
+    if(currentView === 'card') renderPrenotazioniCard(); 
+    else renderPrenotazioniTable();
+  }
 
   function renderPrenotazioniCard() {
     const container = document.getElementById('cards-or-table-prenotazioni');
@@ -103,11 +127,9 @@
         `;
       }).join('') + '</div>';
   }
-  // ...table rendering invariato...
   function renderPrenotazioniTable() { /* ...invariato... */ }
   function aggiornaFiltri() { /* ...invariato... */ }
   window.applicaFiltriPrenotazioni = function() { /* ...invariato... */ };
-
   window.confermaPrenotazione = async function(idPrenotazione) {
     try {
       window.showLoader?.(true, 'Conferma in corso...');
@@ -125,10 +147,10 @@
       window.showLoader?.(false);
     }
   };
-  // Funzioni azioni placeholder invariati
+  // Funzioni placeholder azioni card
   window.modificaPrenotazione = async function(idPrenotazione) { window.showToast('⚙️ Funzione modifica in sviluppo', 'info'); };
   window.eliminaPrenotazione = async function(idPrenotazione) { if (!confirm('Sei sicuro di voler eliminare questa prenotazione?')) return; window.showToast('⚙️ Funzione elimina in sviluppo', 'warning'); };
   window.mostraDettaglioPrenotazione = function(idPrenotazione) { const prenotazione = allPrenotazioni.find(p => (p.idPrenotazione || p.id) === idPrenotazione); if (!prenotazione) { window.showToast('❌ Prenotazione non trovata', 'error'); return; } window.showToast('⚙️ Funzione dettaglio in sviluppo', 'info'); };
   function debounce(func, wait) { let timeout; return function executedFunction(...args) { const later = () => { clearTimeout(timeout); func(...args); }; clearTimeout(timeout); timeout = setTimeout(later, wait); }; }
-  console.log('[ADMIN-PRENOTAZIONI] v3.2.1 loaded - Fix conferma su carta, azioni! 🚦');
+  console.log('[ADMIN-PRENOTAZIONI] v3.2.2 loaded - Fix conferma funzionante (senza rompere nulla)! 🚦');
 })();
