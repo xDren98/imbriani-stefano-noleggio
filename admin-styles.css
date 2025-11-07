@@ -1,58 +1,53 @@
 /**
- * ADMIN CARD-VIEW ENHANCEMENTS (v2.4)
- * - Font nome cliente più leggibile
- * - Switch vista griglia ↔️ elenco
- * - Badge statistiche filtrabili e cliccabili
+ * ADMIN CARD/TABLE STYLE CONSISTENCY FIX (v2.5)
+ * Porta lo stile dark-glass anche su la tabella (elenco)
  */
-.card-prenotazione-nome {
+.table,
+.table thead th,
+.table td {
+  background: rgba(17,24,39,0.82);
+  color: #E2E8F0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.09);
+}
+.table th {
+  background: rgba(255,255,255,0.02);
+  color: #A5B4FC !important;
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 1px;
+  border-bottom: 2px solid rgba(102,126,234,0.16);
+}
+.table-responsive {
+  background: var(--admin-glass-bg);
+  border-radius: 18px;
+  box-shadow: 0 12px 40px rgba(19,22,37,0.24);
+  overflow: hidden;
+}
+.card {
+  background: var(--admin-glass-bg);
+  border-radius: 18px;
+  border: 1.5px solid var(--admin-glass-border);
+  box-shadow: 0 8px 32px rgba(19,22,37,0.22);
+}
+.card-header {
+  background: rgba(17,24,39,0.82) !important;
   color: #fff !important;
-  font-size: 1.15rem !important;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-shadow: 0 2px 8px rgba(0,0,0,0.28);
+  font-size: 1.13rem;
+  font-weight: 600;
+  letter-spacing: 0.2px;
 }
-.switch-view-btn {
-  padding: 8px 18px;
-  font-size: 16px;
+.card-body {
+  background: transparent;
+}
+.table .badge {
+  font-size: 13px;
+  font-weight: 600;
   border-radius: 8px;
-  margin-left: 6px;
-  border: none;
-  background: var(--admin-glass-bg);
+  padding: 7px 14px;
+  background: rgba(102,126,234,0.13);
   color: #A5B4FC;
-  transition: background 0.2s;
-  cursor: pointer;
+  border: 1px solid rgba(102,126,234,0.24);
 }
-.switch-view-btn-active {
-  background: linear-gradient(99deg,#2563eb55 30%,#7f5af08a 100%);
-  color: #fff;
-  font-weight: bold;
-  box-shadow: 0 2px 14px #4851aa1a;
-}
-
-.btn-quickfilter {
-  padding: 10px 18px;
-  font-size: 1rem;
-  font-weight: 700;
-  border-radius: 10px;
-  border: none;
-  background: var(--admin-glass-bg);
-  color: #fff;
-  margin-right: 12px;
-  margin-bottom: 12px;
-  transition: background 0.2s;
-  cursor: pointer;
-  letter-spacing: 0.6px;
-}
-.btn-quickfilter-active {
-  background: linear-gradient(99deg,#6366F1 30%,#0ea5e9 100%);
-  color: #fff;
-  font-weight: bold;
-  box-shadow: 0 4px 18px #2563eb44;
-}
-
-@media (max-width: 767px) {
-  .switch-view-btn, .btn-quickfilter {
-    font-size: 0.95rem;
-    padding: 8px 12px;
-  }
+.btn-outline-primary, .btn-outline-warning, .btn-outline-danger, .btn-outline-secondary {
+  border-radius: 8px;
 }
