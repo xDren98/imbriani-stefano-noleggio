@@ -1,4 +1,4 @@
-// admin-prenotazioni.js v3.6 - Export globali fix + full logic
+// admin-prenotazioni.js v3.7 - Card cliccabile + Modifica/Elimina con API reali
 (function(){
   const STATI_TABELLA = ['Tutte', 'In attesa', 'Programmata', 'In corso', 'Completata'];
   const STATI_COLORI = {
@@ -55,7 +55,7 @@
     // Header con breadcrumb v3.2
     root.innerHTML = `
       <div class="breadcrumb mb-3">
-        <a href="#" onclick="window.loadDashboard?.(); return false;">Dashboard</a>
+        <a href="#" onclick="window.loadAdminSection?.('dashboard'); return false;">Dashboard</a>
         <span class="mx-2">/</span>
         <span>Prenotazioni</span>
       </div>
@@ -73,7 +73,7 @@
              <button class="switch-view-btn" id="btn-view-list">
                <i class="fas fa-list"></i> Elenco
              </button>
-             <button class="btn btn-success ms-3" onclick="showNewBookingModal()">
+             <button class="btn btn-success ms-3" onclick="window.showNewBookingModal?.()">
                <i class="fas fa-plus me-2"></i>Nuova Prenotazione
              </button>
            </div>
@@ -125,7 +125,6 @@
 
   async function caricaPrenotazioni() {
     try {
-      // Mostra skeleton loading v3.2
       showSkeletonLoading();
       
       const response = await window.secureGet?.('getPrenotazioni', {});
@@ -146,7 +145,6 @@
     }
   }
 
-  // Skeleton loading v3.2
   function showSkeletonLoading() {
     const container = document.getElementById('cards-or-table-prenotazioni');
     if (!container) return;
@@ -206,7 +204,6 @@
     const container = document.getElementById('cards-or-table-prenotazioni');
     if (!container) return;
     
-    // Empty state v3.2
     if (filteredPrenotazioni.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
@@ -221,7 +218,7 @@
           </div>
           ${currentFilters.stato !== 'tutti' || currentFilters.ricerca 
             ? '<button class="btn btn-primary" onclick="window.quickStatFilter(\'Tutte\')">Mostra Tutte</button>' 
-            : '<button class="btn btn-success" onclick="showNewBookingModal()"><i class="fas fa-plus me-2"></i>Crea Prenotazione</button>'}
+            : '<button class="btn btn-success" onclick="window.showNewBookingModal?.()"><i class="fas fa-plus me-2"></i>Crea Prenotazione</button>'}
         </div>
       `;
       return;
@@ -241,7 +238,11 @@
         
         return `
           <div class="col-md-4">
-            <div class="card glass-card mb-3 shadow-sm border-0">
+            <div class="card glass-card mb-3 shadow-sm border-0 prenotazione-clickable" 
+                 style="cursor:pointer;transition:transform 0.2s ease,box-shadow 0.2s ease;"
+                 onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 8px 16px rgba(0,0,0,0.15)';"
+                 onmouseout="this.style.transform='';this.style.boxShadow='';"
+                 onclick="window.mostraDettaglioPrenotazione('${p.idPrenotazione || p.id}')">
               <div class="card-body">
                 <div class="d-flex align-items-center mb-2 gap-3">
                   <span class="badge bg-${statoConfig.bg} fs-6 py-2 px-3">
@@ -255,46 +256,31 @@
                 
                 <div class="card-prenotazione-nome mb-1">${p.nomeAutista1 || '-'}</div>
                 <div class="mb-1 text-muted fw-normal small">
-                  <i class="fas fa-phone me-1"></i>${p.cellulare || '-'}
-                </div>
+                  <i class="fas fa-phone me-1"></i>${p.cellulare || '-'}</div>
                 <div class="mb-1 text-muted fw-normal small">
-                  <i class="fas fa-envelope me-1"></i>${p.email || '-'}
-                </div>
-                
-                <!-- Informazioni complete v3.2 -->
+                  <i class="fas fa-envelope me-1"></i>${p.email || '-'}</div>
                 <div class="mb-1 text-info fw-semibold small">
                   <i class="fas fa-clock me-1"></i>
-                  <strong>Dal:</strong> ${dataInizio} ${oraInizio} 
-                  <strong>- Al:</strong> ${dataFine} ${oraFine}
+                  <strong>Dal:</strong> ${dataInizio} ${oraInizio} <strong>- Al:</strong> ${dataFine} ${oraFine}
                 </div>
-                
-                ${p.destinazione ? `
-                  <div class="mb-1 text-warning fw-normal small">
-                    <i class="fas fa-map-marker-alt me-1"></i>${p.destinazione}
-                  </div>
-                ` : ''}
-                
-                <div class="d-flex justify-content-between align-items-center mt-2 gap-2 flex-wrap">
+                ${p.destinazione ? `<div class="mb-1 text-warning fw-normal small">
+                    <i class="fas fa-map-marker-alt me-1"></i>${p.destinazione}</div>` : ''}
+                <div class="d-flex justify-content-between align-items-center mt-2 gap-2 flex-wrap" onclick="event.stopPropagation()">
                   <span class="small text-primary"><b>${p.idPrenotazione || p.id}</b></span>
                   <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-primary" title="Dettagli" 
-                            onclick="window.mostraDettaglioPrenotazione('${p.idPrenotazione || p.id}')">
-                      <i class="fas fa-eye"></i>
-                    </button>
                     <button class="btn btn-outline-warning" title="Modifica" 
-                            onclick="window.modificaPrenotazione('${p.idPrenotazione || p.id}')">
+                            onclick="window.modificaPrenotazione('${p.idPrenotazione || p.id}'); event.stopPropagation();">
                       <i class="fas fa-edit"></i>
                     </button>
                     <button class="btn btn-outline-danger" title="Elimina" 
-                            onclick="window.eliminaPrenotazione('${p.idPrenotazione || p.id}')">
+                            onclick="window.eliminaPrenotazione('${p.idPrenotazione || p.id}'); event.stopPropagation();">
                       <i class="fas fa-trash"></i>
                     </button>
-                    ${p.pdfUrl ? `
-                      <a href="${p.pdfUrl}" target="_blank" 
-                         class="btn btn-outline-secondary" title="PDF">
+                    ${p.pdfUrl ? `<a href="${p.pdfUrl}" target="_blank" 
+                         class="btn btn-outline-secondary" title="PDF"
+                         onclick="event.stopPropagation();">
                         <i class="fas fa-file-pdf"></i>
-                      </a>
-                    ` : ''}
+                      </a>` : ''}
                   </div>
                 </div>
               </div>
@@ -308,7 +294,6 @@
     const container = document.getElementById('cards-or-table-prenotazioni');
     if (!container) return;
     
-    // Empty state per tabella v3.2
     if (filteredPrenotazioni.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
@@ -323,7 +308,7 @@
           </div>
           ${currentFilters.stato !== 'tutti' || currentFilters.ricerca 
             ? '<button class="btn btn-primary" onclick="window.quickStatFilter(\'Tutte\')">Mostra Tutte</button>' 
-            : '<button class="btn btn-success" onclick="showNewBookingModal()"><i class="fas fa-plus me-2"></i>Crea Prenotazione</button>'}
+            : '<button class="btn btn-success" onclick="window.showNewBookingModal?.()"><i class="fas fa-plus me-2"></i>Crea Prenotazione</button>'}
         </div>
       `;
       return;
@@ -360,7 +345,7 @@
                   const oraFine = p.oraFine || '';
                   
                   return `
-                    <tr>
+                    <tr style="cursor:pointer;" onclick="window.mostraDettaglioPrenotazione('${p.idPrenotazione || p.id}')">
                       <td><strong>${p.idPrenotazione || p.id}</strong></td>
                       <td>
                         <span class="card-prenotazione-nome">${p.nomeAutista1 || '-'}</span><br>
@@ -377,12 +362,8 @@
                           <i class="fas fa-${statoConfig.icon} me-1"></i>${p.stato}
                         </span>
                       </td>
-                      <td class="text-end">
+                      <td class="text-end" onclick="event.stopPropagation()">
                         <div class="btn-group btn-group-sm">
-                          <button class="btn btn-outline-primary" title="Dettagli" 
-                                  onclick="window.mostraDettaglioPrenotazione('${p.idPrenotazione || p.id}')">
-                            <i class="fas fa-eye"></i>
-                          </button>
                           <button class="btn btn-outline-warning" title="Modifica" 
                                   onclick="window.modificaPrenotazione('${p.idPrenotazione || p.id}')">
                             <i class="fas fa-edit"></i>
@@ -391,12 +372,10 @@
                                   onclick="window.eliminaPrenotazione('${p.idPrenotazione || p.id}')">
                             <i class="fas fa-trash"></i>
                           </button>
-                          ${p.pdfUrl ? `
-                            <a href="${p.pdfUrl}" target="_blank" 
+                          ${p.pdfUrl ? `<a href="${p.pdfUrl}" target="_blank" 
                                class="btn btn-outline-secondary" title="PDF">
                               <i class="fas fa-file-pdf"></i>
-                            </a>
-                          ` : ''}
+                            </a>` : ''}
                         </div>
                       </td>
                     </tr>
@@ -443,27 +422,221 @@
     renderQuickStats();
   };
 
-  // Funzioni placeholder per azioni
-  window.cambiaStatoPrenotazione = async function(idPrenotazione, nuovoStato) {
-    window.showToast('⚙️ Funzione cambio stato in sviluppo', 'info');
-  };
-
-  window.modificaPrenotazione = async function(idPrenotazione) {
-    window.showToast('⚙️ Funzione modifica in sviluppo', 'info');
-  };
-
-  window.eliminaPrenotazione = async function(idPrenotazione) {
-    if (!confirm('Sei sicuro di voler eliminare questa prenotazione?')) return;
-    window.showToast('⚙️ Funzione elimina in sviluppo', 'warning');
-  };
-
+  // MODALE DETTAGLIO COMPLETA
   window.mostraDettaglioPrenotazione = function(idPrenotazione) {
     const prenotazione = allPrenotazioni.find(p => (p.idPrenotazione || p.id) === idPrenotazione);
     if (!prenotazione) {
       window.showToast('❌ Prenotazione non trovata', 'error');
       return;
     }
-    window.showToast('⚙️ Funzione dettaglio in sviluppo', 'info');
+
+    const p = prenotazione;
+    const statoConfig = STATI_COLORI[p.stato] || STATI_COLORI['In attesa'];
+    const dataInizio = p.giornoInizio ? new Date(p.giornoInizio).toLocaleDateString('it-IT') : '-';
+    const dataFine = p.giornoFine ? new Date(p.giornoFine).toLocaleDateString('it-IT') : '-';
+
+    // Crea modale se non esiste
+    let modal = document.getElementById('dettaglioPrenotazioneModal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'dettaglioPrenotazioneModal';
+      modal.className = 'modal fade';
+      modal.tabIndex = -1;
+      document.body.appendChild(modal);
+    }
+
+    modal.innerHTML = `
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              <i class="fas fa-info-circle me-2"></i>Dettaglio Prenotazione
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <div class="d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><strong>ID:</strong> ${p.idPrenotazione || p.id}</h6>
+                <span class="badge bg-${statoConfig.bg} fs-6 py-2 px-3">
+                  <i class="fas fa-${statoConfig.icon} me-1"></i>${p.stato}
+                </span>
+              </div>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div class="card">
+                  <div class="card-body">
+                    <h6 class="card-title text-primary mb-3">
+                      <i class="fas fa-user me-2"></i>Primo Autista
+                    </h6>
+                    <p class="mb-1"><strong>Nome:</strong> ${p.nomeAutista1 || '-'}</p>
+                    <p class="mb-1"><strong>CF:</strong> ${p.codiceFiscaleAutista1 || '-'}</p>
+                    <p class="mb-1"><strong>Data Nascita:</strong> ${p.dataNascitaAutista1 || '-'}</p>
+                    <p class="mb-1"><strong>Luogo Nascita:</strong> ${p.luogoNascitaAutista1 || '-'}</p>
+                    <p class="mb-1"><strong>Residenza:</strong> ${[p.viaResidenzaAutista1, p.civicoResidenzaAutista1, p.comuneResidenzaAutista1].filter(Boolean).join(', ') || '-'}</p>
+                    <p class="mb-1"><strong>Patente:</strong> ${p.numeroPatenteAutista1 || '-'}</p>
+                    <p class="mb-1"><strong>Scadenza Patente:</strong> ${p.scadenzaPatenteAutista1 || '-'}</p>
+                    <p class="mb-1"><strong>Cellulare:</strong> ${p.cellulare || '-'}</p>
+                    <p class="mb-0"><strong>Email:</strong> ${p.email || '-'}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <div class="card mb-3">
+                  <div class="card-body">
+                    <h6 class="card-title text-success mb-3">
+                      <i class="fas fa-car me-2"></i>Veicolo
+                    </h6>
+                    <p class="mb-1"><strong>Targa:</strong> ${p.targa || '-'}</p>
+                    <p class="mb-0"><strong>Posti:</strong> 9</p>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="card-body">
+                    <h6 class="card-title text-info mb-3">
+                      <i class="fas fa-calendar-alt me-2"></i>Periodo
+                    </h6>
+                    <p class="mb-1"><strong>Dal:</strong> ${dataInizio} ore ${p.oraInizio || '-'}</p>
+                    <p class="mb-1"><strong>Al:</strong> ${dataFine} ore ${p.oraFine || '-'}</p>
+                    <p class="mb-0"><strong>Destinazione:</strong> ${p.destinazione || '-'}</p>
+                  </div>
+                </div>
+              </div>
+
+              ${p.nomeAutista2 ? `
+                <div class="col-md-6">
+                  <div class="card">
+                    <div class="card-body">
+                      <h6 class="card-title text-secondary mb-3">
+                        <i class="fas fa-user me-2"></i>Secondo Autista
+                      </h6>
+                      <p class="mb-1"><strong>Nome:</strong> ${p.nomeAutista2}</p>
+                      <p class="mb-1"><strong>CF:</strong> ${p.codiceFiscaleAutista2 || '-'}</p>
+                      <p class="mb-0"><strong>Patente:</strong> ${p.numeroPatenteAutista2 || '-'}</p>
+                    </div>
+                  </div>
+                </div>
+              ` : ''}
+
+              ${p.nomeAutista3 ? `
+                <div class="col-md-6">
+                  <div class="card">
+                    <div class="card-body">
+                      <h6 class="card-title text-secondary mb-3">
+                        <i class="fas fa-user me-2"></i>Terzo Autista
+                      </h6>
+                      <p class="mb-1"><strong>Nome:</strong> ${p.nomeAutista3}</p>
+                      <p class="mb-1"><strong>CF:</strong> ${p.codiceFiscaleAutista3 || '-'}</p>
+                      <p class="mb-0"><strong>Patente:</strong> ${p.numeroPatenteAutista3 || '-'}</p>
+                    </div>
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+
+            ${p.importoPreventivo ? `
+              <div class="alert alert-success mt-3">
+                <strong>💰 Importo Preventivo:</strong> € ${p.importoPreventivo}
+              </div>
+            ` : ''}
+
+            ${p.pdfUrl ? `
+              <div class="alert alert-info mt-3">
+                <i class="fas fa-file-pdf me-2"></i>
+                <a href="${p.pdfUrl}" target="_blank" class="alert-link">Visualizza Contratto PDF</a>
+              </div>
+            ` : ''}
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+            <button type="button" class="btn btn-warning" onclick="window.modificaPrenotazione('${p.idPrenotazione || p.id}')">
+              <i class="fas fa-edit me-2"></i>Modifica
+            </button>
+            <button type="button" class="btn btn-danger" onclick="window.eliminaPrenotazione('${p.idPrenotazione || p.id}')">
+              <i class="fas fa-trash me-2"></i>Elimina
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+  };
+
+  // FUNZIONE ELIMINA CON API REALE
+  window.eliminaPrenotazione = async function(idPrenotazione) {
+    if (!confirm(`Sei sicuro di voler eliminare la prenotazione ${idPrenotazione}? Questa azione è irreversibile.`)) {
+      return;
+    }
+
+    try {
+      window.showLoader?.(true, 'Eliminazione in corso...');
+      
+      const response = await window.securePost?.('eliminaPrenotazione', { 
+        idPrenotazione: idPrenotazione 
+      });
+      
+      if (response?.success) {
+        window.showToast('✅ Prenotazione eliminata con successo', 'success');
+        
+        // Chiudi modale se aperta
+        const modal = document.getElementById('dettaglioPrenotazioneModal');
+        if (modal) {
+          const bsModal = bootstrap.Modal.getInstance(modal);
+          if (bsModal) bsModal.hide();
+        }
+        
+        // Ricarica prenotazioni
+        await caricaPrenotazioni();
+      } else {
+        throw new Error(response?.message || 'Errore durante eliminazione');
+      }
+    } catch (error) {
+      console.error('[ELIMINA] Errore:', error);
+      window.showToast(`❌ Errore eliminazione: ${error.message}`, 'error');
+    } finally {
+      window.showLoader?.(false);
+    }
+  };
+
+  // FUNZIONE MODIFICA - Placeholder per form modale
+  window.modificaPrenotazione = async function(idPrenotazione) {
+    const prenotazione = allPrenotazioni.find(p => (p.idPrenotazione || p.id) === idPrenotazione);
+    if (!prenotazione) {
+      window.showToast('❌ Prenotazione non trovata', 'error');
+      return;
+    }
+    
+    // TODO: Implementare modale modifica con form completo
+    window.showToast('⚙️ Funzione modifica in sviluppo - Form modale in arrivo', 'info');
+    console.log('[MODIFICA] Prenotazione da modificare:', prenotazione);
+  };
+
+  window.cambiaStatoPrenotazione = async function(idPrenotazione, nuovoStato) {
+    try {
+      window.showLoader?.(true, 'Aggiornamento stato...');
+      
+      const response = await window.securePost?.('aggiornaStato', { 
+        idPrenotazione: idPrenotazione,
+        nuovoStato: nuovoStato
+      });
+      
+      if (response?.success) {
+        window.showToast(`✅ Stato aggiornato a: ${nuovoStato}`, 'success');
+        await caricaPrenotazioni();
+      } else {
+        throw new Error(response?.message || 'Errore aggiornamento stato');
+      }
+    } catch (error) {
+      window.showToast(`❌ Errore: ${error.message}`, 'error');
+    } finally {
+      window.showLoader?.(false);
+    }
   };
 
   function debounce(func, wait) {
@@ -478,18 +651,14 @@
     };
   }
 
-
   // ========================================
   // EXPORT GLOBALI per admin-scripts.js
   // ========================================
-
-  // Espone la funzione principale per il caricamento della sezione
+  
   window.loadPrenotazioniSection = loadPrenotazioniSection;
   window.caricaSezionePrenotazioni = loadPrenotazioniSection;
-
-  // Espone funzioni di rendering (per chiamate esterne se necessario)
   window.renderPrenotazioniCard = renderPrenotazioniCard;
   window.renderPrenotazioniTable = renderPrenotazioniTable;
 
-  console.log('[ADMIN-PRENOTAZIONI] v3.6 loaded - Export globali fix + full logic! 🚀');
+  console.log('[ADMIN-PRENOTAZIONI] v3.7 loaded - Card cliccabile + Modifica/Elimina con API reali! 🚀');
 })();
