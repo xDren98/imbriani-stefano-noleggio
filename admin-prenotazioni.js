@@ -1,4 +1,4 @@
-// admin-prenotazioni.js v1.0 - Gestione completa prenotazioni admin
+// admin-prenotazioni.js v1.1 - Gestione completa prenotazioni con modifica/elimina + PDF
 (function(){
   const STATI_COLORI = {
     'In attesa': { bg: 'warning', icon: 'clock', text: 'dark' },
@@ -80,7 +80,7 @@
                   <th>Date</th>
                   <th>Destinazione</th>
                   <th>Stato</th>
-                  <th>Azioni</th>
+                  <th class="text-end">Azioni</th>
                 </tr>
               </thead>
               <tbody id="tbody-prenotazioni">
@@ -98,11 +98,9 @@
       </div>
     `;
 
-    // Bind eventi
     document.getElementById('filter-stato')?.addEventListener('change', aggiornaFiltri);
     document.getElementById('filter-ricerca')?.addEventListener('input', debounce(aggiornaFiltri, 300));
 
-    // Carica dati
     await caricaPrenotazioni();
   };
 
@@ -110,7 +108,7 @@
     try {
       window.showLoader?.(true, 'Caricamento prenotazioni...');
       
-      const response = await window.securePost?.('getPrenotazioni', {});
+      const response = await window.secureGet?.('getPrenotazioni', {});
       
       if (response?.success && response.data) {
         allPrenotazioni = response.data;
@@ -144,7 +142,6 @@
     const confermate = allPrenotazioni.filter(p => p.stato === 'Confermata' || p.stato === 'Programmata').length;
     const inCorso = allPrenotazioni.filter(p => p.stato === 'In corso').length;
     
-    // Partenze oggi
     const oggi = new Date().toISOString().split('T')[0];
     const partenzeOggi = allPrenotazioni.filter(p => {
       const dataInizio = new Date(p.giornoInizio).toISOString().split('T')[0];
@@ -230,7 +227,6 @@
       return;
     }
 
-    // Ordina per data inizio (più recenti prima)
     const sorted = [...filteredPrenotazioni].sort((a, b) => {
       return new Date(b.giornoInizio) - new Date(a.giornoInizio);
     });
@@ -277,11 +273,26 @@
               </span>
             `}
           </td>
-          <td>
-            <button class="btn btn-sm btn-outline-primary" 
-              onclick="window.mostraDettaglioPrenotazione('${p.idPrenotazione || p.id}')">
-              <i class="fas fa-eye"></i>
-            </button>
+          <td class="text-end">
+            <div class="btn-group btn-group-sm" role="group">
+              <button class="btn btn-outline-primary" title="Dettagli"
+                onclick="window.mostraDettaglioPrenotazione('${p.idPrenotazione || p.id}')">
+                <i class="fas fa-eye"></i>
+              </button>
+              <button class="btn btn-outline-warning" title="Modifica"
+                onclick="window.modificaPrenotazione('${p.idPrenotazione || p.id}')">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button class="btn btn-outline-danger" title="Elimina"
+                onclick="window.eliminaPrenotazione('${p.idPrenotazione || p.id}')">
+                <i class="fas fa-trash"></i>
+              </button>
+              ${p.pdfUrl ? `
+                <a href="${p.pdfUrl}" target="_blank" class="btn btn-outline-secondary" title="Visualizza PDF">
+                  <i class="fas fa-file-pdf"></i>
+                </a>
+              ` : ''}
+            </div>
           </td>
         </tr>
       `;
@@ -302,12 +313,10 @@
 
   window.applicaFiltriPrenotazioni = function() {
     filteredPrenotazioni = allPrenotazioni.filter(p => {
-      // Filtro stato
       if (currentFilters.stato !== 'tutti' && p.stato !== currentFilters.stato) {
         return false;
       }
       
-      // Filtro ricerca
       if (currentFilters.ricerca) {
         const searchText = [
           p.idPrenotazione,
@@ -337,12 +346,10 @@
       window.showLoader?.(true, `Aggiornamento stato a ${nuovoStato}...`);
       
       const payload = {
-        action: 'aggiornaStato',
         idPrenotazione: idPrenotazione,
         nuovoStato: nuovoStato
       };
       
-      // Se conferma, chiedi importo
       if (nuovoStato === 'Confermata') {
         const importo = prompt('Inserisci importo preventivo (€):');
         if (importo && !isNaN(parseFloat(importo))) {
@@ -356,10 +363,12 @@
         window.showToast?.(`✅ Stato aggiornato a: ${nuovoStato}`, 'success');
         
         if (nuovoStato === 'Confermata') {
-          window.showToast?.('📧 Email di conferma inviata al cliente', 'info');
+          window.showToast?.('📧 Email di conferma inviata', 'info');
+          if (response.pdfGenerato) {
+            window.showToast?.('📄 PDF contratto generato', 'success');
+          }
         }
         
-        // Ricarica lista
         await caricaPrenotazioni();
       } else {
         throw new Error(response?.message || 'Errore aggiornamento stato');
@@ -373,21 +382,289 @@
     }
   };
 
-  window.mostraDettaglioPrenotazione = function(idPrenotazione) {
-    const prenotazione = allPrenotazioni.find(p => 
-      (p.idPrenotazione || p.id) === idPrenotazione
+  // ═════════════════════════════════════════════════════════
+  // MODIFICA PRENOTAZIONE
+  // ═════════════════════════════════════════════════════════
+
+  window.modificaPrenotazione = async function(idPrenotazione) {
+    const prenotazione = allPrenotazioni.find(p => (p.idPrenotazione || p.id) === idPrenotazione);
+    
+    if (!prenotazione) {
+      window.showToast?.('Prenotazione non trovata', 'error');
+      return;
+    }
+
+    // Crea modal
+    const modalHtml = `
+      <div class="modal fade" id="modalModificaPrenotazione" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Modifica Prenotazione</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <form id="form-modifica-prenotazione">
+                <input type="hidden" id="edit-id" value="${prenotazione.idPrenotazione || prenotazione.id}">
+                
+                <div class="alert alert-info">
+                  <i class="fas fa-info-circle me-2"></i>
+                  ${prenotazione.stato !== 'In attesa' ? '📄 Modificando questa prenotazione, il PDF verrà rigenerato automaticamente.' : 'Questa prenotazione è in attesa di conferma.'}
+                </div>
+
+                <h6 class="fw-bold mb-3">🚗 Dati Noleggio</h6>
+                <div class="row g-3 mb-3">
+                  <div class="col-md-4">
+                    <label class="form-label">Targa</label>
+                    <input type="text" class="form-control" id="edit-targa" value="${prenotazione.targa || ''}" required>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Data Inizio</label>
+                    <input type="date" class="form-control" id="edit-giornoInizio" 
+                      value="${prenotazione.giornoInizio ? new Date(prenotazione.giornoInizio).toISOString().split('T')[0] : ''}" required>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Ora Inizio</label>
+                    <input type="time" class="form-control" id="edit-oraInizio" value="${prenotazione.oraInizio || ''}" required>
+                  </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                  <div class="col-md-4">
+                    <label class="form-label">Data Fine</label>
+                    <input type="date" class="form-control" id="edit-giornoFine" 
+                      value="${prenotazione.giornoFine ? new Date(prenotazione.giornoFine).toISOString().split('T')[0] : ''}" required>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Ora Fine</label>
+                    <input type="time" class="form-control" id="edit-oraFine" value="${prenotazione.oraFine || ''}" required>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Importo (€)</label>
+                    <input type="number" class="form-control" id="edit-importo" value="${prenotazione.importo || ''}" step="0.01">
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Destinazione</label>
+                  <input type="text" class="form-control" id="edit-destinazione" value="${prenotazione.destinazione || ''}">
+                </div>
+
+                <h6 class="fw-bold mb-3">👤 Contatti Cliente</h6>
+                <div class="row g-3 mb-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Cellulare</label>
+                    <input type="tel" class="form-control" id="edit-cellulare" value="${prenotazione.cellulare || ''}">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" id="edit-email" value="${prenotazione.email || ''}">
+                  </div>
+                </div>
+              </form>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+              <button type="button" class="btn btn-primary" onclick="window.salvaModificaPrenotazione()">
+                <i class="fas fa-save me-2"></i>Salva Modifiche
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Rimuovi modal esistente e inserisci nuovo
+    document.getElementById('modalModificaPrenotazione')?.remove();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Mostra modal
+    const modal = new bootstrap.Modal(document.getElementById('modalModificaPrenotazione'));
+    modal.show();
+  };
+
+  window.salvaModificaPrenotazione = async function() {
+    try {
+      window.showLoader?.(true, 'Salvataggio modifiche...');
+
+      const payload = {
+        idPrenotazione: document.getElementById('edit-id').value,
+        targa: document.getElementById('edit-targa').value,
+        giornoInizio: document.getElementById('edit-giornoInizio').value,
+        giornoFine: document.getElementById('edit-giornoFine').value,
+        oraInizio: document.getElementById('edit-oraInizio').value,
+        oraFine: document.getElementById('edit-oraFine').value,
+        destinazione: document.getElementById('edit-destinazione').value,
+        cellulare: document.getElementById('edit-cellulare').value,
+        email: document.getElementById('edit-email').value,
+        importo: document.getElementById('edit-importo').value
+      };
+
+      const response = await window.securePost?.('aggiornaPrenotazione', payload);
+
+      if (response?.success) {
+        window.showToast?.('✅ Prenotazione aggiornata', 'success');
+        
+        if (response.pdfRigenerato) {
+          window.showToast?.('📄 PDF rigenerato automaticamente', 'info');
+        }
+
+        // Chiudi modal
+        bootstrap.Modal.getInstance(document.getElementById('modalModificaPrenotazione'))?.hide();
+
+        // Ricarica lista
+        await caricaPrenotazioni();
+      } else {
+        throw new Error(response?.message || 'Errore salvataggio');
+      }
+
+    } catch (error) {
+      console.error('Errore salvataggio:', error);
+      window.showToast?.(`❌ Errore: ${error.message}`, 'error');
+    } finally {
+      window.showLoader?.(false);
+    }
+  };
+
+  // ═════════════════════════════════════════════════════════
+  // ELIMINA PRENOTAZIONE
+  // ═════════════════════════════════════════════════════════
+
+  window.eliminaPrenotazione = async function(idPrenotazione) {
+    const prenotazione = allPrenotazioni.find(p => (p.idPrenotazione || p.id) === idPrenotazione);
+    
+    if (!prenotazione) {
+      window.showToast?.('Prenotazione non trovata', 'error');
+      return;
+    }
+
+    const conferma = confirm(
+      `⚠️ ATTENZIONE: Stai per eliminare definitivamente la prenotazione:\n\n` +
+      `ID: ${idPrenotazione}\n` +
+      `Cliente: ${prenotazione.nomeAutista1}\n` +
+      `Targa: ${prenotazione.targa}\n\n` +
+      `Questa azione è IRREVERSIBILE e eliminerà anche il PDF associato (se presente).\n\n` +
+      `Confermi l'eliminazione?`
     );
+
+    if (!conferma) return;
+
+    try {
+      window.showLoader?.(true, 'Eliminazione prenotazione...');
+
+      const response = await window.securePost?.('eliminaPrenotazione', {
+        idPrenotazione: idPrenotazione
+      });
+
+      if (response?.success) {
+        window.showToast?.('✅ Prenotazione eliminata', 'success');
+        await caricaPrenotazioni();
+      } else {
+        throw new Error(response?.message || 'Errore eliminazione');
+      }
+
+    } catch (error) {
+      console.error('Errore eliminazione:', error);
+      window.showToast?.(`❌ Errore: ${error.message}`, 'error');
+    } finally {
+      window.showLoader?.(false);
+    }
+  };
+
+  // ═════════════════════════════════════════════════════════
+  // DETTAGLIO PRENOTAZIONE
+  // ═════════════════════════════════════════════════════════
+
+  window.mostraDettaglioPrenotazione = function(idPrenotazione) {
+    const prenotazione = allPrenotazioni.find(p => (p.idPrenotazione || p.id) === idPrenotazione);
     
     if (!prenotazione) {
       window.showToast?.('Prenotazione non trovata', 'error');
       return;
     }
     
-    // TODO: Aprire modal dettaglio (Sprint 2)
-    alert('Modal dettaglio in arrivo nello Sprint 2!\n\n' + JSON.stringify(prenotazione, null, 2));
+    const statoConfig = STATI_COLORI[prenotazione.stato] || STATI_COLORI['In attesa'];
+    const dataInizio = prenotazione.giornoInizio ? new Date(prenotazione.giornoInizio).toLocaleDateString('it-IT') : '-';
+    const dataFine = prenotazione.giornoFine ? new Date(prenotazione.giornoFine).toLocaleDateString('it-IT') : '-';
+
+    const modalHtml = `
+      <div class="modal fade" id="modalDettaglioPrenotazione" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">
+                <i class="fas fa-info-circle me-2"></i>Dettaglio Prenotazione ${prenotazione.idPrenotazione || prenotazione.id}
+              </h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <div class="row g-3">
+                <div class="col-12">
+                  <span class="badge bg-${statoConfig.bg} fs-6">
+                    <i class="fas fa-${statoConfig.icon} me-1"></i>${prenotazione.stato}
+                  </span>
+                </div>
+
+                <div class="col-md-6">
+                  <h6 class="fw-bold">👤 Cliente Principale</h6>
+                  <p class="mb-1"><strong>Nome:</strong> ${prenotazione.nomeAutista1 || '-'}</p>
+                  <p class="mb-1"><strong>CF:</strong> ${prenotazione.codiceFiscaleAutista1 || '-'}</p>
+                  <p class="mb-1"><strong>Tel:</strong> ${prenotazione.cellulare || '-'}</p>
+                  <p class="mb-1"><strong>Email:</strong> ${prenotazione.email || '-'}</p>
+                </div>
+
+                <div class="col-md-6">
+                  <h6 class="fw-bold">🚗 Noleggio</h6>
+                  <p class="mb-1"><strong>Veicolo:</strong> ${prenotazione.targa || '-'}</p>
+                  <p class="mb-1"><strong>Dal:</strong> ${dataInizio} ${prenotazione.oraInizio || ''}</p>
+                  <p class="mb-1"><strong>Al:</strong> ${dataFine} ${prenotazione.oraFine || ''}</p>
+                  <p class="mb-1"><strong>Destinazione:</strong> ${prenotazione.destinazione || '-'}</p>
+                  ${prenotazione.importo ? `<p class="mb-1"><strong>Importo:</strong> € ${prenotazione.importo}</p>` : ''}
+                </div>
+
+                ${prenotazione.nomeAutista2 ? `
+                  <div class="col-12">
+                    <h6 class="fw-bold">👤 Autista 2</h6>
+                    <p class="mb-1">${prenotazione.nomeAutista2} - ${prenotazione.codiceFiscaleAutista2 || '-'}</p>
+                  </div>
+                ` : ''}
+
+                ${prenotazione.nomeAutista3 ? `
+                  <div class="col-12">
+                    <h6 class="fw-bold">👤 Autista 3</h6>
+                    <p class="mb-1">${prenotazione.nomeAutista3} - ${prenotazione.codiceFiscaleAutista3 || '-'}</p>
+                  </div>
+                ` : ''}
+
+                ${prenotazione.pdfUrl ? `
+                  <div class="col-12">
+                    <h6 class="fw-bold">📄 Contratto PDF</h6>
+                    <a href="${prenotazione.pdfUrl}" target="_blank" class="btn btn-outline-primary btn-sm">
+                      <i class="fas fa-file-pdf me-2"></i>Visualizza PDF
+                    </a>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+              <button type="button" class="btn btn-warning" 
+                onclick="bootstrap.Modal.getInstance(document.getElementById('modalDettaglioPrenotazione')).hide(); window.modificaPrenotazione('${prenotazione.idPrenotazione || prenotazione.id}');">
+                <i class="fas fa-edit me-2"></i>Modifica
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('modalDettaglioPrenotazione')?.remove();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    const modal = new bootstrap.Modal(document.getElementById('modalDettaglioPrenotazione'));
+    modal.show();
   };
 
-  // Utility: debounce
   function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -400,5 +677,5 @@
     };
   }
 
-  console.log('[ADMIN-PRENOTAZIONI] v1.0 loaded');
+  console.log('[ADMIN-PRENOTAZIONI] v1.1 loaded - Modifica/Elimina + PDF auto');
 })();
