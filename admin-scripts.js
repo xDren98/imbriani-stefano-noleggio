@@ -1,6 +1,6 @@
-// admin-scripts.js v3.2 - Same complete logic as frontend + admin sections
+// admin-scripts.js v3.2.1 - Fix race condition + retry logic for prenotazioni module
 (function(){
-  const ADMIN_CONFIG = { VERSION: '3.2', REFRESH_INTERVAL: 30000, ITEMS_PER_PAGE: 50 };
+  const ADMIN_CONFIG = { VERSION: '3.2.1', REFRESH_INTERVAL: 30000, ITEMS_PER_PAGE: 50 };
   let adminData = { prenotazioni: [], clienti: [], flotta: [], manutenzioni: [], stats: {} };
   
   function qs(id){ return document.getElementById(id); }
@@ -375,12 +375,32 @@
   }
 
   async function loadPrenotazioni() {
-    if (typeof window.loadPrenotazioniSection === 'function') {
-      window.loadPrenotazioniSection();
+    const root = qs('admin-root');
+    if (!root) return;
+    
+    // Check if admin-prenotazioni.js module is loaded
+    if (typeof window.caricaSezionePrenotazioni === 'function') {
+      console.log('[ADMIN] Caricamento sezione prenotazioni...');
+      window.caricaSezionePrenotazioni();
     } else {
-      window.showLoader?.(false);
-      const root = qs('admin-root');
-      root.innerHTML = '<div class="alert alert-warning">⚠️ Modulo prenotazioni non caricato. Verifica che admin-prenotazioni.js sia incluso.</div>';
+      // Retry after 150ms if module not yet loaded (race condition fix)
+      console.warn('[ADMIN] admin-prenotazioni.js not loaded yet, retrying in 150ms...');
+      setTimeout(() => {
+        if (typeof window.caricaSezionePrenotazioni === 'function') {
+          console.log('[ADMIN] Retry successful - loading prenotazioni');
+          window.caricaSezionePrenotazioni();
+        } else {
+          // Final fallback after retry
+          console.error('[ADMIN] admin-prenotazioni.js still not loaded after retry');
+          window.showLoader?.(false);
+          root.innerHTML = `
+            <div class="alert alert-danger">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              <strong>Errore caricamento modulo prenotazioni</strong><br>
+              <small>Il file admin-prenotazioni.js non è stato caricato correttamente. Verifica la console per errori.</small>
+            </div>`;
+        }
+      }, 150);
     }
   }
   
@@ -391,5 +411,5 @@
   window.loadAdminSection = loadAdminSection;
   window.handleAdminCheckAvailability = handleAdminCheckAvailability;
   
-  console.log(`[ADMIN-SCRIPTS] v${ADMIN_CONFIG.VERSION} loaded - New booking flow + sections`);
+  console.log(`[ADMIN-SCRIPTS] v${ADMIN_CONFIG.VERSION} loaded - Authorization header fixed`);
 })();
