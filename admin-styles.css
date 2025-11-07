@@ -1,11 +1,55 @@
-/* v3.2 - Mega glassmorphism, microfix, sidebar, skeleton, empty, toast */
+/* v3.2 - Mega glassmorphism, sidebar vertical fix, microfix, skeleton, empty, toast */
 body, #admin-root {
-  background: radial-gradient(1200px 800px at 10% -10%, #232c46 0%, rgba(100,116,255,0.15) 60%),
-              radial-gradient(900px 600px at 110% 0%, #343857 0%, rgba(147,51,234,0.11) 50%),
-              linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   min-height: 100vh;
   color: #E2E8F0;
   font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+}
+
+body {
+  display: flex;
+  background: radial-gradient(1200px 800px at 10% -10%, #232c46 0%, rgba(100,116,255,0.15) 60%),
+              radial-gradient(900px 600px at 110% 0%, #343857 0%, rgba(147,51,234,0.11) 50%),
+              linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+
+.admin-sidebar {
+  width: 260px;
+  min-width: 225px;
+  background: rgba(24,32,48,0.95) !important;
+  backdrop-filter: blur(12px);
+  border-right: 1.5px solid rgba(255,255,255,0.09);
+  box-shadow: 4px 0 24px rgba(19,22,37,0.15);
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  height: 100vh;
+  z-index: 12;
+  padding: 0 0 40px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  margin-left: 260px;
+  width: calc(100% - 260px);
+  padding-left: 0;
+  min-height: 100vh;
+}
+
+@media (max-width: 992px) {
+  .admin-sidebar {
+    position: absolute;
+    left: -260px;
+    transition: left 0.25s ease;
+  }
+  .admin-sidebar.show {
+    left: 0;
+  }
+  .main-content {
+    margin-left: 0 !important;
+    width: 100%;
+  }
 }
 
 /* MICROFIX CONTRASTO */
@@ -13,13 +57,10 @@ body, #admin-root {
   color: #C1D0E0 !important;
   font-weight: 500;
 }
-
 .glass-header .text-muted {
   color: #B8C5D6 !important;
   font-weight: 500;
 }
-
-/* BADGE STATISTICHE NON ATTIVI - PIÙ VISIBILI */
 .btn-quickfilter {
   background: rgba(60,71,99,0.55) !important;
   color: #D4DCE8 !important;
@@ -29,13 +70,11 @@ body, #admin-root {
   padding: 12px 20px !important;
   font-weight: 700;
 }
-
 .btn-quickfilter:hover {
   background: rgba(80,91,119,0.65) !important;
   color: #fff !important;
   border-color: rgba(99, 102, 241, 0.5) !important;
 }
-
 .btn-quickfilter-active {
   background: linear-gradient(99deg,#6366F1 30%,#0ea5e9 100%) !important;
   color: #fff !important;
@@ -43,36 +82,6 @@ body, #admin-root {
   box-shadow: 0 0 20px rgba(99, 102, 241, 0.19);
   border: 2px solid #6366F1 !important;
 }
-
-/* SIDEBAR GLASSMORPHISM */
-.admin-sidebar {
-  background: rgba(24,32,48,0.95) !important;
-  backdrop-filter: blur(12px);
-  border-right: 1.5px solid rgba(255,255,255,0.09);
-  box-shadow: 4px 0 24px rgba(19,22,37,0.15);
-}
-
-.sidebar-item {
-  padding: 12px 20px;
-  border-radius: 10px;
-  transition: all 0.25s ease;
-  color: #A5B4FC;
-}
-
-.sidebar-item:hover {
-  background: rgba(99,102,241,0.15);
-  color: #fff;
-  transform: translateX(4px);
-}
-
-.sidebar-item-active {
-  background: linear-gradient(99deg,#6366F1 30%,#0ea5e9 100%) !important;
-  color: #fff !important;
-  font-weight: 700;
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.25);
-  border: 1.5px solid #6366F1;
-}
-
 /* BREADCRUMB */
 .breadcrumb {
   background: rgba(40,48,68,0.45);
@@ -81,17 +90,13 @@ body, #admin-root {
   font-size: 13px;
   color: #A5B4FC;
 }
-
 .breadcrumb a {
   color: #6366F1;
   text-decoration: none;
 }
-
 .breadcrumb a:hover {
   color: #0ea5e9;
 }
-
-/* SKELETON LOADING */
 .skeleton-card {
   background: linear-gradient(90deg, rgba(40,48,68,0.4) 25%, rgba(60,71,99,0.5) 50%, rgba(40,48,68,0.4) 75%);
   background-size: 200% 100%;
@@ -100,46 +105,37 @@ body, #admin-root {
   height: 280px;
   margin-bottom: 20px;
 }
-
 @keyframes skeleton-loading {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
-
-/* EMPTY STATE */
 .empty-state {
   text-align: center;
   padding: 60px 20px;
 }
-
 .empty-state-icon {
   font-size: 72px;
   color: #6366F1;
   margin-bottom: 20px;
   opacity: 0.7;
 }
-
 .empty-state-title {
   font-size: 24px;
   font-weight: 700;
   color: #fff;
   margin-bottom: 12px;
 }
-
 .empty-state-text {
   font-size: 15px;
   color: #A5B4FC;
   margin-bottom: 24px;
 }
-
-/* TOAST NOTIFICATIONS */
 .toast-container {
   position: fixed;
   top: 24px;
   right: 24px;
   z-index: 9999;
 }
-
 .toast {
   background: rgba(24,32,48,0.98) !important;
   backdrop-filter: blur(12px);
@@ -151,29 +147,22 @@ body, #admin-root {
   min-width: 320px;
   animation: toast-slide-in 0.3s ease;
 }
-
 @keyframes toast-slide-in {
   from { transform: translateX(400px); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
 }
-
 .toast-success {
   border-left: 4px solid #10B981;
 }
-
 .toast-error {
   border-left: 4px solid #EF4444;
 }
-
 .toast-warning {
   border-left: 4px solid #F59E0B;
 }
-
 .toast-info {
   border-left: 4px solid #3B82F6;
 }
-
-/* GLASS COMPONENTS */
 .main-content, .card, .card-header, .card-body, .table-responsive, .table, .table th, .table td, .stats-card, .form-control {
   background: rgba(24,32,48,0.92) !important;
   color: #E2E8F0 !important;
@@ -181,7 +170,6 @@ body, #admin-root {
   box-shadow: 0 8px 32px rgba(19,22,37,0.17) !important;
   border: 1.5px solid rgba(255,255,255,0.09) !important;
 }
-
 .card-header, th {
   background: rgba(40,43,60,0.96) !important;
   color: #A5B4FC !important;
@@ -189,8 +177,6 @@ body, #admin-root {
   font-size: 13px;
   letter-spacing: 1px;
 }
-
-/* SWITCH VISTA */
 .switch-view-btn {
   border-radius: 11px !important;
   padding: 10px 20px !important;
@@ -201,7 +187,6 @@ body, #admin-root {
   margin-left: 7px;
   font-weight: 700;
 }
-
 .switch-view-btn-active {
   border: 2px solid #6366F1 !important;
   box-shadow: 0 0 20px rgba(99, 102, 241, 0.27);
@@ -209,8 +194,6 @@ body, #admin-root {
   color: #fff !important;
   font-weight: bold;
 }
-
-/* GLASS HEADER */
 .glass-header {
   background: rgba(46,54,80,0.79) !important;
   border-radius: 18px !important;
@@ -221,8 +204,6 @@ body, #admin-root {
   box-shadow: 0 2px 24px #36395e3c;
   margin-bottom: 20px;
 }
-
-/* CARD GLASS */
 .glass-card {
   margin-bottom: 20px !important;
   border-radius: 19px !important;
@@ -230,15 +211,12 @@ body, #admin-root {
   box-shadow: 0 8px 36px #232c468a !important;
   transition: transform 0.2s cubic-bezier(0.4,0,0.2,1);
 }
-
 .glass-card:hover {
   transform: translateY(-5px) scale(1.01);
   box-shadow: 0 18px 56px #6366F155 !important;
   border-color: #6366F1 !important;
   transition: all 0.3s cubic-bezier(0.44, 0.14, 0.39, 0.99);
 }
-
-/* NOME CLIENTE MEGA */
 .card-prenotazione-nome {
   font-size: 1.27rem !important;
   font-weight: 800 !important;
@@ -246,14 +224,11 @@ body, #admin-root {
   text-shadow: 0 2px 12px rgba(0,0,0,0.43);
   margin-bottom: 8px;
 }
-
-/* BOTTONI AZIONI */
 .btn-group-sm .btn {
   padding: 9px 12px !important;
   font-size: 15px !important;
   border-radius: 9px !important;
 }
-
 .table .badge {
   font-size: 13px;
   font-weight: 600;
@@ -263,7 +238,6 @@ body, #admin-root {
   color: #A5B4FC;
   border: 1px solid rgba(100,116,255,0.23);
 }
-
 @media (max-width: 767px) {
   .card, .card-header, .table-responsive, .glass-header {
     border-radius: 10px !important;
