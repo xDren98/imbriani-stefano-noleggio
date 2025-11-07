@@ -1,7 +1,8 @@
-// admin-prenotazioni.js v1.4 - Card View migliorata + switch + filtri stats
+// admin-prenotazioni.js v3.0 - Tutti i miglioramenti & badge "Tutte"
 (function(){
-  const STATI_TABELLA = ['In attesa', 'Programmata', 'In corso', 'Completata'];
+  const STATI_TABELLA = ['Tutte', 'In attesa', 'Programmata', 'In corso', 'Completata'];
   const STATI_COLORI = {
+    'Tutte': { bg: 'secondary', icon: 'list', text: 'white' },
     'In attesa': { bg: 'warning', icon: 'clock', text: 'dark' },
     'Confermata': { bg: 'success', icon: 'check-circle', text: 'white' },
     'Programmata': { bg: 'info', icon: 'calendar-check', text: 'white' },
@@ -19,23 +20,21 @@
     const root = document.getElementById('admin-root');
     if (!root) return;
     root.innerHTML = `
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h2 class="h4 fw-bold mb-1">📅 Gestione Prenotazioni</h2>
-          <p class="text-muted mb-0">Visualizza e gestisci tutte le prenotazioni</p>
-        </div>
-        <div>
-          <button class="switch-view-btn switch-view-btn-active" id="btn-view-grid"><i class="fas fa-th-large"></i> Griglia</button>
-          <button class="switch-view-btn" id="btn-view-list"><i class="fas fa-list"></i> Elenco</button>
-          <button class="btn btn-success" onclick="showNewBookingModal()" style="margin-left:18px;">
-            <i class="fas fa-plus me-2"></i>Nuova Prenotazione
-          </button>
+      <div class="glass-header mb-4"> 
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+           <div><h2 class="h4 fw-bold mb-1">📅 Gestione Prenotazioni</h2><p class="text-muted mb-0">Visualizza e gestisci tutte le prenotazioni</p></div>
+           <div class="mt-2 mt-md-0">
+             <button class="switch-view-btn switch-view-btn-active" id="btn-view-grid"><i class="fas fa-th-large"></i> Griglia</button>
+             <button class="switch-view-btn" id="btn-view-list"><i class="fas fa-list"></i> Elenco</button>
+             <button class="btn btn-success ms-3" onclick="showNewBookingModal()">
+               <i class="fas fa-plus me-2"></i>Nuova Prenotazione</button>
+           </div>
         </div>
       </div>
       <div class="mb-3" id="quick-stats"></div>
 
       <!-- Filtri -->
-      <div class="card mb-3">
+      <div class="card mb-3" style="border-radius:14px;">
         <div class="card-body">
           <div class="row g-3 align-items-end">
             <div class="col-md-3">
@@ -96,13 +95,14 @@
     const statsDiv = document.getElementById('quick-stats');
     if(!statsDiv) return;
     const statiCount = {
+      'Tutte': allPrenotazioni.length,
       'In attesa': allPrenotazioni.filter(p => p.stato === 'In attesa').length,
       'Programmata': allPrenotazioni.filter(p => p.stato === 'Programmata').length,
       'In corso': allPrenotazioni.filter(p => p.stato === 'In corso').length,
       'Completata': allPrenotazioni.filter(p => p.stato === 'Completata').length
     };
     statsDiv.innerHTML = STATI_TABELLA.map(stato => {
-      const active = currentFilters.stato === stato ? 'btn-quickfilter-active' : '';
+      const active = (currentFilters.stato === stato || (stato === 'Tutte' && (currentFilters.stato === 'tutti' || !currentFilters.stato))) ? 'btn-quickfilter-active' : '';
       const color = STATI_COLORI[stato].bg;
       const icon = STATI_COLORI[stato].icon;
       return `<button class="btn-quickfilter ${active} bg-${color}" onclick="window.quickStatFilter('${stato}')">
@@ -112,9 +112,8 @@
   }
 
   window.quickStatFilter = function(stato) {
-    currentFilters.stato = stato;
-    // Aggiorno select
-    document.getElementById('filter-stato').value = stato;
+    currentFilters.stato = stato === 'Tutte' ? 'tutti' : stato;
+    document.getElementById('filter-stato').value = stato === 'Tutte' ? 'tutti' : stato;
     window.applicaFiltriPrenotazioni();
     renderQuickStats();
   };
@@ -145,6 +144,8 @@
         const statoConfig = STATI_COLORI[p.stato] || STATI_COLORI['In attesa'];
         const dataInizio = p.giornoInizio ? new Date(p.giornoInizio).toLocaleDateString('it-IT') : '-';
         const dataFine = p.giornoFine ? new Date(p.giornoFine).toLocaleDateString('it-IT') : '-';
+        const oraInizio = p.oraInizio || '';
+        const oraFine = p.oraFine || '';
         return `
           <div class="col-md-4">
             <div class="card glass-card mb-3 shadow-sm border-0">
@@ -157,7 +158,11 @@
                 <div class="card-prenotazione-nome mb-1">${p.nomeAutista1 || '-'}</div>
                 <div class="mb-1 text-muted fw-normal small">${p.cellulare || ''}</div>
                 <div class="mb-1 text-muted fw-normal small">${p.email || ''}</div>
-                <div class="mb-1 text-muted fw-normal small">${p.destinazione ? '🚩 ' + p.destinazione : ''}</div>
+                <div class="mb-1 text-teal fw-semibold small">
+                  <i class="fas fa-calendar-alt me-1"></i>
+                  <strong>Dal:</strong> ${dataInizio} ${oraInizio} <strong>- Al:</strong> ${dataFine} ${oraFine}
+                </div>
+                ${p.destinazione ? `<div class="mb-1 text-warning fw-normal small"><i class="fas fa-map-marker-alt me-1"></i>${p.destinazione}</div>` : ''}
                 <div class="d-flex justify-content-between align-items-center mt-2 gap-2 flex-wrap">
                   <span class="small text-primary"><b>${p.idPrenotazione || p.id}</b></span>
                   <div class="btn-group btn-group-sm">
@@ -196,6 +201,7 @@
                   <th>Cliente</th>
                   <th>Veicolo</th>
                   <th>Date</th>
+                  <th>Orari</th>
                   <th>Destinazione</th>
                   <th>Stato</th>
                   <th class="text-end">Azioni</th>
@@ -206,12 +212,15 @@
                   const statoConfig = STATI_COLORI[p.stato] || STATI_COLORI['In attesa'];
                   const dataInizio = p.giornoInizio ? new Date(p.giornoInizio).toLocaleDateString('it-IT') : '-';
                   const dataFine = p.giornoFine ? new Date(p.giornoFine).toLocaleDateString('it-IT') : '-';
+                  const oraInizio = p.oraInizio || '';
+                  const oraFine = p.oraFine || '';
                   return `
                     <tr>
                       <td><strong>${p.idPrenotazione || p.id}</strong></td>
                       <td><span class="card-prenotazione-nome">${p.nomeAutista1 || '-'}</span><br><small class="text-muted">${p.cellulare || ''}</small></td>
                       <td><span class="badge bg-secondary">${p.targa || '-'}</span></td>
                       <td>${dataInizio} → ${dataFine}</td>
+                      <td>${oraInizio && oraFine ? oraInizio + ' → ' + oraFine : '-'}</td>
                       <td>${p.destinazione || '-'}</td>
                       <td><span class="badge bg-${statoConfig.bg}"><i class="fas fa-${statoConfig.icon} me-1"></i>${p.stato}</span></td>
                       <td class="text-end">
@@ -264,12 +273,13 @@
     });
     renderPrenotazioni();
   };
-  // --- Modifica, dettagli, elimina, debounce rimangono invariati ---
+
+  // --- Modifica, dettagli, elimina, debounce invariati ---
   window.cambiaStatoPrenotazione = async function(idPrenotazione, nuovoStato) { /* ... */ };
   window.modificaPrenotazione = async function(idPrenotazione) { /* ... */ };
   window.salvaModificaPrenotazione = async function() { /* ... */ };
   window.eliminaPrenotazione = async function(idPrenotazione) { /* ... */ };
   window.mostraDettaglioPrenotazione = function(idPrenotazione) { /* ... */ };
   function debounce(func, wait) { let timeout; return function executedFunction(...args) { const later = () => { clearTimeout(timeout); func(...args); }; clearTimeout(timeout); timeout = setTimeout(later, wait); }; }
-  console.log('[ADMIN-PRENOTAZIONI] v1.4 loaded - Card/List view + quick stats filter!');
+  console.log('[ADMIN-PRENOTAZIONI] v3.0 loaded - Mega glassmorphism, info card, quick filters, badge tutte, wow!');
 })();
