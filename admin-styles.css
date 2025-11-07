@@ -1,6 +1,6 @@
 /**
- * ADMIN PANEL - Dark Glassmorphism Theme v2.0
- * Coerente con il sito pubblico
+ * ADMIN PANEL - Dark Glassmorphism Theme v2.1
+ * UI Improvements: better contrast, colored card borders, enhanced readability
  */
 
 :root {
@@ -10,11 +10,13 @@
   --admin-success: #10B981;
   --admin-warning: #F59E0B;
   --admin-danger: #EF4444;
+  --admin-info: #6366F1;
   --admin-dark-bg: #0f172a;
   --admin-dark-card: rgba(17, 24, 39, 0.75);
   --admin-glass-bg: rgba(255, 255, 255, 0.08);
   --admin-glass-border: rgba(255, 255, 255, 0.18);
   --admin-text-light: #E2E8F0;
+  --admin-text-bright: #F8FAFC;
   --admin-text-muted: #94A3B8;
   --admin-sidebar-width: 260px;
 }
@@ -203,12 +205,48 @@ body {
   z-index: 1;
 }
 
+/* STATS CARDS - Colored top border */
+.stats-card {
+  border-top-width: 3px;
+  border-top-style: solid;
+}
+
+.stats-card.card-warning {
+  border-top-color: var(--admin-warning);
+}
+
+.stats-card.card-success {
+  border-top-color: var(--admin-success);
+}
+
+.stats-card.card-primary {
+  border-top-color: var(--admin-primary);
+}
+
+.stats-card.card-info {
+  border-top-color: var(--admin-info);
+}
+
+/* STATS ICONS - Bigger and more visible */
+.stats-card-icon {
+  font-size: 42px !important;
+  opacity: 0.85;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+}
+
+/* STATS NUMBER - Bigger */
+.stats-card .fs-1 {
+  font-size: 3.5rem !important;
+  font-weight: 800;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
 /* ═════════════════════════════════════════════════════
    BUTTONS
    ═════════════════════════════════════════════════════ */
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--admin-primary) 0%, var(--admin-primary-hover) 65%, var(--admin-primary-active) 100%);
+  background: linear-gradient(135deg, rgba(0, 102, 255, 0.9) 0%, rgba(102, 126, 234, 0.9) 65%, rgba(118, 75, 162, 0.9) 100%);
   border: none;
   color: #fff;
   font-weight: 600;
@@ -216,13 +254,13 @@ body {
   border-radius: 10px;
   transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
               box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.22);
+  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.18);
 }
 
 .btn-primary:hover {
   transform: translateY(-2px) scale(1.02);
   background: linear-gradient(135deg, var(--admin-primary-hover) 0%, var(--admin-primary-active) 100%);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.38);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.28);
 }
 
 .btn-success {
@@ -263,6 +301,12 @@ body {
   transform: translateY(-1px);
 }
 
+/* Dropdown stato più compatto */
+.btn-group .dropdown-toggle {
+  padding: 6px 12px !important;
+  font-size: 13px !important;
+}
+
 /* ═════════════════════════════════════════════════════
    FORMS
    ═════════════════════════════════════════════════════ */
@@ -296,7 +340,7 @@ body {
 }
 
 /* ═════════════════════════════════════════════════════
-   TABLE
+   TABLE - Enhanced contrast
    ═════════════════════════════════════════════════════ */
 
 .table {
@@ -309,29 +353,36 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--admin-text-muted);
   font-weight: 600;
-  font-size: 13px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
   padding: 12px 16px;
 }
 
 .table tbody tr {
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.06) !important;
+  transform: translateX(2px);
 }
 
 .table td {
   padding: 14px 16px;
   vertical-align: middle;
-  color: var(--admin-text-light);
+  color: var(--admin-text-light) !important;
+}
+
+/* Colonna CLIENTE - extra contrasto */
+.table tbody tr td:nth-child(2) {
+  color: var(--admin-text-bright) !important;
+  font-weight: 500;
 }
 
 /* ═════════════════════════════════════════════════════
-   BADGES
+   BADGES - Enhanced visibility
    ═════════════════════════════════════════════════════ */
 
 .badge {
@@ -357,8 +408,13 @@ body {
   background: var(--admin-danger) !important;
 }
 
-.bg-secondary {
-  background: #6B7280 !important;
+/* Badge targa più visibile */
+.badge.bg-secondary {
+  background: rgba(100, 116, 255, 0.15) !important;
+  color: #A5B4FC !important;
+  border: 1px solid rgba(100, 116, 255, 0.3);
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 /* ═════════════════════════════════════════════════════
