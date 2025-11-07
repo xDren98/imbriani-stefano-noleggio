@@ -1,4 +1,4 @@
-// Shared Utils v8.7 - robust API call with dual token support (header + body)
+// Shared Utils v8.8 - Fixed Authorization header for all API calls
 (function(){
   window.api = window.api || {};
 
@@ -83,10 +83,89 @@
     return container;
   }
 
+  // ✅ FIX: Aggiungi funzione secureGet con Authorization header
+  async function secureGet(action, params = {}) {
+    const url = new URL(cfg('API_URL'));
+    url.searchParams.set('action', action);
+    
+    // Aggiungi tutti i parametri alla query string
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.set(key, String(value));
+      }
+    });
+
+    const token = cfg('AUTH_TOKEN');
+    console.log('[secureGet]', action, 'params:', params);
+
+    try {
+      const res = await fetch(url.toString(), {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-cache',
+        headers: {
+          'Authorization': `Bearer ${token}`,  // ✅ Token nell'header per GET
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await toJSONSafe(res);
+      
+      if (!res.ok || data.success === false) {
+        showError((data && data.message) ? data.message : ('Errore API: ' + res.status));
+      }
+      
+      return data;
+    } catch (err) {
+      showError('Errore di rete: ' + err.message);
+      return { success: false, message: err.message };
+    }
+  }
+
+  // ✅ FIX: Aggiungi funzione securePost con Authorization header
+  async function securePost(action, payload = {}) {
+    const url = cfg('API_URL');
+    const token = cfg('AUTH_TOKEN');
+    
+    console.log('[securePost]', action, 'payload:', payload);
+
+    // Includi token sia in header che nel body per massima compatibilità
+    const body = {
+      action: action,
+      ...payload,
+      token: token  // Token nel body per Apps Script
+    };
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        mode: 'cors',
+        cache: 'no-cache',
+        headers: {
+          'Authorization': `Bearer ${token}`,  // ✅ Token nell'header per proxy
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+
+      const data = await toJSONSafe(res);
+      
+      if (!res.ok || data.success === false) {
+        showError((data && data.message) ? data.message : ('Errore API: ' + res.status));
+      }
+      
+      return data;
+    } catch (err) {
+      showError('Errore di rete: ' + err.message);
+      return { success: false, message: err.message };
+    }
+  }
+
+  // Legacy POST function (mantiene compatibilità con vecchio codice)
   async function call(pathOrBody, opts={}){
-    const url = (window.CONFIG && window.CONFIG.API_URL) ? window.CONFIG.API_URL : cfg('API_URL');
+    const url = cfg('API_URL');
     const body = typeof pathOrBody === 'string' ? (opts.body||{}) : (pathOrBody||{});
-    const token = (window.CONFIG && window.CONFIG.AUTH_TOKEN) ? window.CONFIG.AUTH_TOKEN : cfg('AUTH_TOKEN');
+    const token = cfg('AUTH_TOKEN');
 
     // DUAL TOKEN SUPPORT: includi token sia in header che nel body per massima compatibilità
     const payload = {
@@ -117,5 +196,11 @@
 
   // Esporta le funzioni globalmente
   window.api.call = call;
+  window.api.secureGet = secureGet;
+  window.api.securePost = securePost;
+  window.secureGet = secureGet;  // ✅ Export anche come funzione globale
+  window.securePost = securePost;  // ✅ Export anche come funzione globale
   window.showToast = showToast;
+  
+  console.log('[SHARED-UTILS] v8.8 loaded - Authorization header fixed for GET/POST');
 })();
