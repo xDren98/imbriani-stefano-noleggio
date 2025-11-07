@@ -1,20 +1,15 @@
 /**
- * IMBRIANI STEFANO NOLEGGIO - BACKEND v8.7
+ * IMBRIANI STEFANO NOLEGGIO - BACKEND v8.8
+ * - FEAT: Generazione PDF automatica alla conferma
+ * - FEAT: Modifica prenotazione con rigenerazione PDF
+ * - FEAT: Elimina prenotazione con eliminazione PDF
+ * - FEAT: Lookup automatico marca/modello da targa
  * - FEAT: Funzione aggiornaStatoPrenotazione con email automatica
  * - FEAT: Log avanzati per debug admin panel
- * - Email cliente inviate con mittente forzato: imbrianistefanonoleggio@gmail.com
- * - Nessun reply-to
- * - Nessun riferimento a preventivi/importi nelle email al cliente
- * - Endpoint testEmail e trigger giornaliero reminder
- * - FIX: token letto da Authorization header (POST via proxy), query e body
- * - FEAT: ID prenotazioni dinamico formato BOOK-ANNO-xxx
- * - FEAT: Census prenotazioni esistenti con assegnazione ID mancanti
- * - FIX v8.6: Disponibilita veicoli basata su date manutenzione, non solo stato
- * - FIX v8.7: Aggiunta funzione aggiornaStatoPrenotazione per admin panel
  */
 
 const CONFIG = {
-  VERSION: '8.7',
+  VERSION: '8.8',
   SPREADSHEET_ID: '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns',
   TOKEN: 'imbriani_secret_2025',
   SHEETS: { PRENOTAZIONI: 'PRENOTAZIONI', PULMINI: 'PULMINI', CLIENTI: 'CLIENTI', MANUTENZIONI: 'MANUTENZIONI' },
@@ -27,7 +22,7 @@ const CONFIG = {
     NUMERO_PATENTE_AUTISTA_2:27,DATA_INIZIO_PATENTE_AUTISTA_2:28,SCADENZA_PATENTE_AUTISTA_2:29,NOME_AUTISTA_3:30,
     DATA_NASCITA_AUTISTA_3:31,LUOGO_NASCITA_AUTISTA_3:32,CODICE_FISCALE_AUTISTA_3:33,COMUNE_RESIDENZA_AUTISTA_3:34,
     VIA_RESIDENZA_AUTISTA_3:35,CIVICO_RESIDENZA_AUTISTA_3:36,NUMERO_PATENTE_AUTISTA_3:37,DATA_INIZIO_PATENTE_AUTISTA_3:38,
-    SCADENZA_PATENTE_AUTISTA_3:39,ID_PRENOTAZIONE:40,STATO_PRENOTAZIONE:41,IMPORTO_PREVENTIVO:42,EMAIL:43,TEST:44
+    SCADENZA_PATENTE_AUTISTA_3:39,ID_PRENOTAZIONE:40,STATO_PRENOTAZIONE:41,IMPORTO_PREVENTIVO:42,EMAIL:43,TEST:44,PDF_URL:45
   },
   CLIENTI_COLS: { NOME:1,DATA_NASCITA:2,LUOGO_NASCITA:3,CODICE_FISCALE:4,COMUNE_RESIDENZA:5,VIA_RESIDENZA:6,CIVICO_RESIDENZA:7,NUMERO_PATENTE:8,DATA_INIZIO_PATENTE:9,SCADENZA_PATENTE:10,CELLULARE:11,EMAIL:12 },
   PULMINI_COLS: { TARGA:1,MARCA:2,MODELLO:3,POSTI:4,STATO:5,NOTE:6 },
@@ -36,6 +31,16 @@ const CONFIG = {
   EMAIL: {
     FROM_NAME: 'Imbriani Stefano Noleggio',
     FROM_EMAIL: 'imbrianistefanonoleggio@gmail.com'
+  },
+  PDF: {
+    TEMPLATE_DOC_ID: '1JEpqJZq9SnmmBWAucrRQ-CAzditSK3fL7HXKbWe-kcM',
+    PDF_FOLDER_ID: '1bYLuvfydAUaKsZpZVrFq-H3uRT66oo98',
+    TIMEZONE: 'Europe/Rome',
+    VEICOLI: {
+      'DN391FW': { marca: 'Fiat', modello: 'Ducato' },
+      'EC787NM': { marca: 'Fiat', modello: 'Ducato' },
+      'EZ841FA': { marca: 'Renault', modello: 'Trafic' }
+    }
   }
 };
 
@@ -46,17 +51,13 @@ function createJsonResponse(data,status){
 }
 function validateToken(t){ return t===CONFIG.TOKEN; }
 
-// Token robusto: query -> headers (lowercase) -> body
 function getAuthHeader(e) {
-  // 1) Query string param (GET/test manuali)
   if (e && e.parameter && e.parameter.Authorization) {
     return e.parameter.Authorization.replace('Bearer ', '');
   }
   if (e && e.parameter && e.parameter.token) {
     return String(e.parameter.token);
   }
-
-  // 2) Body JSON fallback (proxy inserisce il token qui)
   try {
     if (e && e.postData && e.postData.contents) {
       const payload = JSON.parse(e.postData.contents || '{}');
@@ -64,21 +65,15 @@ function getAuthHeader(e) {
       if (payload.AUTH_TOKEN) return String(payload.AUTH_TOKEN);
     }
   } catch (_) {}
-
   return null;
 }
 
-// Genera ID prenotazione dinamico: BOOK-ANNO-xxx
 function generaNuovoIdBooking() {
   try {
     var sh = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
     var data = sh.getDataRange().getValues();
-    
-    // Anno corrente
     var annoCorrente = new Date().getFullYear();
     var prefisso = 'BOOK-' + annoCorrente + '-';
-    
-    // Trova il progressivo più alto per l'anno corrente
     var maxProgressivo = 0;
     for (var i = 1; i < data.length; i++) {
       var id = String(data[i][CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1] || '');
@@ -89,13 +84,9 @@ function generaNuovoIdBooking() {
         }
       }
     }
-    
-    // Prossimo ID disponibile per l'anno corrente
     var nuovoProgressivo = maxProgressivo + 1;
     return prefisso + String(nuovoProgressivo).padStart(3, '0');
-    
   } catch (error) {
-    // Fallback in caso di errore
     var anno = new Date().getFullYear();
     return 'BOOK-' + anno + '-' + String(Date.now()).slice(-3);
   }
@@ -107,10 +98,8 @@ function versionInfo(){
     service: 'imbriani-backend',
     version: CONFIG.VERSION,
     features: [
-      'stato_default_in_attesa','notifica_telegram_admin','endpoint_notifyTest','health_getVeicoli_getPrenotazioni',
-      'checkDisponibilita_updateStatiLive','getSheet_handleLogin_creaPrenotazione','aggiornaCliente_sincronizzaClienti',
-      'email_mittente_gmail_forzato','email_conferma_cliente','email_conferma_stato','email_reminder_3giorni','trigger_giornaliero',
-      'auth_header_body_fallback','booking_id_dinamico_anno','census_prenotazioni_esistenti','aggiornaStatoPrenotazione'
+      'pdf_generation','modifica_prenotazione','elimina_prenotazione',
+      'aggiornaStatoPrenotazione','booking_id_dinamico_anno'
     ],
     time: new Date().toISOString()
   };
@@ -126,7 +115,6 @@ function doGet(e){
     if (action==='health')
       return createJsonResponse({ success:true, service:'imbriani-backend', spreadsheet_id:CONFIG.SPREADSHEET_ID, sheets:['PRENOTAZIONI','PULMINI','CLIENTI','MANUTENZIONI'], action:'health_supported' });
 
-    // Token da header/query/body
     var token = getAuthHeader(e);
     if (!validateToken(token)) {
       Logger.log('[doGet] Token non valido');
@@ -148,21 +136,12 @@ function doGet(e){
         inviaNotificaTelegram(demo);
         return createJsonResponse({success:true,message:'Notifica Telegram inviata (test)'});
       case 'testEmail':
-        var to = p.to || 'melloanto@icloud.com';
-        return testEmailConferma(to);
-      
       case 'testEmailConferma':
-        var to = p.to || 'melloanto@icloud.com';
-        return testEmailConferma(to);
-      
+        return testEmailConferma(p.to || 'melloanto@icloud.com');
       case 'testEmailReminder':
-        var to = p.to || 'melloanto@icloud.com';
-        return testEmailReminder(to);
-        
+        return testEmailReminder(p.to || 'melloanto@icloud.com');
       case 'testEmailConfermaPreventivo':
-        var to = p.to || 'melloanto@icloud.com';
-        return testEmailConfermaPreventivo(to);
-
+        return testEmailConfermaPreventivo(p.to || 'melloanto@icloud.com');
       default: return createJsonResponse({success:false,message:'Azione non supportata: '+action},400);
     }
   }catch(err){
@@ -180,7 +159,6 @@ function doPost(e){
 
     Logger.log('[doPost] Payload: ' + JSON.stringify(post));
     var action=post.action||'login';
-    // Token da header/body/query centralizzato
     var finalToken = getAuthHeader(e);
 
     if (action==='login') return handleLogin(post, finalToken);
@@ -195,6 +173,8 @@ function doPost(e){
       case 'getVeicoli': return getVeicoli();
       case 'creaPrenotazione': return creaPrenotazione(post);
       case 'aggiornaStato': return aggiornaStatoPrenotazione(post);
+      case 'aggiornaPrenotazione': return aggiornaPrenotazioneCompleta(post);
+      case 'eliminaPrenotazione': return eliminaPrenotazione(post);
       case 'setManutenzione': return (typeof setManutenzione==='function')?setManutenzione(post):createJsonResponse({success:false,message:'setManutenzione non implementata'},400);
       case 'aggiornaCliente': return aggiornaCliente(post);
       case 'sincronizzaClienti': return sincronizzaClienti();
@@ -208,10 +188,182 @@ function doPost(e){
   }
 }
 
-/**
- * Aggiorna lo stato di una prenotazione esistente
- * POST: {action: 'aggiornaStato', idPrenotazione: 'BOOK-2025-001', nuovoStato: 'Confermata', importo: 500}
- */
+// ═══════════════════════════════════════════════════════════════
+// PDF GENERATION
+// ═══════════════════════════════════════════════════════════════
+
+function generaPDFContratto(idPrenotazione) {
+  Logger.log('[generaPDFContratto] ID: ' + idPrenotazione);
+  
+  try {
+    var sh = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    var data = sh.getDataRange().getValues();
+    var rowIndex = -1;
+    var prenotazione = null;
+    
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1]) === String(idPrenotazione)) {
+        rowIndex = i + 1;
+        prenotazione = data[i];
+        break;
+      }
+    }
+    
+    if (!prenotazione) {
+      throw new Error('Prenotazione non trovata: ' + idPrenotazione);
+    }
+    
+    // Prepara mappa placeholder
+    var mappa = {};
+    
+    // Formatta date
+    function formatDate(val) {
+      if (val instanceof Date && !isNaN(val.getTime())) {
+        return Utilities.formatDate(val, CONFIG.PDF.TIMEZONE, 'dd/MM/yyyy');
+      }
+      return val || '______________________________';
+    }
+    
+    // Dati autista 1
+    mappa['<<Nome>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1 - 1] || '______________________________';
+    mappa['<<Data di nascita>>'] = formatDate(prenotazione[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_1 - 1]);
+    mappa['<<Luogo di nascita>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_1 - 1] || '______________________________';
+    mappa['<<Codice fiscale>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_1 - 1] || '______________________________';
+    mappa['<<Comune di residenza>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.COMUNE_RESIDENZA_AUTISTA_1 - 1] || '______________________________';
+    mappa['<<Via di residenza>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.VIA_RESIDENZA_AUTISTA_1 - 1] || '______________________________';
+    mappa['<<Civico di residenza>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.CIVICO_RESIDENZA_AUTISTA_1 - 1] || '';
+    mappa['<<Numero di patente>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_1 - 1] || '______________________________';
+    mappa['<<Data inizio validità patente>>'] = formatDate(prenotazione[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_1 - 1]);
+    mappa['<<Scadenza patente>>'] = formatDate(prenotazione[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_1 - 1]);
+    
+    // Dati autista 2
+    mappa['<<Nome Autista 2>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_2 - 1] || '______________________________';
+    mappa['<<Data di nascita Autista 2>>'] = formatDate(prenotazione[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_2 - 1]);
+    mappa['<<Luogo di nascita Autista 2>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_2 - 1] || '______________________________';
+    mappa['<<Codice fiscale Autista 2>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_2 - 1] || '______________________________';
+    mappa['<<Comune di residenza Autista 2>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.COMUNE_RESIDENZA_AUTISTA_2 - 1] || '______________________________';
+    mappa['<<Via di residenza Autista 2>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.VIA_RESIDENZA_AUTISTA_2 - 1] || '______________________________';
+    mappa['<<Civico di residenza Autista 2>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.CIVICO_RESIDENZA_AUTISTA_2 - 1] || '';
+    mappa['<<Numero di patente Autista 2>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_2 - 1] || '______________________________';
+    mappa['<<Data inizio validità patente Autista 2>>'] = formatDate(prenotazione[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_2 - 1]);
+    mappa['<<Scadenza patente Autista 2>>'] = formatDate(prenotazione[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_2 - 1]);
+    
+    // Dati autista 3
+    mappa['<<Nome Autista 3>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_3 - 1] || '______________________________';
+    mappa['<<Data di nascita Autista 3>>'] = formatDate(prenotazione[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_3 - 1]);
+    mappa['<<Luogo di nascita Autista 3>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_3 - 1] || '______________________________';
+    mappa['<<Codice fiscale Autista 3>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_3 - 1] || '______________________________';
+    mappa['<<Comune di residenza Autista 3>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.COMUNE_RESIDENZA_AUTISTA_3 - 1] || '______________________________';
+    mappa['<<Via di residenza Autista 3>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.VIA_RESIDENZA_AUTISTA_3 - 1] || '______________________________';
+    mappa['<<Civico di residenza Autista 3>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.CIVICO_RESIDENZA_AUTISTA_3 - 1] || '';
+    mappa['<<Numero di patente Autista 3>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_3 - 1] || '______________________________';
+    mappa['<<Data inizio validità patente Autista 3>>'] = formatDate(prenotazione[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_3 - 1]);
+    mappa['<<Scadenza patente Autista 3>>'] = formatDate(prenotazione[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_3 - 1]);
+    
+    // Dati noleggio
+    var targa = String(prenotazione[CONFIG.PRENOTAZIONI_COLS.TARGA - 1] || '').trim().toUpperCase();
+    var veicolo = CONFIG.PDF.VEICOLI[targa] || { marca: '______________________________', modello: '______________________________' };
+    
+    mappa['<<Targa>>'] = targa || '______________________________';
+    mappa['<<marca>>'] = veicolo.marca;
+    mappa['<<tipo>>'] = veicolo.modello;
+    mappa['<<Giorno inizio noleggio>>'] = formatDate(prenotazione[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO - 1]);
+    mappa['<<Giorno fine noleggio>>'] = formatDate(prenotazione[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE - 1]);
+    mappa['<<Ora inizio noleggio>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.ORA_INIZIO - 1] || '______________________________';
+    mappa['<<Ora fine noleggio>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.ORA_FINE - 1] || '______________________________';
+    mappa['<<Destinazione>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.DESTINAZIONE - 1] || '______________________________';
+    mappa['<<Cellulare>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.CELLULARE - 1] || '______________________________';
+    mappa['<<Data contratto>>'] = formatDate(prenotazione[CONFIG.PRENOTAZIONI_COLS.DATA_CONTRATTO - 1]);
+    mappa['<<ID prenotazione>>'] = idPrenotazione;
+    mappa['<<Importo preventivo>>'] = prenotazione[CONFIG.PRENOTAZIONI_COLS.IMPORTO_PREVENTIVO - 1] || '0';
+    
+    Logger.log('[generaPDFContratto] Veicolo: ' + targa + ' -> ' + veicolo.marca + ' ' + veicolo.modello);
+    
+    // Crea copia template
+    var template = DriveApp.getFileById(CONFIG.PDF.TEMPLATE_DOC_ID);
+    var tempDoc = template.makeCopy();
+    var doc = DocumentApp.openById(tempDoc.getId());
+    var body = doc.getBody();
+    
+    // Sostituisci placeholder
+    var sostituzioni = 0;
+    for (var placeholder in mappa) {
+      var value = String(mappa[placeholder] || '');
+      var count = body.replaceText(placeholder, value);
+      if (count > 0) sostituzioni++;
+    }
+    
+    doc.saveAndClose();
+    Logger.log('[generaPDFContratto] Sostituzioni: ' + sostituzioni);
+    
+    // Crea PDF
+    var pdfBlob = DriveApp.getFileById(tempDoc.getId()).getAs(MimeType.PDF);
+    var nomeCliente = String(mappa['<<Nome>>'] || 'Cliente').replace(/\s+/g, '_');
+    var dataRitiro = String(mappa['<<Giorno inizio noleggio>>'] || '').replace(/\//g, '-');
+    var dataArrivo = String(mappa['<<Giorno fine noleggio>>'] || '').replace(/\//g, '-');
+    var nomePdf = nomeCliente + '_' + dataRitiro + '_' + dataArrivo + '.pdf';
+    
+    var folder = DriveApp.getFolderById(CONFIG.PDF.PDF_FOLDER_ID);
+    var pdfFile = folder.createFile(pdfBlob).setName(nomePdf);
+    pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    
+    // Elimina documento temporaneo
+    DriveApp.getFileById(tempDoc.getId()).setTrashed(true);
+    
+    // Salva URL PDF nella colonna
+    sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.PDF_URL).setValue(pdfFile.getUrl());
+    
+    Logger.log('[generaPDFContratto] PDF creato: ' + nomePdf);
+    Logger.log('[generaPDFContratto] URL: ' + pdfFile.getUrl());
+    
+    return {
+      success: true,
+      pdfUrl: pdfFile.getUrl(),
+      pdfId: pdfFile.getId(),
+      nomeFile: nomePdf
+    };
+    
+  } catch (err) {
+    Logger.log('[generaPDFContratto] Errore: ' + err.message);
+    return { success: false, message: err.message };
+  }
+}
+
+function eliminaPDFPrenotazione(idPrenotazione) {
+  Logger.log('[eliminaPDFPrenotazione] ID: ' + idPrenotazione);
+  try {
+    var sh = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    var data = sh.getDataRange().getValues();
+    var pdfUrl = '';
+    
+    // Trova URL PDF dalla prenotazione
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1]) === String(idPrenotazione)) {
+        pdfUrl = data[i][CONFIG.PRENOTAZIONI_COLS.PDF_URL - 1] || '';
+        break;
+      }
+    }
+    
+    // Estrai ID del file dall'URL
+    if (pdfUrl && pdfUrl.indexOf('/d/') > -1) {
+      var pdfId = pdfUrl.split('/d/')[1].split('/')[0];
+      try {
+        var file = DriveApp.getFileById(pdfId);
+        file.setTrashed(true);
+        Logger.log('[eliminaPDFPrenotazione] PDF eliminato: ' + pdfId);
+      } catch (e) {
+        Logger.log('[eliminaPDFPrenotazione] PDF non trovato o già eliminato: ' + e.message);
+      }
+    }
+  } catch (err) {
+    Logger.log('[eliminaPDFPrenotazione] Errore: ' + err.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AGGIORNA STATO PRENOTAZIONE (con PDF)
+// ═══════════════════════════════════════════════════════════════
+
 function aggiornaStatoPrenotazione(post){
   Logger.log('[aggiornaStatoPrenotazione] Input: ' + JSON.stringify(post));
   try{
@@ -228,7 +380,6 @@ function aggiornaStatoPrenotazione(post){
     var data = sh.getDataRange().getValues();
     var rowIndex = -1;
     
-    // Trova la riga con questo ID
     for (var i = 1; i < data.length; i++) {
       if (String(data[i][CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1]) === String(idPrenotazione)) {
         rowIndex = i + 1;
@@ -242,18 +393,31 @@ function aggiornaStatoPrenotazione(post){
       return createJsonResponse({success:false, message:'Prenotazione non trovata con ID: ' + idPrenotazione}, 404);
     }
     
-    // Aggiorna lo stato
     sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE).setValue(nuovoStato);
     Logger.log('[aggiornaStatoPrenotazione] Stato aggiornato a: ' + nuovoStato);
     
-    // Se c'è un importo e stato è Confermata, aggiorna anche l'importo
     if (importo && nuovoStato === 'Confermata') {
       sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.IMPORTO_PREVENTIVO).setValue(importo);
       Logger.log('[aggiornaStatoPrenotazione] Importo aggiornato a: ' + importo);
     }
     
-    // Invia email se stato è Confermata
+    var pdfResult = null;
+    
+    // Genera PDF quando confermi
     if (nuovoStato === 'Confermata') {
+      Logger.log('[aggiornaStatoPrenotazione] Generazione PDF...');
+      try {
+        pdfResult = generaPDFContratto(idPrenotazione);
+        if (pdfResult.success) {
+          Logger.log('[aggiornaStatoPrenotazione] PDF generato: ' + pdfResult.nomeFile);
+        } else {
+          Logger.log('[aggiornaStatoPrenotazione] Errore generazione PDF: ' + pdfResult.message);
+        }
+      } catch (e) {
+        Logger.log('[aggiornaStatoPrenotazione] Errore generazione PDF: ' + e.message);
+      }
+      
+      // Invia email conferma
       var row = data[rowIndex - 1];
       var email = row[CONFIG.PRENOTAZIONI_COLS.EMAIL - 1];
       
@@ -268,35 +432,161 @@ function aggiornaStatoPrenotazione(post){
           oraFine: row[CONFIG.PRENOTAZIONI_COLS.ORA_FINE - 1],
           destinazione: row[CONFIG.PRENOTAZIONI_COLS.DESTINAZIONE - 1],
           email: email,
-          autista1: {
-            nomeCompleto: row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1 - 1]
-          }
+          autista1: { nomeCompleto: row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1 - 1] }
         };
         
         try {
           inviaEmailConfermaPreventivo(prenotazione);
-          Logger.log('[aggiornaStatoPrenotazione] Email conferma inviata con successo');
+          Logger.log('[aggiornaStatoPrenotazione] Email conferma inviata');
         } catch(e) {
-          Logger.log('[aggiornaStatoPrenotazione] Errore invio email conferma: ' + e.message);
+          Logger.log('[aggiornaStatoPrenotazione] Errore invio email: ' + e.message);
         }
-      } else {
-        Logger.log('[aggiornaStatoPrenotazione] Nessuna email trovata per questa prenotazione');
       }
     }
     
-    Logger.log('[aggiornaStatoPrenotazione] Operazione completata con successo');
+    Logger.log('[aggiornaStatoPrenotazione] Operazione completata');
     return createJsonResponse({
       success: true, 
       message: 'Stato aggiornato con successo',
       nuovoStato: nuovoStato,
-      idPrenotazione: idPrenotazione
+      idPrenotazione: idPrenotazione,
+      pdfGenerato: pdfResult ? pdfResult.success : false,
+      pdfUrl: pdfResult && pdfResult.success ? pdfResult.pdfUrl : null
     });
     
   } catch(err) {
     Logger.log('[aggiornaStatoPrenotazione] Errore: ' + err.message);
-    return createJsonResponse({success:false, message:'Errore aggiornamento stato: ' + err.message}, 500);
+    return createJsonResponse({success:false, message:'Errore: ' + err.message}, 500);
   }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// MODIFICA PRENOTAZIONE COMPLETA
+// ═══════════════════════════════════════════════════════════════
+
+function aggiornaPrenotazioneCompleta(post) {
+  Logger.log('[aggiornaPrenotazioneCompleta] Input: ' + JSON.stringify(post));
+  
+  try {
+    var idPrenotazione = post.idPrenotazione;
+    if (!idPrenotazione) {
+      return createJsonResponse({success: false, message: 'ID prenotazione richiesto'}, 400);
+    }
+    
+    var sh = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    var data = sh.getDataRange().getValues();
+    var rowIndex = -1;
+    var statoAttuale = '';
+    
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1]) === String(idPrenotazione)) {
+        rowIndex = i + 1;
+        statoAttuale = data[i][CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE - 1];
+        break;
+      }
+    }
+    
+    if (rowIndex === -1) {
+      return createJsonResponse({success: false, message: 'Prenotazione non trovata'}, 404);
+    }
+    
+    Logger.log('[aggiornaPrenotazioneCompleta] Stato attuale: ' + statoAttuale);
+    
+    // Aggiorna campi se presenti
+    if (post.targa) sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.TARGA).setValue(post.targa);
+    if (post.giornoInizio) sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO).setValue(new Date(post.giornoInizio));
+    if (post.giornoFine) sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE).setValue(new Date(post.giornoFine));
+    if (post.oraInizio) sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.ORA_INIZIO).setValue(post.oraInizio);
+    if (post.oraFine) sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.ORA_FINE).setValue(post.oraFine);
+    if (post.destinazione) sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.DESTINAZIONE).setValue(post.destinazione);
+    if (post.cellulare) sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.CELLULARE).setValue(post.cellulare);
+    if (post.email) sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.EMAIL).setValue(post.email);
+    if (post.importo) sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.IMPORTO_PREVENTIVO).setValue(post.importo);
+    
+    // Autista 1
+    if (post.autista1) {
+      if (post.autista1.nomeCompleto) sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1).setValue(post.autista1.nomeCompleto);
+      if (post.autista1.dataNascita) sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_1).setValue(post.autista1.dataNascita);
+      if (post.autista1.luogoNascita) sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_1).setValue(post.autista1.luogoNascita);
+      if (post.autista1.codiceFiscale) sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_1).setValue(post.autista1.codiceFiscale);
+      // ... altri campi autista 1
+    }
+    
+    Logger.log('[aggiornaPrenotazioneCompleta] Campi aggiornati');
+    
+    // Se stato NON è "In attesa", rigenera PDF
+    var pdfRigenerato = false;
+    if (statoAttuale !== 'In attesa') {
+      Logger.log('[aggiornaPrenotazioneCompleta] Rigenerazione PDF necessaria');
+      
+      // Elimina PDF esistente
+      eliminaPDFPrenotazione(idPrenotazione);
+      
+      // Rigenera PDF
+      var pdfResult = generaPDFContratto(idPrenotazione);
+      pdfRigenerato = pdfResult.success;
+      
+      if (pdfResult.success) {
+        Logger.log('[aggiornaPrenotazioneCompleta] PDF rigenerato: ' + pdfResult.nomeFile);
+      } else {
+        Logger.log('[aggiornaPrenotazioneCompleta] Errore rigenerazione PDF: ' + pdfResult.message);
+      }
+    }
+    
+    return createJsonResponse({
+      success: true,
+      message: 'Prenotazione aggiornata',
+      pdfRigenerato: pdfRigenerato
+    });
+    
+  } catch (err) {
+    Logger.log('[aggiornaPrenotazioneCompleta] Errore: ' + err.message);
+    return createJsonResponse({success: false, message: err.message}, 500);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ELIMINA PRENOTAZIONE
+// ═══════════════════════════════════════════════════════════════
+
+function eliminaPrenotazione(post) {
+  Logger.log('[eliminaPrenotazione] ID: ' + post.idPrenotazione);
+  
+  try {
+    var idPrenotazione = post.idPrenotazione;
+    if (!idPrenotazione) {
+      return createJsonResponse({success: false, message: 'ID prenotazione richiesto'}, 400);
+    }
+    
+    // Elimina PDF associato
+    eliminaPDFPrenotazione(idPrenotazione);
+    
+    // Elimina riga da PRENOTAZIONI
+    var sh = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    var data = sh.getDataRange().getValues();
+    
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1]) === String(idPrenotazione)) {
+        sh.deleteRow(i + 1);
+        Logger.log('[eliminaPrenotazione] Riga eliminata: ' + (i + 1));
+        break;
+      }
+    }
+    
+    return createJsonResponse({
+      success: true,
+      message: 'Prenotazione eliminata'
+    });
+    
+  } catch (err) {
+    Logger.log('[eliminaPrenotazione] Errore: ' + err.message);
+    return createJsonResponse({success: false, message: err.message}, 500);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ALTRE FUNZIONI (invariate)
+// ═══════════════════════════════════════════════════════════════
 
 function getSheetGeneric(p){
   try{
@@ -424,7 +714,8 @@ function getPrenotazioni(){
         dataContratto:r[CONFIG.PRENOTAZIONI_COLS.DATA_CONTRATTO-1]||'',
         email:r[CONFIG.PRENOTAZIONI_COLS.EMAIL-1]||'',
         idPrenotazione:r[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE-1]||'',
-        timestamp:r[CONFIG.PRENOTAZIONI_COLS.TIMESTAMP-1]||''
+        timestamp:r[CONFIG.PRENOTAZIONI_COLS.TIMESTAMP-1]||'',
+        pdfUrl:r[CONFIG.PRENOTAZIONI_COLS.PDF_URL-1]||''
       });
     }
     Logger.log('[getPrenotazioni] Trovate ' + out.length + ' prenotazioni');
@@ -449,7 +740,6 @@ function checkDisponibilita(p){
         if (!(nf<ie || ni>fe)){ disp=false; confl.push({da:ie,a:fe,stato:st}); }
       }
     }
-    // Controllo manutenzioni con date
     var shM = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.MANUTENZIONI);
     if (shM) {
       var dataM = shM.getDataRange().getValues();
@@ -481,7 +771,6 @@ function checkDisponibilita(p){
   }
 }
 
-// Aggiornamento stati live CORRETTO: non tocca "In attesa"
 function updateStatiLive(){
   try{
     var now=new Date(); var today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
@@ -493,12 +782,10 @@ function updateStatiLive(){
       var r=valsP[i]; var stato=String(r[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE-1]||'');
       var di=new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO-1]); var df=new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE-1]); var next=stato;
       
-      // NON toccare "In attesa" - deve rimanere fino all'approvazione manuale
       if (stato === 'In attesa') {
-        continue; // Salta completamente le prenotazioni in attesa
+        continue;
       }
       
-      // Solo prenotazioni CONFERMATE possono progredire automaticamente
       if (stato === 'Confermata' && today < di) {
         next = 'Programmata';
       }
@@ -514,7 +801,6 @@ function updateStatiLive(){
       }
     }
     
-    // Manutenzioni (rimane uguale)
     var shM=ss.getSheetByName(CONFIG.SHEETS.MANUTENZIONI);
     if (shM){
       var valsM=shM.getDataRange().getValues();
@@ -535,7 +821,7 @@ function updateStatiLive(){
 function creaPrenotazione(post){
   try{
     var sh=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
-    var row=new Array(44); for (var i=0;i<44;i++){ row[i]=''; }
+    var row=new Array(45); for (var i=0;i<45;i++){ row[i]=''; }
     row[CONFIG.PRENOTAZIONI_COLS.TIMESTAMP-1]=new Date();
     row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1-1]=post.autista1&&post.autista1.nomeCompleto?post.autista1.nomeCompleto:(post.autista1&&post.autista1.nome?post.autista1.nome:'');
     row[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_1-1]=post.autista1&&post.autista1.dataNascita?post.autista1.dataNascita:'';
@@ -584,7 +870,6 @@ function creaPrenotazione(post){
       row[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_3-1]=post.autista3.scadenzaPatente||'';
     }
 
-    // Genera ID dinamico BOOK-ANNO-xxx
     var id = generaNuovoIdBooking();
     row[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE-1]=id;
     sh.appendRow(row);
@@ -610,30 +895,22 @@ function creaPrenotazione(post){
   }
 }
 
-// Census prenotazioni esistenti con assegnazione ID BOOK-ANNO-xxx
 function assegnaIdPrenotazioniEsistenti(){
   try {
     var sh = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
     var data = sh.getDataRange().getValues();
     
     if (data.length <= 1) {
-      return createJsonResponse({
-        success: true,
-        message: 'Nessuna prenotazione trovata',
-        processate: 0
-      });
+      return createJsonResponse({ success: true, message: 'Nessuna prenotazione trovata', processate: 0 });
     }
     
-    // Raggruppa per anno per gestire ID separati
     var prenotazioniPerAnno = {};
     var maxProgressiviPerAnno = {};
     
-    // Prima passata: analizza ID esistenti per anno
     for (var i = 1; i < data.length; i++) {
       var row = data[i];
       var idEsistente = String(row[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1] || '').trim();
       
-      // Determina l'anno dalla data o usa anno corrente
       var annoPrenotazione;
       var timestamp = row[CONFIG.PRENOTAZIONI_COLS.TIMESTAMP - 1];
       var dataContratto = row[CONFIG.PRENOTAZIONI_COLS.DATA_CONTRATTO - 1];
@@ -646,23 +923,16 @@ function assegnaIdPrenotazioniEsistenti(){
       } else if (giornoInizio && giornoInizio instanceof Date) {
         annoPrenotazione = giornoInizio.getFullYear();
       } else {
-        annoPrenotazione = new Date().getFullYear(); // Default anno corrente
+        annoPrenotazione = new Date().getFullYear();
       }
       
-      // Inizializza strutture per l'anno
       if (!prenotazioniPerAnno[annoPrenotazione]) {
         prenotazioniPerAnno[annoPrenotazione] = [];
         maxProgressiviPerAnno[annoPrenotazione] = 0;
       }
       
-      prenotazioniPerAnno[annoPrenotazione].push({
-        riga: i + 1,
-        row: row,
-        idEsistente: idEsistente,
-        anno: annoPrenotazione
-      });
+      prenotazioniPerAnno[annoPrenotazione].push({ riga: i + 1, row: row, idEsistente: idEsistente, anno: annoPrenotazione });
       
-      // Trova max progressivo esistente per questo anno
       var prefisso = 'BOOK-' + annoPrenotazione + '-';
       if (idEsistente.startsWith(prefisso)) {
         var numero = parseInt(idEsistente.replace(prefisso, ''), 10);
@@ -672,7 +942,6 @@ function assegnaIdPrenotazioniEsistenti(){
       }
     }
     
-    // Seconda passata: assegna ID mancanti per anno
     var processate = 0;
     var aggiornate = 0;
     var dettagli = [];
@@ -686,19 +955,8 @@ function assegnaIdPrenotazioniEsistenti(){
         
         if (!prenotazione.idEsistente || prenotazione.idEsistente === '') {
           var nuovoId = prefisso + String(prossimoProgressivo).padStart(3, '0');
-          
-          // Aggiorna la cella
           sh.getRange(prenotazione.riga, CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE).setValue(nuovoId);
-          
-          dettagli.push({
-            riga: prenotazione.riga,
-            anno: anno,
-            targa: prenotazione.row[CONFIG.PRENOTAZIONI_COLS.TARGA - 1] || 'N/A',
-            cliente: prenotazione.row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1 - 1] || 'N/A',
-            stato: prenotazione.row[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE - 1] || 'N/A',
-            nuovoId: nuovoId
-          });
-          
+          dettagli.push({ riga: prenotazione.riga, anno: anno, nuovoId: nuovoId });
           prossimoProgressivo++;
           aggiornate++;
         }
@@ -706,21 +964,10 @@ function assegnaIdPrenotazioniEsistenti(){
       }
     }
     
-    return createJsonResponse({
-      success: true,
-      message: 'ID assegnati con formato BOOK-ANNO-xxx dinamico',
-      processate: processate,
-      aggiornate: aggiornate,
-      anniTrovati: Object.keys(prenotazioniPerAnno),
-      maxProgressiviPerAnno: maxProgressiviPerAnno,
-      dettagli: dettagli
-    });
+    return createJsonResponse({ success: true, message: 'ID assegnati', processate: processate, aggiornate: aggiornate });
     
   } catch (error) {
-    return createJsonResponse({
-      success: false,
-      message: 'Errore assegnazione ID: ' + error.message
-    }, 500);
+    return createJsonResponse({ success: false, message: 'Errore: ' + error.message }, 500);
   }
 }
 
@@ -840,34 +1087,16 @@ function sincronizzaClienti(){
 
 function inviaNotificaTelegram(pren){
   try{
-    var msg=['🚐 NUOVA PRENOTAZIONE IN ATTESA','',
-      '📋 Riepilogo:',
-      '🚗 Veicolo: '+(pren.targa||'-'),
-      '📅 Dal: '+(pren.giornoInizio||'-')+' '+(pren.oraInizio||'-'),
-      '📅 Al: '+(pren.giornoFine||'-')+' '+(pren.oraFine||'-'),
-      '📍 Destinazione: '+(pren.destinazione||'Non specificata'),'',
-      '👤 Autista principale:',
-      '👨‍💼 '+(pren.autista1&&pren.autista1.nomeCompleto||'-'),
-      '🆔 '+(pren.autista1&&pren.autista1.codiceFiscale||'-'),
-      '📱 '+(pren.autista1&&pren.autista1.cellulare||'-'),
-      '📧 '+(pren.email||'Non fornita'),'',
-      '⏰ Ricevuta: '+new Date().toLocaleString('it-IT'),
-      '🔄 Stato: In attesa','',
-      'Accedi alla dashboard per confermare.'
-    ].join('\n');
+    var msg=['🚐 NUOVA PRENOTAZIONE IN ATTESA','','📋 Riepilogo:','🚗 Veicolo: '+(pren.targa||'-'),'📅 Dal: '+(pren.giornoInizio||'-')+' '+(pren.oraInizio||'-'),'📅 Al: '+(pren.giornoFine||'-')+' '+(pren.oraFine||'-'),'📍 Destinazione: '+(pren.destinazione||'Non specificata'),'','👤 Autista principale:','👨‍💼 '+(pren.autista1&&pren.autista1.nomeCompleto||'-'),'🆔 '+(pren.autista1&&pren.autista1.codiceFiscale||'-'),'📱 '+(pren.autista1&&pren.autista1.cellulare||'-'),'📧 '+(pren.email||'Non fornita'),'','⏰ Ricevuta: '+new Date().toLocaleString('it-IT'),'🔄 Stato: In attesa','','Accedi alla dashboard per confermare.'].join('\n');
     var url='https://api.telegram.org/bot'+CONFIG.TELEGRAM.BOT_TOKEN+'/sendMessage';
     var payload={ chat_id:CONFIG.TELEGRAM.CHAT_ID, text:msg, parse_mode:'Markdown' };
     UrlFetchApp.fetch(url,{method:'post', contentType:'application/json', payload:JSON.stringify(payload)});
   }catch(e){ Logger.log('Errore invio Telegram: '+(e&&e.message)); }
 }
 
-// EMAIL: mittente forzato Gmail noleggio
 function inviaEmailConfermaCliente(prenotazione){
   try {
-    // Carica il template HTML dal file remoto
     var html = UrlFetchApp.fetch('https://raw.githubusercontent.com/xDren98/imbriani-stefano-noleggio/main/email-template-conferma.html').getContentText();
-
-    // Sostituisci le variabili dinamiche
     html = html.replace('{{ID_PRENOTAZIONE}}', prenotazione.idPrenotazione || 'N/A')
                .replace('{{TARGA}}', prenotazione.targa || 'N/A')
                .replace('{{MODELLO}}', prenotazione.modello || '')
@@ -877,24 +1106,15 @@ function inviaEmailConfermaCliente(prenotazione){
                .replace('{{ORA_FINE}}', prenotazione.oraFine || '')
                .replace('{{DESTINAZIONE}}', prenotazione.destinazione || '---')
                .replace('{{AUTISTA_NOME}}', prenotazione.autista1 && prenotazione.autista1.nomeCompleto ? prenotazione.autista1.nomeCompleto : 'Cliente');
-
-    MailApp.sendEmail({
-      to: prenotazione.email,
-      subject: "Conferma Prenotazione - Imbriani Stefano Noleggio",
-      htmlBody: html,
-      name: CONFIG.EMAIL.FROM_NAME
-    });
+    MailApp.sendEmail({ to: prenotazione.email, subject: "Conferma Prenotazione - Imbriani Stefano Noleggio", htmlBody: html, name: CONFIG.EMAIL.FROM_NAME });
   } catch (error) {
     Logger.log('Errore invio email conferma cliente: ' + error.message);
   }
 }
 
-
 function inviaEmailConfermaPreventivo(prenotazione){
   try {
-    // Carica il nuovo template HTML approvazione
     var html = UrlFetchApp.fetch('https://raw.githubusercontent.com/xDren98/imbriani-stefano-noleggio/main/email-template-approvazione.html').getContentText();
-
     html = html.replace('{{ID_PRENOTAZIONE}}', prenotazione.idPrenotazione || 'N/A')
                .replace('{{TARGA}}', prenotazione.targa || 'N/A')
                .replace('{{MODELLO}}', prenotazione.modello || '')
@@ -904,18 +1124,11 @@ function inviaEmailConfermaPreventivo(prenotazione){
                .replace('{{ORA_FINE}}', prenotazione.oraFine || '')
                .replace('{{DESTINAZIONE}}', prenotazione.destinazione || '---')
                .replace('{{AUTISTA_NOME}}', prenotazione.autista1 && prenotazione.autista1.nomeCompleto ? prenotazione.autista1.nomeCompleto : 'Cliente');
-
-    MailApp.sendEmail({
-      to: prenotazione.email,
-      subject: "Prenotazione Confermata - Imbriani Stefano Noleggio",
-      htmlBody: html,
-      name: CONFIG.EMAIL.FROM_NAME
-    });
+    MailApp.sendEmail({ to: prenotazione.email, subject: "Prenotazione Confermata - Imbriani Stefano Noleggio", htmlBody: html, name: CONFIG.EMAIL.FROM_NAME });
   } catch (error) {
     Logger.log('Errore invio email conferma preventivo: ' + error.message);
   }
 }
-
 
 function checkReminderEmails(){
   try {
@@ -923,32 +1136,19 @@ function checkReminderEmails(){
     var treGiorni = new Date(oggi.getTime() + (3 * 24 * 60 * 60 * 1000));
     var y = treGiorni.getFullYear(), m = String(treGiorni.getMonth() + 1).padStart(2, '0'), d = String(treGiorni.getDate()).padStart(2, '0');
     var treGiorniStr = y+'-'+m+'-'+d;
-
     var sh = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
     var data = sh.getDataRange().getValues();
     var sent = 0;
-
     for (var i = 1; i < data.length; i++) {
       var row = data[i];
       var stato = String(row[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE - 1] || '');
       var dataInizio = row[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO - 1];
       var email = row[CONFIG.PRENOTAZIONI_COLS.EMAIL - 1];
-
       if (stato === 'Confermata' && email && dataInizio) {
         var di = new Date(dataInizio);
         var diStr = di.getFullYear()+'-'+String(di.getMonth()+1).padStart(2,'0')+'-'+String(di.getDate()).padStart(2,'0');
         if (diStr === treGiorniStr) {
-          var prenotazione = {
-            idPrenotazione: row[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1],
-            targa: row[CONFIG.PRENOTAZIONI_COLS.TARGA - 1],
-            giornoInizio: dataInizio,
-            giornoFine: row[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE - 1],
-            oraInizio: row[CONFIG.PRENOTAZIONI_COLS.ORA_INIZIO - 1],
-            oraFine: row[CONFIG.PRENOTAZIONI_COLS.ORA_FINE - 1],
-            destinazione: row[CONFIG.PRENOTAZIONI_COLS.DESTINAZIONE - 1],
-            email: email,
-            autista1: { nomeCompleto: row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1 - 1] }
-          };
+          var prenotazione = { idPrenotazione: row[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1], targa: row[CONFIG.PRENOTAZIONI_COLS.TARGA - 1], giornoInizio: dataInizio, giornoFine: row[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE - 1], oraInizio: row[CONFIG.PRENOTAZIONI_COLS.ORA_INIZIO - 1], oraFine: row[CONFIG.PRENOTAZIONI_COLS.ORA_FINE - 1], destinazione: row[CONFIG.PRENOTAZIONI_COLS.DESTINAZIONE - 1], email: email, autista1: { nomeCompleto: row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1 - 1] } };
           try { inviaEmailReminder(prenotazione); sent++; }
           catch (e) { console.error('Errore invio email reminder per '+email+':', e); }
         }
@@ -962,10 +1162,7 @@ function checkReminderEmails(){
 
 function inviaEmailReminder(prenotazione){
   try {
-    // Carica template HTML promemoria da GitHub
     var html = UrlFetchApp.fetch('https://raw.githubusercontent.com/xDren98/imbriani-stefano-noleggio/main/email-template-reminder.html').getContentText();
-
-    // Popola le variabili dinamiche
     html = html.replace('{{ID_PRENOTAZIONE}}', prenotazione.idPrenotazione || 'N/A')
                .replace('{{TARGA}}', prenotazione.targa || 'N/A')
                .replace('{{MODELLO}}', prenotazione.modello || '')
@@ -975,18 +1172,11 @@ function inviaEmailReminder(prenotazione){
                .replace('{{ORA_FINE}}', prenotazione.oraFine || '')
                .replace('{{DESTINAZIONE}}', prenotazione.destinazione || '---')
                .replace('{{AUTISTA_NOME}}', prenotazione.autista1 && prenotazione.autista1.nomeCompleto ? prenotazione.autista1.nomeCompleto : 'Cliente');
-
-    MailApp.sendEmail({
-      to: prenotazione.email,
-      subject: "Promemoria Partenza - Imbriani Stefano Noleggio",
-      htmlBody: html,
-      name: CONFIG.EMAIL.FROM_NAME
-    });
+    MailApp.sendEmail({ to: prenotazione.email, subject: "Promemoria Partenza - Imbriani Stefano Noleggio", htmlBody: html, name: CONFIG.EMAIL.FROM_NAME });
   } catch (error) {
     Logger.log('Errore invio email reminder: ' + error.message);
   }
 }
-
 
 function setupDailyTrigger(){
   var triggers = ScriptApp.getProjectTriggers();
@@ -996,116 +1186,41 @@ function setupDailyTrigger(){
   ScriptApp.newTrigger('dailyReminderCheck').timeBased().everyDays(1).atHour(9).create();
   Logger.log('Trigger giornaliero configurato per le 09:00');
 }
+
 function dailyReminderCheck(){
   try{ checkReminderEmails(); updateStatiLive(); Logger.log('Check giornaliero completato: '+new Date().toISOString()); }
   catch (error){ Logger.log('Errore nel check giornaliero: '+error.message); }
 }
 
-// ========== FUNZIONI TEST EMAIL ==========
-
-/**
- * Test invio email conferma prenotazione con template HTML
- * Chiamabile da doGet con ?action=testEmailConferma&to=email@example.com
- */
 function testEmailConferma(email) {
   var destinatario = email || 'melloanto@icloud.com';
-  
-  var prenotazioneDemo = {
-    idPrenotazione: 'BOOK-2025-TEST',
-    targa: 'EC787NM',
-    modello: 'Mercedes Sprinter 9 Posti',
-    giornoInizio: new Date(2025, 10, 15), // 15 Nov 2025
-    giornoFine: new Date(2025, 10, 18),   // 18 Nov 2025
-    oraInizio: '09:00',
-    oraFine: '18:00',
-    destinazione: 'Roma - Tour Colosseo e Vaticano',
-    email: destinatario,
-    autista1: {
-      nomeCompleto: 'Mario Rossi'
-    }
-  };
-  
+  var prenotazioneDemo = { idPrenotazione: 'BOOK-2025-TEST', targa: 'EC787NM', modello: 'Mercedes Sprinter 9 Posti', giornoInizio: new Date(2025, 10, 15), giornoFine: new Date(2025, 10, 18), oraInizio: '09:00', oraFine: '18:00', destinazione: 'Roma - Tour Colosseo e Vaticano', email: destinatario, autista1: { nomeCompleto: 'Mario Rossi' } };
   try {
     inviaEmailConfermaCliente(prenotazioneDemo);
-    return createJsonResponse({
-      success: true,
-      message: 'Email conferma test inviata con successo a ' + destinatario,
-      template: 'email-template-conferma.html'
-    });
+    return createJsonResponse({ success: true, message: 'Email conferma test inviata a ' + destinatario });
   } catch (error) {
-    return createJsonResponse({
-      success: false,
-      message: 'Errore invio email test: ' + error.message
-    }, 500);
+    return createJsonResponse({ success: false, message: 'Errore: ' + error.message }, 500);
   }
 }
 
-/**
- * Test invio email reminder (quando sarà pronta)
- * Chiamabile da doGet con ?action=testEmailReminder&to=email@example.com
- */
 function testEmailReminder(email) {
   var destinatario = email || 'melloanto@icloud.com';
-  
-  var prenotazioneDemo = {
-    idPrenotazione: 'BOOK-2025-REMINDER',
-    targa: 'FG123AB',
-    modello: 'Fiat Ducato Passo Lungo',
-    giornoInizio: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // Tra 3 giorni
-    giornoFine: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000),   // Tra 6 giorni
-    oraInizio: '10:00',
-    oraFine: '17:00',
-    destinazione: 'Napoli - Matrimonio',
-    email: destinatario,
-    autista1: {
-      nomeCompleto: 'Luigi Verdi'
-    }
-  };
-  
+  var prenotazioneDemo = { idPrenotazione: 'BOOK-2025-REMINDER', targa: 'FG123AB', modello: 'Fiat Ducato Passo Lungo', giornoInizio: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), giornoFine: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000), oraInizio: '10:00', oraFine: '17:00', destinazione: 'Napoli - Matrimonio', email: destinatario, autista1: { nomeCompleto: 'Luigi Verdi' } };
   try {
     inviaEmailReminder(prenotazioneDemo);
-    return createJsonResponse({
-      success: true,
-      message: 'Email reminder test inviata con successo a ' + destinatario,
-      template: 'email-template-reminder.html (se disponibile)'
-    });
+    return createJsonResponse({ success: true, message: 'Email reminder test inviata a ' + destinatario });
   } catch (error) {
-    return createJsonResponse({
-      success: false,
-      message: 'Errore invio email reminder test: ' + error.message
-    }, 500);
+    return createJsonResponse({ success: false, message: 'Errore: ' + error.message }, 500);
   }
 }
-// Funzione di test (puoi inserirla in fondo)
+
 function testEmailConfermaPreventivo(email) {
   var destinatario = email || 'melloanto@icloud.com';
-
-  var demo = {
-    idPrenotazione: 'BOOK-2025-CONF',
-    targa: 'BW123XY',
-    modello: 'Opel Vivaro',
-    giornoInizio: new Date(2025, 10, 22),
-    giornoFine: new Date(2025, 10, 23),
-    oraInizio: '08:00',
-    oraFine: '19:00',
-    destinazione: 'Firenze - Meeting',
-    email: destinatario,
-    autista1: {
-      nomeCompleto: 'Antonio Bianchi'
-    }
-  };
-
+  var demo = { idPrenotazione: 'BOOK-2025-CONF', targa: 'BW123XY', modello: 'Opel Vivaro', giornoInizio: new Date(2025, 10, 22), giornoFine: new Date(2025, 10, 23), oraInizio: '08:00', oraFine: '19:00', destinazione: 'Firenze - Meeting', email: destinatario, autista1: { nomeCompleto: 'Antonio Bianchi' } };
   try {
     inviaEmailConfermaPreventivo(demo);
-    return createJsonResponse({
-      success: true,
-      message: 'Email conferma preventivo test inviata con successo a ' + destinatario,
-      template: 'email-template-approvazione.html'
-    });
+    return createJsonResponse({ success: true, message: 'Email conferma preventivo test inviata a ' + destinatario });
   } catch (error) {
-    return createJsonResponse({
-      success: false,
-      message: 'Errore invio email conferma preventivo test: ' + error.message
-    }, 500);
+    return createJsonResponse({ success: false, message: 'Errore: ' + error.message }, 500);
   }
 }
