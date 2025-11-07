@@ -820,26 +820,63 @@ function getPrenotazioni(){
     }
     var out=[];
     for (var i=1;i<data.length;i++){
-      var r=data[i]; var t=r[CONFIG.PRENOTAZIONI_COLS.TARGA-1]; var cf=r[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_1-1];
+      var r=data[i]; 
+      var t=r[CONFIG.PRENOTAZIONI_COLS.TARGA-1]; 
+      var cf=r[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_1-1];
       if (!t && !cf) continue;
+      
       out.push({
-        id:i, targa:t||'',
+        id:i, 
+        targa:t||'',
         giornoInizio:r[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO-1]||'',
         giornoFine:r[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE-1]||'',
         oraInizio:r[CONFIG.PRENOTAZIONI_COLS.ORA_INIZIO-1]||'',
         oraFine:r[CONFIG.PRENOTAZIONI_COLS.ORA_FINE-1]||'',
         destinazione:r[CONFIG.PRENOTAZIONI_COLS.DESTINAZIONE-1]||'',
-        codiceFiscaleAutista1:cf||'',
+        
+        // 👤 AUTISTA 1 - COMPLETO
         nomeAutista1:r[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1-1]||'',
-        cellulare:r[CONFIG.PRENOTAZIONI_COLS.CELLULARE-1]||'',
-        codiceFiscaleAutista2:r[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_2-1]||'',
+        codiceFiscaleAutista1:cf||'',
+        dataNascitaAutista1:r[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_1-1]||'',
+        luogoNascitaAutista1:r[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_1-1]||'',
+        comuneResidenzaAutista1:r[CONFIG.PRENOTAZIONI_COLS.COMUNE_RESIDENZA_AUTISTA_1-1]||'',
+        viaResidenzaAutista1:r[CONFIG.PRENOTAZIONI_COLS.VIA_RESIDENZA_AUTISTA_1-1]||'',
+        civicoResidenzaAutista1:r[CONFIG.PRENOTAZIONI_COLS.CIVICO_RESIDENZA_AUTISTA_1-1]||'',
+        numeroPatenteAutista1:r[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_1-1]||'',
+        dataInizioPatenteAutista1:r[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_1-1]||'',
+        scadenzaPatenteAutista1:r[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_1-1]||'',
+        
+        // 👤 AUTISTA 2 - COMPLETO
         nomeAutista2:r[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_2-1]||'',
-        codiceFiscaleAutista3:r[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_3-1]||'',
+        codiceFiscaleAutista2:r[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_2-1]||'',
+        dataNascitaAutista2:r[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_2-1]||'',
+        luogoNascitaAutista2:r[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_2-1]||'',
+        comuneResidenzaAutista2:r[CONFIG.PRENOTAZIONI_COLS.COMUNE_RESIDENZA_AUTISTA_2-1]||'',
+        viaResidenzaAutista2:r[CONFIG.PRENOTAZIONI_COLS.VIA_RESIDENZA_AUTISTA_2-1]||'',
+        civicoResidenzaAutista2:r[CONFIG.PRENOTAZIONI_COLS.CIVICO_RESIDENZA_AUTISTA_2-1]||'',
+        numeroPatenteAutista2:r[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_2-1]||'',
+        dataInizioPatenteAutista2:r[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_2-1]||'',
+        scadenzaPatenteAutista2:r[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_2-1]||'',
+        
+        // 👤 AUTISTA 3 - COMPLETO
         nomeAutista3:r[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_3-1]||'',
+        codiceFiscaleAutista3:r[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_3-1]||'',
+        dataNascitaAutista3:r[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_3-1]||'',
+        luogoNascitaAutista3:r[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_3-1]||'',
+        comuneResidenzaAutista3:r[CONFIG.PRENOTAZIONI_COLS.COMUNE_RESIDENZA_AUTISTA_3-1]||'',
+        viaResidenzaAutista3:r[CONFIG.PRENOTAZIONI_COLS.VIA_RESIDENZA_AUTISTA_3-1]||'',
+        civicoResidenzaAutista3:r[CONFIG.PRENOTAZIONI_COLS.CIVICO_RESIDENZA_AUTISTA_3-1]||'',
+        numeroPatenteAutista3:r[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_3-1]||'',
+        dataInizioPatenteAutista3:r[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_3-1]||'',
+        scadenzaPatenteAutista3:r[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_3-1]||'',
+        
+        // 📋 ALTRI DATI
+        cellulare:r[CONFIG.PRENOTAZIONI_COLS.CELLULARE-1]||'',
+        email:r[CONFIG.PRENOTAZIONI_COLS.EMAIL-1]||'',
         stato:r[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE-1]||'In attesa',
         importo:r[CONFIG.PRENOTAZIONI_COLS.IMPORTO_PREVENTIVO-1]||'',
+        importoPreventivo:r[CONFIG.PRENOTAZIONI_COLS.IMPORTO_PREVENTIVO-1]||'',
         dataContratto:r[CONFIG.PRENOTAZIONI_COLS.DATA_CONTRATTO-1]||'',
-        email:r[CONFIG.PRENOTAZIONI_COLS.EMAIL-1]||'',
         idPrenotazione:r[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE-1]||'',
         timestamp:r[CONFIG.PRENOTAZIONI_COLS.TIMESTAMP-1]||'',
         pdfUrl:r[CONFIG.PRENOTAZIONI_COLS.PDF_URL-1]||''
@@ -852,6 +889,700 @@ function getPrenotazioni(){
     return createJsonResponse({success:false,message:'Errore caricamento prenotazioni: '+err.message},500);
   }
 }
+
+
+function checkDisponibilita(p){
+  try{
+    var t=p.targa, di=p.dataInizio, df=p.dataFine;
+    if (!t||!di||!df) return createJsonResponse({success:false,message:'Parametri mancanti: targa, dataInizio, dataFine'},400);
+    var sh=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    var data=sh.getDataRange().getValues(); var disp=true; var confl=[];
+    for (var i=1;i<data.length;i++){
+      var r=data[i]; var tp=r[CONFIG.PRENOTAZIONI_COLS.TARGA-1]; var st=String(r[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE-1]||'');
+      if (tp===t && ['Rifiutata','Completata'].indexOf(st)===-1){
+        var ie=new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO-1]); var fe=new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE-1]);
+        var ni=new Date(di); var nf=new Date(df);
+        if (!(nf<ie || ni>fe)){ disp=false; confl.push({da:ie,a:fe,stato:st}); }
+      }
+    }
+    var shM = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.MANUTENZIONI);
+    if (shM) {
+      var dataM = shM.getDataRange().getValues();
+      for (var m = 1; m < dataM.length; m++) {
+        var mRow = dataM[m];
+        var targaMan = mRow[CONFIG.MANUTENZIONI_COLS.TARGA - 1];
+        var dataInizioMan = mRow[CONFIG.MANUTENZIONI_COLS.DATA_INIZIO - 1];
+        var dataFineMan = mRow[CONFIG.MANUTENZIONI_COLS.DATA_FINE - 1];
+        if (targaMan === t && dataInizioMan && dataFineMan) {
+          var manInizio = new Date(dataInizioMan);
+          var manFine = new Date(dataFineMan);
+          var ni = new Date(di);
+          var nf = new Date(df);
+          if (!(nf < manInizio || ni > manFine)) {
+            disp = false;
+            confl.push({
+              da: manInizio,
+              a: manFine,
+              stato: mRow[CONFIG.MANUTENZIONI_COLS.STATO - 1] || 'Manutenzione',
+              tipo: 'manutenzione'
+            });
+          }
+        }
+      }
+    }
+    return createJsonResponse({success:true,disponibile:disp,conflitti:confl});
+  }catch(err){
+    return createJsonResponse({success:false,message:'Errore controllo disponibilita: '+err.message},500);
+  }
+}
+
+function updateStatiLive(){
+  try{
+    var now = new Date(); 
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var ss = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+    var shP = ss.getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    var valsP = shP.getDataRange().getValues();
+    
+    var aggiornamenti = 0;
+    
+    for (var i = 1; i < valsP.length; i++) {
+      var r = valsP[i]; 
+      var stato = String(r[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE - 1] || '').trim();
+      var di = new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO - 1]); 
+      var df = new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE - 1]); 
+      
+      // Normalizza date (solo anno/mese/giorno, ignora ore)
+      var dataInizio = new Date(di.getFullYear(), di.getMonth(), di.getDate());
+      var dataFine = new Date(df.getFullYear(), df.getMonth(), df.getDate());
+      
+      var nuovoStato = stato;
+      
+      // Skip stati finali o in attesa
+      if (stato === 'In attesa' || stato === 'Rifiutata' || stato === 'Completata') {
+        continue;
+      }
+      
+      // 🔄 LOGICA CORRETTA DI TRANSIZIONE
+      
+      // 1️⃣ Se noleggio è CONCLUSO (data fine passata)
+      if (today > dataFine) {
+        nuovoStato = 'Completata';
+      }
+      // 2️⃣ Se noleggio è IN CORSO (tra data inizio e data fine, inclusi)
+      else if (today >= dataInizio && today <= dataFine) {
+        nuovoStato = 'In corso';
+      }
+      // 3️⃣ Se noleggio è FUTURO e confermato
+      else if (today < dataInizio && stato === 'Confermata') {
+        nuovoStato = 'Programmata';
+      }
+      
+      // Aggiorna solo se cambiato
+      if (nuovoStato !== stato) { 
+        shP.getRange(i + 1, CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE).setValue(nuovoStato);
+        aggiornamenti++;
+        Logger.log('[updateStatiLive] Riga ' + (i+1) + ': ' + stato + ' → ' + nuovoStato);
+      }
+    }
+    
+    // Gestione manutenzioni (invariata)
+    var shM = ss.getSheetByName(CONFIG.SHEETS.MANUTENZIONI);
+    if (shM) {
+      var valsM = shM.getDataRange().getValues();
+      for (var j = 1; j < valsM.length; j++) {
+        var m = valsM[j]; 
+        var ms = String(m[CONFIG.MANUTENZIONI_COLS.STATO - 1] || '').trim();
+        var mdi = new Date(m[CONFIG.MANUTENZIONI_COLS.DATA_INIZIO - 1]); 
+        var mdf = new Date(m[CONFIG.MANUTENZIONI_COLS.DATA_FINE - 1]);
+        
+        var dataInizioMan = new Date(mdi.getFullYear(), mdi.getMonth(), mdi.getDate());
+        var dataFineMan = new Date(mdf.getFullYear(), mdf.getMonth(), mdf.getDate());
+        
+        var mnext = ms;
+        
+        // Skip stati finali
+        if (ms === 'Completata') continue;
+        
+        if (today > dataFineMan) {
+          mnext = 'Completata';
+        } else if (today >= dataInizioMan && today <= dataFineMan) {
+          mnext = 'In corso';
+        }
+        
+        if (mnext !== ms) { 
+          shM.getRange(j + 1, CONFIG.MANUTENZIONI_COLS.STATO).setValue(mnext);
+          aggiornamenti++;
+        }
+      }
+    }
+    
+    Logger.log('[updateStatiLive] Completato: ' + aggiornamenti + ' stati aggiornati');
+    return createJsonResponse({
+      success: true, 
+      message: 'Stati aggiornati',
+      aggiornamenti: aggiornamenti
+    });
+    
+  } catch(err) {
+    Logger.log('[updateStatiLive] Errore: ' + err.message);
+    return createJsonResponse({
+      success: false, 
+      message: 'Errore updateStatiLive: ' + err.message
+    }, 500);
+  }
+}
+
+
+function creaPrenotazione(post){
+  try{
+    var sh=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    var row=new Array(45); for (var i=0;i<45;i++){ row[i]=''; }
+    row[CONFIG.PRENOTAZIONI_COLS.TIMESTAMP-1]=new Date();
+    row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1-1]=post.autista1&&post.autista1.nomeCompleto?post.autista1.nomeCompleto:(post.autista1&&post.autista1.nome?post.autista1.nome:'');
+    row[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_1-1]=post.autista1&&post.autista1.dataNascita?post.autista1.dataNascita:'';
+    row[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_1-1]=post.autista1&&post.autista1.luogoNascita?post.autista1.luogoNascita:'';
+    row[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_1-1]=post.autista1&&post.autista1.codiceFiscale?post.autista1.codiceFiscale:'';
+    row[CONFIG.PRENOTAZIONI_COLS.COMUNE_RESIDENZA_AUTISTA_1-1]=post.autista1&&post.autista1.comuneResidenza?post.autista1.comuneResidenza:'';
+    row[CONFIG.PRENOTAZIONI_COLS.VIA_RESIDENZA_AUTISTA_1-1]=post.autista1&&post.autista1.viaResidenza?post.autista1.viaResidenza:'';
+    row[CONFIG.PRENOTAZIONI_COLS.CIVICO_RESIDENZA_AUTISTA_1-1]=post.autista1&&post.autista1.civicoResidenza?post.autista1.civicoResidenza:'';
+    row[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_1-1]=post.autista1&&post.autista1.numeroPatente?post.autista1.numeroPatente:'';
+    row[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_1-1]=post.autista1&&(post.autista1.inizioValiditaPatente||post.autista1.dataInizioPatente)?(post.autista1.inizioValiditaPatente||post.autista1.dataInizioPatente):'';
+    row[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_1-1]=post.autista1&&post.autista1.scadenzaPatente?post.autista1.scadenzaPatente:'';
+    row[CONFIG.PRENOTAZIONI_COLS.TARGA-1]=post.targa||'';
+    row[CONFIG.PRENOTAZIONI_COLS.ORA_INIZIO-1]=post.oraInizio||'';
+    row[CONFIG.PRENOTAZIONI_COLS.ORA_FINE-1]=post.oraFine||'';
+    row[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO-1]=post.giornoInizio?new Date(post.giornoInizio):'';
+    row[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE-1]=post.giornoFine?new Date(post.giornoFine):'';
+    row[CONFIG.PRENOTAZIONI_COLS.DESTINAZIONE-1]=post.destinazione||'';
+    row[CONFIG.PRENOTAZIONI_COLS.CELLULARE-1]=post.autista1&&post.autista1.cellulare?post.autista1.cellulare:(post.cellulare||'');
+    row[CONFIG.PRENOTAZIONI_COLS.DATA_CONTRATTO-1]=post.giornoInizio?new Date(post.giornoInizio):'';
+    row[CONFIG.PRENOTAZIONI_COLS.EMAIL-1]=post.email||'';
+    row[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE-1]='In attesa';
+    row[CONFIG.PRENOTAZIONI_COLS.IMPORTO_PREVENTIVO-1]=post.importo||0;
+
+    if (post.autista2){
+      row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_2-1]=post.autista2.nomeCompleto||post.autista2.nome||'';
+      row[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_2-1]=post.autista2.dataNascita||'';
+      row[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_2-1]=post.autista2.luogoNascita||'';
+      row[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_2-1]=post.autista2.codiceFiscale||'';
+      row[CONFIG.PRENOTAZIONI_COLS.COMUNE_RESIDENZA_AUTISTA_2-1]=post.autista2.comuneResidenza||'';
+      row[CONFIG.PRENOTAZIONI_COLS.VIA_RESIDENZA_AUTISTA_2-1]=post.autista2.viaResidenza||'';
+      row[CONFIG.PRENOTAZIONI_COLS.CIVICO_RESIDENZA_AUTISTA_2-1]=post.autista2.civicoResidenza||'';
+      row[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_2-1]=post.autista2.numeroPatente||'';
+      row[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_2-1]=post.autista2.inizioValiditaPatente||post.autista2.dataInizioPatente||'';
+      row[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_2-1]=post.autista2.scadenzaPatente||'';
+    }
+    if (post.autista3){
+      row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_3-1]=post.autista3.nomeCompleto||post.autista3.nome||'';
+      row[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_3-1]=post.autista3.dataNascita||'';
+      row[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_3-1]=post.autista3.luogoNascita||'';
+      row[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_3-1]=post.autista3.codiceFiscale||'';
+      row[CONFIG.PRENOTAZIONI_COLS.COMUNE_RESIDENZA_AUTISTA_3-1]=post.autista3.comuneResidenza||'';
+      row[CONFIG.PRENOTAZIONI_COLS.VIA_RESIDENZA_AUTISTA_3-1]=post.autista3.viaResidenza||'';
+      row[CONFIG.PRENOTAZIONI_COLS.CIVICO_RESIDENZA_AUTISTA_3-1]=post.autista3.civicoResidenza||'';
+      row[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_3-1]=post.autista3.numeroPatente||'';
+      row[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_3-1]=post.autista3.inizioValiditaPatente||post.autista3.dataInizioPatente||'';
+      row[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_3-1]=post.autista3.scadenzaPatente||'';
+    }
+
+    var id = generaNuovoIdBooking();
+    row[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE-1]=id;
+    sh.appendRow(row);
+
+    if (post.upsertClienti){
+      try{
+        if (post.autista1 && post.autista1.codiceFiscale) upsertClienteInCreaPrenotazione(post.autista1, true);
+        if (post.autista2 && post.autista2.codiceFiscale) upsertClienteInCreaPrenotazione(post.autista2, false);
+        if (post.autista3 && post.autista3.codiceFiscale) upsertClienteInCreaPrenotazione(post.autista3, false);
+      }catch(e){ console.error('Errore upsert clienti:', e); }
+    }
+
+    try{ inviaNotificaTelegram(post); }catch(e){ console.error('Errore invio Telegram:', e); }
+
+    if (post.email){
+      try{ inviaEmailConfermaCliente({...post, idPrenotazione:id}); }
+      catch(e){ console.error('Errore email conferma cliente:', e); }
+    }
+
+    return createJsonResponse({success:true,message:'Prenotazione creata',idPrenotazione:id});
+  }catch(err){
+    return createJsonResponse({success:false,message:'Errore creazione prenotazione: '+err.message},500);
+  }
+}
+
+function assegnaIdPrenotazioniEsistenti(){
+  try {
+    var sh = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    var data = sh.getDataRange().getValues();
+    
+    if (data.length <= 1) {
+      return createJsonResponse({ success: true, message: 'Nessuna prenotazione trovata', processate: 0 });
+    }
+    
+    var prenotazioniPerAnno = {};
+    var maxProgressiviPerAnno = {};
+    
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var idEsistente = String(row[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1] || '').trim();
+      
+      var annoPrenotazione;
+      var timestamp = row[CONFIG.PRENOTAZIONI_COLS.TIMESTAMP - 1];
+      var dataContratto = row[CONFIG.PRENOTAZIONI_COLS.DATA_CONTRATTO - 1];
+      var giornoInizio = row[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO - 1];
+      
+      if (timestamp && timestamp instanceof Date) {
+        annoPrenotazione = timestamp.getFullYear();
+      } else if (dataContratto && dataContratto instanceof Date) {
+        annoPrenotazione = dataContratto.getFullYear();
+      } else if (giornoInizio && giornoInizio instanceof Date) {
+        annoPrenotazione = giornoInizio.getFullYear();
+      } else {
+        annoPrenotazione = new Date().getFullYear();
+      }
+      
+      if (!prenotazioniPerAnno[annoPrenotazione]) {
+        prenotazioniPerAnno[annoPrenotazione] = [];
+        maxProgressiviPerAnno[annoPrenotazione] = 0;
+      }
+      
+      prenotazioniPerAnno[annoPrenotazione].push({ riga: i + 1, row: row, idEsistente: idEsistente, anno: annoPrenotazione });
+      
+      var prefisso = 'BOOK-' + annoPrenotazione + '-';
+      if (idEsistente.startsWith(prefisso)) {
+        var numero = parseInt(idEsistente.replace(prefisso, ''), 10);
+        if (!isNaN(numero) && numero > maxProgressiviPerAnno[annoPrenotazione]) {
+          maxProgressiviPerAnno[annoPrenotazione] = numero;
+        }
+      }
+    }
+    
+    var processate = 0;
+    var aggiornate = 0;
+    var dettagli = [];
+    
+    for (var anno in prenotazioniPerAnno) {
+      var prossimoProgressivo = maxProgressiviPerAnno[anno] + 1;
+      var prefisso = 'BOOK-' + anno + '-';
+      
+      for (var j = 0; j < prenotazioniPerAnno[anno].length; j++) {
+        var prenotazione = prenotazioniPerAnno[anno][j];
+        
+        if (!prenotazione.idEsistente || prenotazione.idEsistente === '') {
+          var nuovoId = prefisso + String(prossimoProgressivo).padStart(3, '0');
+          sh.getRange(prenotazione.riga, CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE).setValue(nuovoId);
+          dettagli.push({ riga: prenotazione.riga, anno: anno, nuovoId: nuovoId });
+          prossimoProgressivo++;
+          aggiornate++;
+        }
+        processate++;
+      }
+    }
+    
+    return createJsonResponse({ success: true, message: 'ID assegnati', processate: processate, aggiornate: aggiornate });
+    
+  } catch (error) {
+    return createJsonResponse({ success: false, message: 'Errore: ' + error.message }, 500);
+  }
+}
+
+function upsertClienteInCreaPrenotazione(cliente, isPrimary){
+  var ss=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+  var shC=ss.getSheetByName(CONFIG.SHEETS.CLIENTI);
+  var cf=String(cliente.codiceFiscale||'').trim();
+  if (!cf||cf.length!==16) return;
+  var vals=shC.getDataRange().getValues(); var idx=-1;
+  for (var i=1;i<vals.length;i++){ if (String(vals[i][CONFIG.CLIENTI_COLS.CODICE_FISCALE-1]).trim()===cf){ idx=i; break; } }
+  function setValue(colKey, val){ if (val!==undefined && val!==null && val!==''){ if (idx>0){ shC.getRange(idx+1, CONFIG.CLIENTI_COLS[colKey]).setValue(val); } else { return val; } } return ''; }
+  if (idx===-1){
+    var newRow=new Array(Object.keys(CONFIG.CLIENTI_COLS).length); for (var k=0;k<newRow.length;k++) newRow[k]='';
+    newRow[CONFIG.CLIENTI_COLS.NOME-1]=cliente.nomeCompleto||cliente.nome||'';
+    newRow[CONFIG.CLIENTI_COLS.DATA_NASCITA-1]=cliente.dataNascita||'';
+    newRow[CONFIG.CLIENTI_COLS.LUOGO_NASCITA-1]=cliente.luogoNascita||'';
+    newRow[CONFIG.CLIENTI_COLS.CODICE_FISCALE-1]=cf;
+    newRow[CONFIG.CLIENTI_COLS.COMUNE_RESIDENZA-1]=cliente.comuneResidenza||'';
+    newRow[CONFIG.CLIENTI_COLS.VIA_RESIDENZA-1]=cliente.viaResidenza||'';
+    newRow[CONFIG.CLIENTI_COLS.CIVICO_RESIDENZA-1]=cliente.civicoResidenza||'';
+    newRow[CONFIG.CLIENTI_COLS.NUMERO_PATENTE-1]=cliente.numeroPatente||'';
+    newRow[CONFIG.CLIENTI_COLS.DATA_INIZIO_PATENTE-1]=cliente.inizioValiditaPatente||cliente.dataInizioPatente||'';
+    newRow[CONFIG.CLIENTI_COLS.SCADENZA_PATENTE-1]=cliente.scadenzaPatente||'';
+    if (isPrimary){ newRow[CONFIG.CLIENTI_COLS.CELLULARE-1]=cliente.cellulare||''; newRow[CONFIG.CLIENTI_COLS.EMAIL-1]=cliente.email||''; }
+    shC.appendRow(newRow);
+  } else {
+    setValue('NOME', cliente.nomeCompleto||cliente.nome);
+    setValue('DATA_NASCITA', cliente.dataNascita);
+    setValue('LUOGO_NASCITA', cliente.luogoNascita);
+    setValue('COMUNE_RESIDENZA', cliente.comuneResidenza);
+    setValue('VIA_RESIDENZA', cliente.viaResidenza);
+    setValue('CIVICO_RESIDENZA', cliente.civicoResidenza);
+    setValue('NUMERO_PATENTE', cliente.numeroPatente);
+    setValue('DATA_INIZIO_PATENTE', cliente.inizioValiditaPatente||cliente.dataInizioPatente);
+    setValue('SCADENZA_PATENTE', cliente.scadenzaPatente);
+    if (isPrimary){ setValue('CELLULARE', cliente.cellulare); setValue('EMAIL', cliente.email); }
+  }
+}
+
+function aggiornaCliente(post){
+  try{
+    var cf=(post.codiceFiscale||'').trim(); if (!cf||cf.length!==16) return createJsonResponse({success:false,message:'Codice fiscale non valido'},400);
+    var sh=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.CLIENTI);
+    var vals=sh.getDataRange().getValues(); var idx=-1;
+    for (var i=1;i<vals.length;i++){ if (String(vals[i][CONFIG.CLIENTI_COLS.CODICE_FISCALE-1]).trim()===cf){ idx=i; break; } }
+    if (idx===-1) return createJsonResponse({success:false,message:'Cliente non trovato'},404);
+    function setIf(colKey,val){ if (val!==undefined && val!==null){ sh.getRange(idx+1, CONFIG.CLIENTI_COLS[colKey], 1, 1).setValue(val); } }
+    setIf('NOME', post.nome||post.nomeCompleto);
+    setIf('LUOGO_NASCITA', post.luogoNascita);
+    setIf('COMUNE_RESIDENZA', post.comuneResidenza);
+    setIf('VIA_RESIDENZA', post.viaResidenza);
+    setIf('CIVICO_RESIDENZA', post.civicoResidenza);
+    setIf('NUMERO_PATENTE', post.numeroPatente);
+    setIf('DATA_INIZIO_PATENTE', post.inizioValiditaPatente||post.dataInizioPatente);
+    setIf('SCADENZA_PATENTE', post.scadenzaPatente);
+    setIf('CELLULARE', post.cellulare);
+    setIf('EMAIL', post.email);
+    return createJsonResponse({success:true,message:'Profilo aggiornato',codiceFiscale:cf});
+  }catch(err){
+    return createJsonResponse({success:false,message:'Errore aggiornamento cliente: '+err.message},500);
+  }
+}
+
+function sincronizzaClienti(){
+  try{
+    var ss=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+    var shP=ss.getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    var shC=ss.getSheetByName(CONFIG.SHEETS.CLIENTI);
+    if (!shP||!shC) return createJsonResponse({success:false,message:'Foglio PRENOTAZIONI o CLIENTI non trovato'},500);
+    var pVals=shP.getDataRange().getValues(); var cVals=shC.getDataRange().getValues(); var idxByCF={};
+    for (var i=1;i<cVals.length;i++){ var cf=String(cVals[i][CONFIG.CLIENTI_COLS.CODICE_FISCALE-1]||'').trim(); if (cf) idxByCF[cf]=i+1; }
+    var created=0, updated=0, skipped=0;
+
+    function upsertCliente(data,isPrimary){
+      var cf=String(data.codiceFiscale||'').trim();
+      if (!cf||cf.length!==16){ skipped++; return; }
+      var rowIndex=idxByCF[cf];
+
+      function updateCell(colKey,val){ if (val!==undefined && val!==null && val!==''){ shC.getRange(rowIndex, CONFIG.CLIENTI_COLS[colKey]).setValue(val); } }
+
+      if (!rowIndex){
+        var row=new Array(Object.keys(CONFIG.CLIENTI_COLS).length); for (var k=0;k<row.length;k++) row[k]='';
+        row[CONFIG.CLIENTI_COLS.NOME-1]=data.nomeCompleto||data.nome||'';
+        row[CONFIG.CLIENTI_COLS.DATA_NASCITA-1]=data.dataNascita||'';
+        row[CONFIG.CLIENTI_COLS.LUOGO_NASCITA-1]=data.luogoNascita||'';
+        row[CONFIG.CLIENTI_COLS.CODICE_FISCALE-1]=cf;
+        row[CONFIG.CLIENTI_COLS.COMUNE_RESIDENZA-1]=data.comuneResidenza||'';
+        row[CONFIG.CLIENTI_COLS.VIA_RESIDENZA-1]=data.viaResidenza||'';
+        row[CONFIG.CLIENTI_COLS.CIVICO_RESIDENZA-1]=data.civicoResidenza||'';
+        row[CONFIG.CLIENTI_COLS.NUMERO_PATENTE-1]=data.numeroPatente||'';
+        row[CONFIG.CLIENTI_COLS.DATA_INIZIO_PATENTE-1]=data.inizioValiditaPatente||data.dataInizioPatente||'';
+        row[CONFIG.CLIENTI_COLS.SCADENZA_PATENTE-1]=data.scadenzaPatente||'';
+        if (isPrimary){ row[CONFIG.CLIENTI_COLS.CELLULARE-1]=data.cellulare||''; row[CONFIG.CLIENTI_COLS.EMAIL-1]=data.email||''; }
+        shC.appendRow(row); var last=shC.getLastRow(); idxByCF[cf]=last; created++;
+      } else {
+        updateCell('NOME', data.nomeCompleto||data.nome||''); updateCell('DATA_NASCITA', data.dataNascita||''); updateCell('LUOGO_NASCITA', data.luogoNascita||'');
+        updateCell('COMUNE_RESIDENZA', data.comuneResidenza||''); updateCell('VIA_RESIDENZA', data.viaResidenza||''); updateCell('CIVICO_RESIDENZA', data.civicoResidenza||'');
+        updateCell('NUMERO_PATENTE', data.numeroPatente||''); updateCell('DATA_INIZIO_PATENTE', data.inizioValiditaPatente||data.dataInizioPatente||''); updateCell('SCADENZA_PATENTE', data.scadenzaPatente||'');
+        if (isPrimary){ updateCell('CELLULARE', data.cellulare||''); updateCell('EMAIL', data.email||''); } updated++;
+      }
+    }
+
+    for (var r=1;r<pVals.length;r++){
+      var row=pVals[r];
+      var a1={ nomeCompleto:row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1-1]||'', dataNascita:row[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_1-1]||'', luogoNascita:row[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_1-1]||'', codiceFiscale:row[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_1-1]||'', comuneResidenza:row[CONFIG.PRENOTAZIONI_COLS.COMUNE_RESIDENZA_AUTISTA_1-1]||'', viaResidenza:row[CONFIG.PRENOTAZIONI_COLS.VIA_RESIDENZA_AUTISTA_1-1]||'', civicoResidenza:row[CONFIG.PRENOTAZIONI_COLS.CIVICO_RESIDENZA_AUTISTA_1-1]||'', numeroPatente:row[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_1-1]||'', inizioValiditaPatente:row[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_1-1]||'', scadenzaPatente:row[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_1-1]||'', cellulare:row[CONFIG.PRENOTAZIONI_COLS.CELLULARE-1]||'', email:row[CONFIG.PRENOTAZIONI_COLS.EMAIL-1]||'' };
+      var a2={ nomeCompleto:row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_2-1]||'', dataNascita:row[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_2-1]||'', luogoNascita:row[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_2-1]||'', codiceFiscale:row[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_2-1]||'', comuneResidenza:row[CONFIG.PRENOTAZIONI_COLS.COMUNE_RESIDENZA_AUTISTA_2-1]||'', viaResidenza:row[CONFIG.PRENOTAZIONI_COLS.VIA_RESIDENZA_AUTISTA_2-1]||'', civicoResidenza:row[CONFIG.PRENOTAZIONI_COLS.CIVICO_RESIDENZA_AUTISTA_2-1]||'', numeroPatente:row[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_2-1]||'', inizioValiditaPatente:row[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_2-1]||'', scadenzaPatente:row[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_2-1]||'' };
+      var a3={ nomeCompleto:row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_3-1]||'', dataNascita:row[CONFIG.PRENOTAZIONI_COLS.DATA_NASCITA_AUTISTA_3-1]||'', luogoNascita:row[CONFIG.PRENOTAZIONI_COLS.LUOGO_NASCITA_AUTISTA_3-1]||'', codiceFiscale:row[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_3-1]||'', comuneResidenza:row[CONFIG.PRENOTAZIONI_COLS.COMUNE_RESIDENZA_AUTISTA_3-1]||'', viaResidenza:row[CONFIG.PRENOTAZIONI_COLS.VIA_RESIDENZA_AUTISTA_3-1]||'', civicoResidenza:row[CONFIG.PRENOTAZIONI_COLS.CIVICO_RESIDENZA_AUTISTA_3-1]||'', numeroPatente:row[CONFIG.PRENOTAZIONI_COLS.NUMERO_PATENTE_AUTISTA_3-1]||'', inizioValiditaPatente:row[CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_3-1]||'', scadenzaPatente:row[CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_3-1]||'' };
+      if (a1.codiceFiscale) upsertCliente(a1,true);
+      if (a2.codiceFiscale) upsertCliente(a2,false);
+      if (a3.codiceFiscale) upsertCliente(a3,false);
+    }
+    return createJsonResponse({success:true,message:'Sincronizzazione CLIENTI completata',created:created,updated:updated,skipped:skipped});
+  }catch(err){
+    return createJsonResponse({success:false,message:'Errore sincronizzaClienti: '+err.message},500);
+  }
+}
+
+function inviaNotificaTelegram(pren){
+  try{
+    var msg=['🚐 NUOVA PRENOTAZIONE IN ATTESA','','📋 Riepilogo:','🚗 Veicolo: '+(pren.targa||'-'),'📅 Dal: '+(pren.giornoInizio||'-')+' '+(pren.oraInizio||'-'),'📅 Al: '+(pren.giornoFine||'-')+' '+(pren.oraFine||'-'),'📍 Destinazione: '+(pren.destinazione||'Non specificata'),'','👤 Autista principale:','👨‍💼 '+(pren.autista1&&pren.autista1.nomeCompleto||'-'),'🆔 '+(pren.autista1&&pren.autista1.codiceFiscale||'-'),'📱 '+(pren.autista1&&pren.autista1.cellulare||'-'),'📧 '+(pren.email||'Non fornita'),'','⏰ Ricevuta: '+new Date().toLocaleString('it-IT'),'🔄 Stato: In attesa','','Accedi alla dashboard per confermare.'].join('\n');
+    var url='https://api.telegram.org/bot'+CONFIG.TELEGRAM.BOT_TOKEN+'/sendMessage';
+    var payload={ chat_id:CONFIG.TELEGRAM.CHAT_ID, text:msg, parse_mode:'Markdown' };
+    UrlFetchApp.fetch(url,{method:'post', contentType:'application/json', payload:JSON.stringify(payload)});
+  }catch(e){ Logger.log('Errore invio Telegram: '+(e&&e.message)); }
+}
+
+function inviaEmailConfermaCliente(prenotazione){
+  try {
+    var html = UrlFetchApp.fetch('https://raw.githubusercontent.com/xDren98/imbriani-stefano-noleggio/main/email-template-conferma.html').getContentText();
+    html = html.replace('{{ID_PRENOTAZIONE}}', prenotazione.idPrenotazione || 'N/A')
+               .replace('{{TARGA}}', prenotazione.targa || 'N/A')
+               .replace('{{MODELLO}}', prenotazione.modello || '')
+               .replace('{{GIORNO_INIZIO}}', prenotazione.giornoInizio ? new Date(prenotazione.giornoInizio).toLocaleDateString('it-IT') : '')
+               .replace('{{GIORNO_FINE}}', prenotazione.giornoFine ? new Date(prenotazione.giornoFine).toLocaleDateString('it-IT') : '')
+               .replace('{{ORA_INIZIO}}', prenotazione.oraInizio || '')
+               .replace('{{ORA_FINE}}', prenotazione.oraFine || '')
+               .replace('{{DESTINAZIONE}}', prenotazione.destinazione || '---')
+               .replace('{{AUTISTA_NOME}}', prenotazione.autista1 && prenotazione.autista1.nomeCompleto ? prenotazione.autista1.nomeCompleto : 'Cliente');
+    MailApp.sendEmail({ to: prenotazione.email, subject: "Conferma Prenotazione - Imbriani Stefano Noleggio", htmlBody: html, name: CONFIG.EMAIL.FROM_NAME });
+  } catch (error) {
+    Logger.log('Errore invio email conferma cliente: ' + error.message);
+  }
+}
+
+function inviaEmailConfermaPreventivo(prenotazione){
+  try {
+    var html = UrlFetchApp.fetch('https://raw.githubusercontent.com/xDren98/imbriani-stefano-noleggio/main/email-template-approvazione.html').getContentText();
+    html = html.replace('{{ID_PRENOTAZIONE}}', prenotazione.idPrenotazione || 'N/A')
+               .replace('{{TARGA}}', prenotazione.targa || 'N/A')
+               .replace('{{MODELLO}}', prenotazione.modello || '')
+               .replace('{{GIORNO_INIZIO}}', prenotazione.giornoInizio ? new Date(prenotazione.giornoInizio).toLocaleDateString('it-IT') : '')
+               .replace('{{GIORNO_FINE}}', prenotazione.giornoFine ? new Date(prenotazione.giornoFine).toLocaleDateString('it-IT') : '')
+               .replace('{{ORA_INIZIO}}', prenotazione.oraInizio || '')
+               .replace('{{ORA_FINE}}', prenotazione.oraFine || '')
+               .replace('{{DESTINAZIONE}}', prenotazione.destinazione || '---')
+               .replace('{{AUTISTA_NOME}}', prenotazione.autista1 && prenotazione.autista1.nomeCompleto ? prenotazione.autista1.nomeCompleto : 'Cliente');
+    MailApp.sendEmail({ to: prenotazione.email, subject: "Prenotazione Confermata - Imbriani Stefano Noleggio", htmlBody: html, name: CONFIG.EMAIL.FROM_NAME });
+  } catch (error) {
+    Logger.log('Errore invio email conferma preventivo: ' + error.message);
+  }
+}
+
+function checkReminderEmails(){
+  try {
+    var oggi = new Date();
+    var treGiorni = new Date(oggi.getTime() + (3 * 24 * 60 * 60 * 1000));
+    var y = treGiorni.getFullYear(), m = String(treGiorni.getMonth() + 1).padStart(2, '0'), d = String(treGiorni.getDate()).padStart(2, '0');
+    var treGiorniStr = y+'-'+m+'-'+d;
+    var sh = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    var data = sh.getDataRange().getValues();
+    var sent = 0;
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var stato = String(row[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE - 1] || '');
+      var dataInizio = row[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO - 1];
+      var email = row[CONFIG.PRENOTAZIONI_COLS.EMAIL - 1];
+      if (stato === 'Confermata' && email && dataInizio) {
+        var di = new Date(dataInizio);
+        var diStr = di.getFullYear()+'-'+String(di.getMonth()+1).padStart(2,'0')+'-'+String(di.getDate()).padStart(2,'0');
+        if (diStr === treGiorniStr) {
+          var prenotazione = { idPrenotazione: row[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1], targa: row[CONFIG.PRENOTAZIONI_COLS.TARGA - 1], giornoInizio: dataInizio, giornoFine: row[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE - 1], oraInizio: row[CONFIG.PRENOTAZIONI_COLS.ORA_INIZIO - 1], oraFine: row[CONFIG.PRENOTAZIONI_COLS.ORA_FINE - 1], destinazione: row[CONFIG.PRENOTAZIONI_COLS.DESTINAZIONE - 1], email: email, autista1: { nomeCompleto: row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1 - 1] } };
+          try { inviaEmailReminder(prenotazione); sent++; }
+          catch (e) { console.error('Errore invio email reminder per '+email+':', e); }
+        }
+      }
+    }
+    return createJsonResponse({success: true, message: 'Check reminder completato', emailInviate: sent});
+  } catch (err) {
+    return createJsonResponse({success: false, message: 'Errore check reminder: ' + err.message}, 500);
+  }
+}
+
+function inviaEmailReminder(prenotazione){
+  try {
+    var html = UrlFetchApp.fetch('https://raw.githubusercontent.com/xDren98/imbriani-stefano-noleggio/main/email-template-reminder.html').getContentText();
+    html = html.replace('{{ID_PRENOTAZIONE}}', prenotazione.idPrenotazione || 'N/A')
+               .replace('{{TARGA}}', prenotazione.targa || 'N/A')
+               .replace('{{MODELLO}}', prenotazione.modello || '')
+               .replace('{{GIORNO_INIZIO}}', prenotazione.giornoInizio ? new Date(prenotazione.giornoInizio).toLocaleDateString('it-IT') : '')
+               .replace('{{GIORNO_FINE}}', prenotazione.giornoFine ? new Date(prenotazione.giornoFine).toLocaleDateString('it-IT') : '')
+               .replace('{{ORA_INIZIO}}', prenotazione.oraInizio || '')
+               .replace('{{ORA_FINE}}', prenotazione.oraFine || '')
+               .replace('{{DESTINAZIONE}}', prenotazione.destinazione || '---')
+               .replace('{{AUTISTA_NOME}}', prenotazione.autista1 && prenotazione.autista1.nomeCompleto ? prenotazione.autista1.nomeCompleto : 'Cliente');
+    MailApp.sendEmail({ to: prenotazione.email, subject: "Promemoria Partenza - Imbriani Stefano Noleggio", htmlBody: html, name: CONFIG.EMAIL.FROM_NAME });
+  } catch (error) {
+    Logger.log('Errore invio email reminder: ' + error.message);
+  }
+}
+
+function setupDailyTrigger(){
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i=0;i<triggers.length;i++){
+    if (triggers[i].getHandlerFunction()==='dailyReminderCheck'){ ScriptApp.deleteTrigger(triggers[i]); }
+  }
+  ScriptApp.newTrigger('dailyReminderCheck').timeBased().everyDays(1).atHour(9).create();
+  Logger.log('Trigger giornaliero configurato per le 09:00');
+}
+
+function dailyReminderCheck(){
+  try{ checkReminderEmails(); updateStatiLive(); Logger.log('Check giornaliero completato: '+new Date().toISOString()); }
+  catch (error){ Logger.log('Errore nel check giornaliero: '+error.message); }
+}
+
+function testEmailConferma(email) {
+  var destinatario = email || 'melloanto@icloud.com';
+  var prenotazioneDemo = { idPrenotazione: 'BOOK-2025-TEST', targa: 'EC787NM', modello: 'Mercedes Sprinter 9 Posti', giornoInizio: new Date(2025, 10, 15), giornoFine: new Date(2025, 10, 18), oraInizio: '09:00', oraFine: '18:00', destinazione: 'Roma - Tour Colosseo e Vaticano', email: destinatario, autista1: { nomeCompleto: 'Mario Rossi' } };
+  try {
+    inviaEmailConfermaCliente(prenotazioneDemo);
+    return createJsonResponse({ success: true, message: 'Email conferma test inviata a ' + destinatario });
+  } catch (error) {
+    return createJsonResponse({ success: false, message: 'Errore: ' + error.message }, 500);
+  }
+}
+
+function testEmailReminder(email) {
+  var destinatario = email || 'melloanto@icloud.com';
+  var prenotazioneDemo = { idPrenotazione: 'BOOK-2025-REMINDER', targa: 'FG123AB', modello: 'Fiat Ducato Passo Lungo', giornoInizio: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), giornoFine: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000), oraInizio: '10:00', oraFine: '17:00', destinazione: 'Napoli - Matrimonio', email: destinatario, autista1: { nomeCompleto: 'Luigi Verdi' } };
+  try {
+    inviaEmailReminder(prenotazioneDemo);
+    return createJsonResponse({ success: true, message: 'Email reminder test inviata a ' + destinatario });
+  } catch (error) {
+    return createJsonResponse({ success: false, message: 'Errore: ' + error.message }, 500);
+  }
+}
+
+function testEmailConfermaPreventivo(email) {
+  var destinatario = email || 'melloanto@icloud.com';
+  var demo = { idPrenotazione: 'BOOK-2025-CONF', targa: 'BW123XY', modello: 'Opel Vivaro', giornoInizio: new Date(2025, 10, 22), giornoFine: new Date(2025, 10, 23), oraInizio: '08:00', oraFine: '19:00', destinazione: 'Firenze - Meeting', email: destinatario, autista1: { nomeCompleto: 'Antonio Bianchi' } };
+  try {
+    inviaEmailConfermaPreventivo(demo);
+    return createJsonResponse({ success: true, message: 'Email conferma preventivo test inviata a ' + destinatario });
+  } catch (error) {
+    return createJsonResponse({ success: false, message: 'Errore: ' + error.message }, 500);
+  }
+}
+
+/**
+ * CENSIMENTO PDF ESISTENTI v2 - Con normalizzazione nome
+ * Supporta sia "GiulioStefanizzi" che "Giulio_Stefanizzi"
+ */
+function censisciPDFEsistenti() {
+  Logger.log('[censisciPDFEsistenti] Avvio censimento v2...');
+  
+  try {
+    var sh = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    var data = sh.getDataRange().getValues();
+    
+    if (data.length <= 1) {
+      return createJsonResponse({ success: false, message: 'Nessuna prenotazione trovata' });
+    }
+    
+    // Ottieni tutti i PDF dalla cartella
+    var folder = DriveApp.getFolderById(CONFIG.PDF.PDF_FOLDER_ID);
+    var files = folder.getFiles();
+    var pdfMap = {};
+    
+    Logger.log('[censisciPDFEsistenti] Scansione cartella PDF...');
+    
+    // Costruisci mappa PDF: nome file -> URL
+    while (files.hasNext()) {
+      var file = files.next();
+      if (file.getMimeType() === MimeType.PDF) {
+        var nomePdf = file.getName();
+        pdfMap[nomePdf] = file.getUrl();
+        Logger.log('[censisciPDFEsistenti] PDF trovato: ' + nomePdf);
+      }
+    }
+    
+    Logger.log('[censisciPDFEsistenti] Trovati ' + Object.keys(pdfMap).length + ' PDF');
+    
+    var trovati = 0;
+    var aggiornati = 0;
+    var giàCollegati = 0;
+    
+    // Funzione helper per normalizzare nomi
+    function normalizzaNome(nomeCompleto) {
+      if (!nomeCompleto) return '';
+      
+      // Rimuovi spazi multipli e trim
+      var nome = String(nomeCompleto).trim().replace(/\s+/g, ' ');
+      
+      // Genera 3 varianti:
+      // 1. Con underscore: "Giulio_Stefanizzi"
+      // 2. Senza spazi: "GiulioStefanizzi"
+      // 3. CamelCase invertito: "StefanizziGiulio" (alcuni PDF potrebbero avere cognome prima)
+      
+      var conUnderscore = nome.replace(/\s+/g, '_');
+      var senzaSpazi = nome.replace(/\s+/g, '');
+      
+      return {
+        conUnderscore: conUnderscore,
+        senzaSpazi: senzaSpazi,
+        originale: nome
+      };
+    }
+    
+    // Formatta date come nel generatore PDF
+    function formatDateForFilename(date) {
+      if (date instanceof Date && !isNaN(date.getTime())) {
+        var d = Utilities.formatDate(date, CONFIG.PDF.TIMEZONE, 'dd/MM/yyyy');
+        return d.replace(/\//g, '-');
+      }
+      return '';
+    }
+    
+    // Itera su prenotazioni
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var rowIndex = i + 1;
+      
+      var nomeClienteOriginale = String(row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1 - 1] || '');
+      var giornoInizio = row[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO - 1];
+      var giornoFine = row[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE - 1];
+      var pdfUrlEsistente = String(row[CONFIG.PRENOTAZIONI_COLS.PDF_URL - 1] || '').trim();
+      
+      // Salta se mancano dati
+      if (!nomeClienteOriginale || !giornoInizio || !giornoFine) {
+        continue;
+      }
+      
+      var nomiVarianti = normalizzaNome(nomeClienteOriginale);
+      var dataRitiro = formatDateForFilename(new Date(giornoInizio));
+      var dataArrivo = formatDateForFilename(new Date(giornoFine));
+      
+      // Prova tutte le varianti di nome
+      var varianti = [
+        nomiVarianti.senzaSpazi + '_' + dataRitiro + '_' + dataArrivo + '.pdf',
+        nomiVarianti.conUnderscore + '_' + dataRitiro + '_' + dataArrivo + '.pdf'
+      ];
+      
+      Logger.log('[censisciPDFEsistenti] Riga ' + rowIndex + ': Varianti = ' + JSON.stringify(varianti));
+      
+      var pdfTrovato = null;
+      
+      // Cerca ogni variante
+      for (var v = 0; v < varianti.length; v++) {
+        if (pdfMap[varianti[v]]) {
+          pdfTrovato = pdfMap[varianti[v]];
+          Logger.log('[censisciPDFEsistenti] ✅ Match trovato: ' + varianti[v]);
+          break;
+        }
+      }
+      
+      if (pdfTrovato) {
+        trovati++;
+        
+        // Aggiorna solo se non c'è già un URL
+        if (!pdfUrlEsistente) {
+          sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.PDF_URL).setValue(pdfTrovato);
+          aggiornati++;
+          Logger.log('[censisciPDFEsistenti] ✅ Collegato PDF per riga ' + rowIndex);
+        } else {
+          giàCollegati++;
+          Logger.log('[censisciPDFEsistenti] ⏭️ Già collegato per riga ' + rowIndex);
+        }
+      } else {
+        Logger.log('[censisciPDFEsistenti] ❌ PDF non trovato per riga ' + rowIndex);
+      }
+    }
+    
+    Logger.log('[censisciPDFEsistenti] Censimento completato');
+    Logger.log('[censisciPDFEsistenti] Trovati: ' + trovati + ' | Aggiornati: ' + aggiornati + ' | Già collegati: ' + giàCollegati);
+    
+    return createJsonResponse({
+      success: true,
+      message: 'Censimento completato',
+      pdfTrovati: trovati,
+      recordAggiornati: aggiornati,
+      giàCollegati: giàCollegati,
+      pdfNellaCartella: Object.keys(pdfMap).length
+    });
+    
+  } catch (err) {
+    Logger.log('[censisciPDFEsistenti] Errore: ' + err.message);
+    return createJsonResponse({ success: false, message: 'Errore censimento: ' + err.message }, 500);
+  }
+}
+
 
 function checkDisponibilita(p){
   try{
