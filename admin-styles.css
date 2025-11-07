@@ -1,4 +1,4 @@
-/* GLOBAL PAGE THEME - DARK GLASS - v2.6 */
+/* v3.0 - Mega glassmorphism, spacing, hover, badge, switch, header fix, info card, TUTTE badge */
 body, #admin-root {
   background: radial-gradient(1200px 800px at 10% -10%, #232c46 0%, rgba(100,116,255,0.15) 60%),
               radial-gradient(900px 600px at 110% 0%, #343857 0%, rgba(147,51,234,0.11) 50%),
@@ -7,35 +7,89 @@ body, #admin-root {
   color: #E2E8F0;
   font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
 }
-
 .main-content, .card, .card-header, .card-body, .table-responsive, .table, .table th, .table td, .stats-card, .form-control {
-  background: rgba(24,32,48,0.82) !important;
+  background: rgba(24,32,48,0.92) !important;
   color: #E2E8F0 !important;
   border-radius: 18px !important;
-  box-shadow: 0 8px 32px rgba(19,22,37,0.15) !important;
+  box-shadow: 0 8px 32px rgba(19,22,37,0.17) !important;
   border: 1.5px solid rgba(255,255,255,0.09) !important;
 }
-
 .card-header, th {
-  background: rgba(36,43,60,0.89) !important;
+  background: rgba(40,43,60,0.96) !important;
   color: #A5B4FC !important;
   font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 1px;
 }
-
 .stats-card, .btn-quickfilter {
   background: linear-gradient(99deg,#232c46 30%,#232c4625 100%) !important;
+  border-radius: 14px !important;
+  padding: 12px 20px !important;
 }
-
-.btn-outline-primary, .btn-outline-warning, .btn-outline-danger {
-  border-radius: 8px;
-  background: rgba(41,55,99,0.22) !important;
+.btn-quickfilter, .btn-quickfilter-active {
+  border-radius: 14px !important;
+  font-size: 15px;
+  padding: 12px 20px !important;
+  font-weight: 700;
 }
-
-.form-control, .form-select {
-  background: rgba(18,24,38,0.93) !important;
-  color: #E2E8F0 !important;
+.btn-quickfilter-active {
+  background: linear-gradient(99deg,#6366F1 30%,#0ea5e9 100%) !important;
+  color: #fff !important;
+  font-weight: bold;
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.19);
+  border: 2px solid #6366F1 !important;
 }
-
+.switch-view-btn {
+  border-radius: 11px !important;
+  padding: 10px 20px !important;
+  font-size: 15px;
+  background: rgba(60,71,99,0.35) !important;
+  color: #A5B4FC !important;
+  border: 1.5px solid rgba(100, 116, 255, 0.26);
+  margin-left: 7px;
+  font-weight: 700;
+}
+.switch-view-btn-active {
+  border: 2px solid #6366F1 !important;
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.27);
+  background: linear-gradient(99deg,#6366F1 30%, #232c46 100%) !important;
+  color: #fff !important;
+  font-weight: bold;
+}
+.glass-header {
+  background: rgba(46,54,80,0.79) !important;
+  border-radius: 18px !important;
+  padding: 18px 28px;
+  font-size: 1.5rem;
+  color: #fff !important;
+  text-shadow: 0 2px 20px #232c46;
+  box-shadow: 0 2px 24px #36395e3c;
+}
+.glass-card {
+  margin-bottom: 20px !important;
+  border-radius: 19px !important;
+  border: 1.7px solid rgba(99,102,241,0.14) !important;
+  box-shadow: 0 8px 36px #232c468a !important;
+  transition: transform 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+.glass-card:hover {
+  transform: translateY(-5px) scale(1.01);
+  box-shadow: 0 18px 56px #6366F155 !important;
+  border-color: #6366F1 !important;
+  transition: all 0.3s cubic-bezier(0.44, 0.14, 0.39, 0.99);
+}
+.card-prenotazione-nome {
+  font-size: 1.27rem !important;
+  font-weight: 800 !important;
+  color: #fff !important;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.43);
+  margin-bottom: 8px;
+}
+.btn-group-sm .btn {
+  padding: 9px 12px !important;
+  font-size: 15px !important;
+  border-radius: 9px !important;
+}
 .table .badge {
   font-size: 13px;
   font-weight: 600;
@@ -45,20 +99,10 @@ body, #admin-root {
   color: #A5B4FC;
   border: 1px solid rgba(100,116,255,0.23);
 }
-
-.switch-view-btn, .btn-quickfilter {
-  background: rgba(60,71,99,0.28) !important;
-  color: #A5B4FC !important;
-  font-weight: 700;
-}
-.switch-view-btn-active, .btn-quickfilter-active {
-  background: linear-gradient(99deg,#6366F1 30%,#0ea5e9 100%) !important;
-  color: #fff !important;
-  font-weight: bold;
-}
 @media (max-width: 767px) {
-  .card, .card-header, .table-responsive {
+  .card, .card-header, .table-responsive, .glass-header {
     border-radius: 10px !important;
-    box-shadow: 0 3px 10px rgba(41,55,90,0.20) !important;
+    box-shadow: 0 3px 18px #232c46cc !important;
+    padding: 10px 4px;
   }
 }
