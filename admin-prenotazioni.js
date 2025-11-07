@@ -1,4 +1,4 @@
-// admin-prenotazioni.js v1.1 - Gestione completa prenotazioni con modifica/elimina + PDF
+// admin-prenotazioni.js v1.2 - Stats cards with colored borders + enhanced icons
 (function(){
   const STATI_COLORI = {
     'In attesa': { bg: 'warning', icon: 'clock', text: 'dark' },
@@ -150,14 +150,14 @@
 
     statsContainer.innerHTML = `
       <div class="col-md-3">
-        <div class="card border-warning">
+        <div class="card stats-card card-warning">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-center">
               <div>
                 <h6 class="text-muted mb-1">In Attesa</h6>
-                <h3 class="mb-0 fw-bold text-warning">${inAttesa}</h3>
+                <h3 class="mb-0 fw-bold text-warning fs-1">${inAttesa}</h3>
               </div>
-              <div class="fs-1 text-warning opacity-25">
+              <div class="stats-card-icon text-warning opacity-25">
                 <i class="fas fa-clock"></i>
               </div>
             </div>
@@ -165,14 +165,14 @@
         </div>
       </div>
       <div class="col-md-3">
-        <div class="card border-success">
+        <div class="card stats-card card-success">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-center">
               <div>
                 <h6 class="text-muted mb-1">Confermate</h6>
-                <h3 class="mb-0 fw-bold text-success">${confermate}</h3>
+                <h3 class="mb-0 fw-bold text-success fs-1">${confermate}</h3>
               </div>
-              <div class="fs-1 text-success opacity-25">
+              <div class="stats-card-icon text-success opacity-25">
                 <i class="fas fa-check-circle"></i>
               </div>
             </div>
@@ -180,14 +180,14 @@
         </div>
       </div>
       <div class="col-md-3">
-        <div class="card border-primary">
+        <div class="card stats-card card-primary">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-center">
               <div>
                 <h6 class="text-muted mb-1">In Corso</h6>
-                <h3 class="mb-0 fw-bold text-primary">${inCorso}</h3>
+                <h3 class="mb-0 fw-bold text-primary fs-1">${inCorso}</h3>
               </div>
-              <div class="fs-1 text-primary opacity-25">
+              <div class="stats-card-icon text-primary opacity-25">
                 <i class="fas fa-car"></i>
               </div>
             </div>
@@ -195,14 +195,14 @@
         </div>
       </div>
       <div class="col-md-3">
-        <div class="card border-info">
+        <div class="card stats-card card-info">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-center">
               <div>
                 <h6 class="text-muted mb-1">Partenze Oggi</h6>
-                <h3 class="mb-0 fw-bold text-info">${partenzeOggi}</h3>
+                <h3 class="mb-0 fw-bold text-info fs-1">${partenzeOggi}</h3>
               </div>
-              <div class="fs-1 text-info opacity-25">
+              <div class="stats-card-icon text-info opacity-25">
                 <i class="fas fa-calendar-day"></i>
               </div>
             </div>
@@ -677,5 +677,5 @@
     };
   }
 
-  console.log('[ADMIN-PRENOTAZIONI] v1.1 loaded - Modifica/Elimina + PDF auto');
+  console.log('[ADMIN-PRENOTAZIONI] v1.2 loaded - Enhanced UI with colored stats cards');
 })();
