@@ -1,6 +1,6 @@
 # ========================================
-# DOWNLOAD BACKEND MODULARE
-# Imbriani Stefano Noleggio
+# DOWNLOAD BACKEND MODULARE COMPLETO
+# Imbriani Stefano Noleggio v8.9
 # ========================================
 
 Write-Host "`n🚀 Download Backend Modulare - Imbriani Noleggio" -ForegroundColor Cyan
@@ -10,7 +10,7 @@ Write-Host "=========================================`n" -ForegroundColor Cyan
 $baseUrl = "https://raw.githubusercontent.com/xDren98/imbriani-stefano-noleggio/main/backend"
 $outputDir = ".\backend"
 
-# Lista file da scaricare
+# Lista file completa (14 file)
 $backendFiles = @(
     "Config.gs",
     "Main.gs",
@@ -19,14 +19,14 @@ $backendFiles = @(
     "DateUtils.gs",
     "EndpointsGet.gs",
     "EndpointsPost.gs",
+    "PrenotazioniService.gs",
+    "VeicoliService.gs",
+    "ClientiService.gs",
+    "ManutenzioniService.gs",
+    "PDFGenerator.gs",
+    "EmailService.gs",
+    "TelegramService.gs",
     "README.md"
-    # Aggiungi qui nuovi file quando vengono creati
-    # "PrenotazioniService.gs",
-    # "VeicoliService.gs",
-    # "ClientiService.gs",
-    # "PDFGenerator.gs",
-    # "EmailService.gs",
-    # "TelegramService.gs"
 )
 
 # Crea cartella se non esiste
@@ -63,7 +63,7 @@ foreach ($file in $backendFiles) {
 Write-Host "`n=========================================" -ForegroundColor Cyan
 Write-Host "📊 RIEPILOGO DOWNLOAD" -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan
-Write-Host "✅ File scaricati: $downloaded" -ForegroundColor Green
+Write-Host "✅ File scaricati: $downloaded/$($backendFiles.Count)" -ForegroundColor Green
 
 if ($failed -gt 0) {
     Write-Host "❌ File falliti: $failed" -ForegroundColor Red
@@ -79,14 +79,29 @@ if ($downloaded -gt 0) {
     Write-Host "   - Clicca '+' per aggiungere file" -ForegroundColor White
     Write-Host "   - Apri file da: $outputDir" -ForegroundColor White
     Write-Host "   - Copia contenuto nell'editor" -ForegroundColor White
-    Write-Host "   - Salva con stesso nome" -ForegroundColor White
+    Write-Host "   - Salva con stesso nome (senza .gs)" -ForegroundColor White
     Write-Host "4. Deploy come Web App" -ForegroundColor White
     
     Write-Host "`n📖 Documentazione: $outputDir\README.md" -ForegroundColor Cyan
+    Write-Host "`n📝 ORDINE CARICAMENTO CONSIGLIATO:" -ForegroundColor Yellow
+    Write-Host "   1. Config" -ForegroundColor White
+    Write-Host "   2. DateUtils" -ForegroundColor White
+    Write-Host "   3. Helpers" -ForegroundColor White
+    Write-Host "   4. Auth" -ForegroundColor White
+    Write-Host "   5. TelegramService" -ForegroundColor White
+    Write-Host "   6. EmailService" -ForegroundColor White
+    Write-Host "   7. PDFGenerator" -ForegroundColor White
+    Write-Host "   8. ClientiService" -ForegroundColor White
+    Write-Host "   9. VeicoliService" -ForegroundColor White
+    Write-Host "   10. ManutenzioniService" -ForegroundColor White
+    Write-Host "   11. PrenotazioniService" -ForegroundColor White
+    Write-Host "   12. EndpointsGet" -ForegroundColor White
+    Write-Host "   13. EndpointsPost" -ForegroundColor White
+    Write-Host "   14. Main" -ForegroundColor White
 }
 
 Write-Host "`n🎉 Completato!" -ForegroundColor Green
-Write-Host "========================================="`n -ForegroundColor Cyan
+Write-Host "=========================================`n" -ForegroundColor Cyan
 
 # Pausa finale
 Read-Host "Premi ENTER per chiudere"
