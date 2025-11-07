@@ -1,5 +1,6 @@
-// admin-prenotazioni.js v1.3 - Card View for Prenotazioni
+// admin-prenotazioni.js v1.4 - Card View migliorata + switch + filtri stats
 (function(){
+  const STATI_TABELLA = ['In attesa', 'Programmata', 'In corso', 'Completata'];
   const STATI_COLORI = {
     'In attesa': { bg: 'warning', icon: 'clock', text: 'dark' },
     'Confermata': { bg: 'success', icon: 'check-circle', text: 'white' },
@@ -12,24 +13,29 @@
   let allPrenotazioni = [];
   let filteredPrenotazioni = [];
   let currentFilters = { stato: 'tutti', ricerca: '' };
+  let currentView = 'card'; // 'card' or 'table'
 
   window.loadPrenotazioniSection = async function() {
     const root = document.getElementById('admin-root');
     if (!root) return;
-
     root.innerHTML = `
       <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
           <h2 class="h4 fw-bold mb-1">📅 Gestione Prenotazioni</h2>
           <p class="text-muted mb-0">Visualizza e gestisci tutte le prenotazioni</p>
         </div>
-        <button class="btn btn-success" onclick="showNewBookingModal()">
-          <i class="fas fa-plus me-2"></i>Nuova Prenotazione
-        </button>
+        <div>
+          <button class="switch-view-btn switch-view-btn-active" id="btn-view-grid"><i class="fas fa-th-large"></i> Griglia</button>
+          <button class="switch-view-btn" id="btn-view-list"><i class="fas fa-list"></i> Elenco</button>
+          <button class="btn btn-success" onclick="showNewBookingModal()" style="margin-left:18px;">
+            <i class="fas fa-plus me-2"></i>Nuova Prenotazione
+          </button>
+        </div>
       </div>
+      <div class="mb-3" id="quick-stats"></div>
 
       <!-- Filtri -->
-      <div class="card mb-4">
+      <div class="card mb-3">
         <div class="card-body">
           <div class="row g-3 align-items-end">
             <div class="col-md-3">
@@ -37,17 +43,16 @@
               <select id="filter-stato" class="form-select">
                 <option value="tutti">Tutti gli stati</option>
                 <option value="In attesa">In attesa</option>
-                <option value="Confermata">Confermata</option>
                 <option value="Programmata">Programmata</option>
                 <option value="In corso">In corso</option>
                 <option value="Completata">Completata</option>
+                <option value="Confermata">Confermata</option>
                 <option value="Rifiutata">Rifiutata</option>
               </select>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Ricerca</label>
-              <input type="text" id="filter-ricerca" class="form-control" 
-                placeholder="Cerca per ID, CF, Nome, Targa...">
+              <input type="text" id="filter-ricerca" class="form-control" placeholder="Cerca per ID, CF, Nome, Targa...">
             </div>
             <div class="col-md-3">
               <button class="btn btn-primary w-100" onclick="window.applicaFiltriPrenotazioni()">
@@ -57,173 +62,175 @@
           </div>
         </div>
       </div>
-
-      <!-- Statistiche rapide -->
-      <div class="row g-3 mb-4" id="stats-cards"></div>
-
-      <!-- Card prenotazioni -->
-      <div class="row g-3" id="cards-prenotazioni"></div>
-    
+      <div id="cards-or-table-prenotazioni" class="mb-4"></div>
     `;
-
     document.getElementById('filter-stato')?.addEventListener('change', aggiornaFiltri);
     document.getElementById('filter-ricerca')?.addEventListener('input', debounce(aggiornaFiltri, 300));
-
+    document.getElementById('btn-view-grid').onclick = () => switchView('card');
+    document.getElementById('btn-view-list').onclick = () => switchView('table');
     await caricaPrenotazioni();
   };
 
   async function caricaPrenotazioni() {
     try {
       window.showLoader?.(true, 'Caricamento prenotazioni...');
-      
       const response = await window.secureGet?.('getPrenotazioni', {});
-      
       if (response?.success && response.data) {
         allPrenotazioni = response.data;
         filteredPrenotazioni = [...allPrenotazioni];
-        
-        renderStatistiche();
-        renderPrenotazioniCard();
-        
+        renderQuickStats();
+        renderPrenotazioni();
         window.showToast?.(`✅ ${allPrenotazioni.length} prenotazioni caricate`, 'success');
       } else {
         throw new Error(response?.message || 'Errore caricamento prenotazioni');
       }
-      
     } catch (error) {
-      console.error('Errore caricamento prenotazioni:', error);
-      document.getElementById('cards-prenotazioni').innerHTML = `
-        <div class='alert alert-danger'>❌ Errore: ${error.message}</div>`;
+      document.getElementById('cards-or-table-prenotazioni').innerHTML = `<div class='alert alert-danger'>❌ Errore: ${error.message}</div>`;
       window.showToast?.('❌ Errore caricamento prenotazioni', 'error');
     } finally {
       window.showLoader?.(false);
     }
   }
 
-  function renderStatistiche() {
-    const statsContainer = document.getElementById('stats-cards');
-    if (!statsContainer) return;
+  function renderQuickStats() {
+    const statsDiv = document.getElementById('quick-stats');
+    if(!statsDiv) return;
+    const statiCount = {
+      'In attesa': allPrenotazioni.filter(p => p.stato === 'In attesa').length,
+      'Programmata': allPrenotazioni.filter(p => p.stato === 'Programmata').length,
+      'In corso': allPrenotazioni.filter(p => p.stato === 'In corso').length,
+      'Completata': allPrenotazioni.filter(p => p.stato === 'Completata').length
+    };
+    statsDiv.innerHTML = STATI_TABELLA.map(stato => {
+      const active = currentFilters.stato === stato ? 'btn-quickfilter-active' : '';
+      const color = STATI_COLORI[stato].bg;
+      const icon = STATI_COLORI[stato].icon;
+      return `<button class="btn-quickfilter ${active} bg-${color}" onclick="window.quickStatFilter('${stato}')">
+        <i class="fas fa-${icon} me-1"></i> ${stato}: <b>${statiCount[stato]}</b>
+      </button>`;
+    }).join('');
+  }
 
-    const inAttesa = allPrenotazioni.filter(p => p.stato === 'In attesa').length;
-    const confermate = allPrenotazioni.filter(p => p.stato === 'Confermata' || p.stato === 'Programmata').length;
-    const inCorso = allPrenotazioni.filter(p => p.stato === 'In corso').length;
-    
-    const oggi = new Date().toISOString().split('T')[0];
-    const partenzeOggi = allPrenotazioni.filter(p => {
-      const dataInizio = new Date(p.giornoInizio).toISOString().split('T')[0];
-      return dataInizio === oggi;
-    }).length;
+  window.quickStatFilter = function(stato) {
+    currentFilters.stato = stato;
+    // Aggiorno select
+    document.getElementById('filter-stato').value = stato;
+    window.applicaFiltriPrenotazioni();
+    renderQuickStats();
+  };
 
-    statsContainer.innerHTML = `
-      <div class="col-md-3">
-        <div class="card stats-card card-warning">
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center">
-              <div>
-                <h6 class="text-muted mb-1">In Attesa</h6>
-                <h3 class="mb-0 fw-bold text-warning fs-1">${inAttesa}</h3>
-              </div>
-              <div class="stats-card-icon text-warning opacity-25">
-                <i class="fas fa-clock"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card stats-card card-success">
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center">
-              <div>
-                <h6 class="text-muted mb-1">Confermate</h6>
-                <h3 class="mb-0 fw-bold text-success fs-1">${confermate}</h3>
-              </div>
-              <div class="stats-card-icon text-success opacity-25">
-                <i class="fas fa-check-circle"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card stats-card card-primary">
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center">
-              <div>
-                <h6 class="text-muted mb-1">In Corso</h6>
-                <h3 class="mb-0 fw-bold text-primary fs-1">${inCorso}</h3>
-              </div>
-              <div class="stats-card-icon text-primary opacity-25">
-                <i class="fas fa-car"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card stats-card card-info">
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center">
-              <div>
-                <h6 class="text-muted mb-1">Partenze Oggi</h6>
-                <h3 class="mb-0 fw-bold text-info fs-1">${partenzeOggi}</h3>
-              </div>
-              <div class="stats-card-icon text-info opacity-25">
-                <i class="fas fa-calendar-day"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
+  function switchView(type) {
+    currentView = type;
+    document.getElementById('btn-view-grid').classList.toggle('switch-view-btn-active', type === 'card');
+    document.getElementById('btn-view-list').classList.toggle('switch-view-btn-active', type === 'table');
+    renderPrenotazioni();
+  }
+
+  function renderPrenotazioni() {
+    if(currentView === 'card') renderPrenotazioniCard(); else renderPrenotazioniTable();
   }
 
   function renderPrenotazioniCard() {
-    const cardsContainer = document.getElementById('cards-prenotazioni');
-    if (!cardsContainer) return;
+    const container = document.getElementById('cards-or-table-prenotazioni');
+    if (!container) return;
     if (filteredPrenotazioni.length === 0) {
-      cardsContainer.innerHTML = `<div class='alert alert-warning my-4'>Nessuna prenotazione trovata</div>`;
+      container.innerHTML = `<div class='alert alert-warning my-4'>Nessuna prenotazione trovata</div>`;
       return;
     }
-    // Sort by data inizio desc
     const sorted = [...filteredPrenotazioni].sort((a, b) => {
       return new Date(b.giornoInizio) - new Date(a.giornoInizio);
     });
-    cardsContainer.innerHTML = sorted.map(p => {
-      const statoConfig = STATI_COLORI[p.stato] || STATI_COLORI['In attesa'];
-      const dataInizio = p.giornoInizio ? new Date(p.giornoInizio).toLocaleDateString('it-IT') : '-';
-      const dataFine = p.giornoFine ? new Date(p.giornoFine).toLocaleDateString('it-IT') : '-';
-      return `
-        <div class="col-md-4">
-          <div class="card glass-card mb-3 shadow-sm border-0">
-            <div class="card-body">
-              <div class="d-flex align-items-center mb-2 gap-3">
-                <span class="badge bg-${statoConfig.bg} fs-6 py-2 px-3">
-                  <i class="fas fa-${statoConfig.icon} me-1"></i>${p.stato}
-                </span>
-                <span class="badge bg-secondary fs-6">${p.targa || '-'}</span>
-                <span class="ms-auto text-muted small"><i class="fa-regular fa-calendar me-1"></i>${dataInizio} → ${dataFine}</span>
-              </div>
-              <div class="mb-1">
-                <strong style="letter-spacing:0.5px;">${p.nomeAutista1 || '-'}</strong> 
-                <span class="text-muted ms-2 fw-normal small">${p.cellulare || ''}</span>
-              </div>
-              <div class="mb-1 text-muted fw-normal small">${p.email || ''}</div>
-              <div class="mb-1 text-muted fw-normal small">${p.destinazione ? '🚩 ' + p.destinazione : ''}</div>
-              <div class="d-flex justify-content-between align-items-center mt-2 gap-2 flex-wrap">
-                <span class="small text-primary"><b>${p.idPrenotazione || p.id}</b></span>
-                <div class="btn-group btn-group-sm">
-                  <button class="btn btn-outline-primary" title="Dettagli" onclick="window.mostraDettaglioPrenotazione('${p.idPrenotazione || p.id}')"><i class="fas fa-eye"></i></button>
-                  <button class="btn btn-outline-warning" title="Modifica" onclick="window.modificaPrenotazione('${p.idPrenotazione || p.id}')"><i class="fas fa-edit"></i></button>
-                  <button class="btn btn-outline-danger" title="Elimina" onclick="window.eliminaPrenotazione('${p.idPrenotazione || p.id}')"><i class="fas fa-trash"></i></button>
-                  ${p.pdfUrl ? `<a href="${p.pdfUrl}" target="_blank" class="btn btn-outline-secondary" title="PDF"><i class="fas fa-file-pdf"></i></a>` : ''}
+    container.innerHTML = `<div class="row g-3">` +
+      sorted.map(p => {
+        const statoConfig = STATI_COLORI[p.stato] || STATI_COLORI['In attesa'];
+        const dataInizio = p.giornoInizio ? new Date(p.giornoInizio).toLocaleDateString('it-IT') : '-';
+        const dataFine = p.giornoFine ? new Date(p.giornoFine).toLocaleDateString('it-IT') : '-';
+        return `
+          <div class="col-md-4">
+            <div class="card glass-card mb-3 shadow-sm border-0">
+              <div class="card-body">
+                <div class="d-flex align-items-center mb-2 gap-3">
+                  <span class="badge bg-${statoConfig.bg} fs-6 py-2 px-3"><i class="fas fa-${statoConfig.icon} me-1"></i>${p.stato}</span>
+                  <span class="badge bg-secondary fs-6">${p.targa || '-'}</span>
+                  <span class="ms-auto text-muted small"><i class="fa-regular fa-calendar me-1"></i>${dataInizio} → ${dataFine}</span>
+                </div>
+                <div class="card-prenotazione-nome mb-1">${p.nomeAutista1 || '-'}</div>
+                <div class="mb-1 text-muted fw-normal small">${p.cellulare || ''}</div>
+                <div class="mb-1 text-muted fw-normal small">${p.email || ''}</div>
+                <div class="mb-1 text-muted fw-normal small">${p.destinazione ? '🚩 ' + p.destinazione : ''}</div>
+                <div class="d-flex justify-content-between align-items-center mt-2 gap-2 flex-wrap">
+                  <span class="small text-primary"><b>${p.idPrenotazione || p.id}</b></span>
+                  <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary" title="Dettagli" onclick="window.mostraDettaglioPrenotazione('${p.idPrenotazione || p.id}')"><i class="fas fa-eye"></i></button>
+                    <button class="btn btn-outline-warning" title="Modifica" onclick="window.modificaPrenotazione('${p.idPrenotazione || p.id}')"><i class="fas fa-edit"></i></button>
+                    <button class="btn btn-outline-danger" title="Elimina" onclick="window.eliminaPrenotazione('${p.idPrenotazione || p.id}')"><i class="fas fa-trash"></i></button>
+                    ${p.pdfUrl ? `<a href="${p.pdfUrl}" target="_blank" class="btn btn-outline-secondary" title="PDF"><i class="fas fa-file-pdf"></i></a>` : ''}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+        `;
+      }).join('') + '</div>';
+  }
+
+  function renderPrenotazioniTable() {
+    const container = document.getElementById('cards-or-table-prenotazioni');
+    if (!container) return;
+    if (filteredPrenotazioni.length === 0) {
+      container.innerHTML = `<div class='alert alert-warning my-4'>Nessuna prenotazione trovata</div>`;
+      return;
+    }
+    const sorted = [...filteredPrenotazioni].sort((a, b) => {
+      return new Date(b.giornoInizio) - new Date(a.giornoInizio);
+    });
+    container.innerHTML = `
+      <div class="card">
+        <div class="card-header">Lista Prenotazioni</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Cliente</th>
+                  <th>Veicolo</th>
+                  <th>Date</th>
+                  <th>Destinazione</th>
+                  <th>Stato</th>
+                  <th class="text-end">Azioni</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${sorted.map(p => {
+                  const statoConfig = STATI_COLORI[p.stato] || STATI_COLORI['In attesa'];
+                  const dataInizio = p.giornoInizio ? new Date(p.giornoInizio).toLocaleDateString('it-IT') : '-';
+                  const dataFine = p.giornoFine ? new Date(p.giornoFine).toLocaleDateString('it-IT') : '-';
+                  return `
+                    <tr>
+                      <td><strong>${p.idPrenotazione || p.id}</strong></td>
+                      <td><span class="card-prenotazione-nome">${p.nomeAutista1 || '-'}</span><br><small class="text-muted">${p.cellulare || ''}</small></td>
+                      <td><span class="badge bg-secondary">${p.targa || '-'}</span></td>
+                      <td>${dataInizio} → ${dataFine}</td>
+                      <td>${p.destinazione || '-'}</td>
+                      <td><span class="badge bg-${statoConfig.bg}"><i class="fas fa-${statoConfig.icon} me-1"></i>${p.stato}</span></td>
+                      <td class="text-end">
+                        <div class="btn-group btn-group-sm">
+                          <button class="btn btn-outline-primary" title="Dettagli" onclick="window.mostraDettaglioPrenotazione('${p.idPrenotazione || p.id}')"><i class="fas fa-eye"></i></button>
+                          <button class="btn btn-outline-warning" title="Modifica" onclick="window.modificaPrenotazione('${p.idPrenotazione || p.id}')"><i class="fas fa-edit"></i></button>
+                          <button class="btn btn-outline-danger" title="Elimina" onclick="window.eliminaPrenotazione('${p.idPrenotazione || p.id}')"><i class="fas fa-trash"></i></button>
+                          ${p.pdfUrl ? `<a href="${p.pdfUrl}" target="_blank" class="btn btn-outline-secondary" title="PDF"><i class="fas fa-file-pdf"></i></a>` : ''}
+                        </div>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
         </div>
-      `;
-    }).join('');
+      </div>
+    `;
   }
 
   function aggiornaFiltri() {
@@ -255,16 +262,14 @@
       }
       return true;
     });
-    renderPrenotazioniCard();
+    renderPrenotazioni();
   };
-
-  // --- RESTANTE CODICE (modifica, dettagli ecc) invariato, riutilizzo le funzioni precedenti ---
-
+  // --- Modifica, dettagli, elimina, debounce rimangono invariati ---
   window.cambiaStatoPrenotazione = async function(idPrenotazione, nuovoStato) { /* ... */ };
   window.modificaPrenotazione = async function(idPrenotazione) { /* ... */ };
   window.salvaModificaPrenotazione = async function() { /* ... */ };
   window.eliminaPrenotazione = async function(idPrenotazione) { /* ... */ };
   window.mostraDettaglioPrenotazione = function(idPrenotazione) { /* ... */ };
   function debounce(func, wait) { let timeout; return function executedFunction(...args) { const later = () => { clearTimeout(timeout); func(...args); }; clearTimeout(timeout); timeout = setTimeout(later, wait); }; }
-  console.log('[ADMIN-PRENOTAZIONI] v1.3 loaded - Card View!');
+  console.log('[ADMIN-PRENOTAZIONI] v1.4 loaded - Card/List view + quick stats filter!');
 })();
