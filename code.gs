@@ -142,6 +142,7 @@ function doGet(e){
         return testEmailReminder(p.to || 'melloanto@icloud.com');
       case 'testEmailConfermaPreventivo':
         return testEmailConfermaPreventivo(p.to || 'melloanto@icloud.com');
+      case 'censisciPDF': return censisciPDFEsistenti();  
       default: return createJsonResponse({success:false,message:'Azione non supportata: '+action},400);
     }
   }catch(err){
@@ -1224,3 +1225,146 @@ function testEmailConfermaPreventivo(email) {
     return createJsonResponse({ success: false, message: 'Errore: ' + error.message }, 500);
   }
 }
+
+/**
+ * CENSIMENTO PDF ESISTENTI v2 - Con normalizzazione nome
+ * Supporta sia "GiulioStefanizzi" che "Giulio_Stefanizzi"
+ */
+function censisciPDFEsistenti() {
+  Logger.log('[censisciPDFEsistenti] Avvio censimento v2...');
+  
+  try {
+    var sh = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    var data = sh.getDataRange().getValues();
+    
+    if (data.length <= 1) {
+      return createJsonResponse({ success: false, message: 'Nessuna prenotazione trovata' });
+    }
+    
+    // Ottieni tutti i PDF dalla cartella
+    var folder = DriveApp.getFolderById(CONFIG.PDF.PDF_FOLDER_ID);
+    var files = folder.getFiles();
+    var pdfMap = {};
+    
+    Logger.log('[censisciPDFEsistenti] Scansione cartella PDF...');
+    
+    // Costruisci mappa PDF: nome file -> URL
+    while (files.hasNext()) {
+      var file = files.next();
+      if (file.getMimeType() === MimeType.PDF) {
+        var nomePdf = file.getName();
+        pdfMap[nomePdf] = file.getUrl();
+        Logger.log('[censisciPDFEsistenti] PDF trovato: ' + nomePdf);
+      }
+    }
+    
+    Logger.log('[censisciPDFEsistenti] Trovati ' + Object.keys(pdfMap).length + ' PDF');
+    
+    var trovati = 0;
+    var aggiornati = 0;
+    var giàCollegati = 0;
+    
+    // Funzione helper per normalizzare nomi
+    function normalizzaNome(nomeCompleto) {
+      if (!nomeCompleto) return '';
+      
+      // Rimuovi spazi multipli e trim
+      var nome = String(nomeCompleto).trim().replace(/\s+/g, ' ');
+      
+      // Genera 3 varianti:
+      // 1. Con underscore: "Giulio_Stefanizzi"
+      // 2. Senza spazi: "GiulioStefanizzi"
+      // 3. CamelCase invertito: "StefanizziGiulio" (alcuni PDF potrebbero avere cognome prima)
+      
+      var conUnderscore = nome.replace(/\s+/g, '_');
+      var senzaSpazi = nome.replace(/\s+/g, '');
+      
+      return {
+        conUnderscore: conUnderscore,
+        senzaSpazi: senzaSpazi,
+        originale: nome
+      };
+    }
+    
+    // Formatta date come nel generatore PDF
+    function formatDateForFilename(date) {
+      if (date instanceof Date && !isNaN(date.getTime())) {
+        var d = Utilities.formatDate(date, CONFIG.PDF.TIMEZONE, 'dd/MM/yyyy');
+        return d.replace(/\//g, '-');
+      }
+      return '';
+    }
+    
+    // Itera su prenotazioni
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var rowIndex = i + 1;
+      
+      var nomeClienteOriginale = String(row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1 - 1] || '');
+      var giornoInizio = row[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO - 1];
+      var giornoFine = row[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE - 1];
+      var pdfUrlEsistente = String(row[CONFIG.PRENOTAZIONI_COLS.PDF_URL - 1] || '').trim();
+      
+      // Salta se mancano dati
+      if (!nomeClienteOriginale || !giornoInizio || !giornoFine) {
+        continue;
+      }
+      
+      var nomiVarianti = normalizzaNome(nomeClienteOriginale);
+      var dataRitiro = formatDateForFilename(new Date(giornoInizio));
+      var dataArrivo = formatDateForFilename(new Date(giornoFine));
+      
+      // Prova tutte le varianti di nome
+      var varianti = [
+        nomiVarianti.senzaSpazi + '_' + dataRitiro + '_' + dataArrivo + '.pdf',
+        nomiVarianti.conUnderscore + '_' + dataRitiro + '_' + dataArrivo + '.pdf'
+      ];
+      
+      Logger.log('[censisciPDFEsistenti] Riga ' + rowIndex + ': Varianti = ' + JSON.stringify(varianti));
+      
+      var pdfTrovato = null;
+      
+      // Cerca ogni variante
+      for (var v = 0; v < varianti.length; v++) {
+        if (pdfMap[varianti[v]]) {
+          pdfTrovato = pdfMap[varianti[v]];
+          Logger.log('[censisciPDFEsistenti] ✅ Match trovato: ' + varianti[v]);
+          break;
+        }
+      }
+      
+      if (pdfTrovato) {
+        trovati++;
+        
+        // Aggiorna solo se non c'è già un URL
+        if (!pdfUrlEsistente) {
+          sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.PDF_URL).setValue(pdfTrovato);
+          aggiornati++;
+          Logger.log('[censisciPDFEsistenti] ✅ Collegato PDF per riga ' + rowIndex);
+        } else {
+          giàCollegati++;
+          Logger.log('[censisciPDFEsistenti] ⏭️ Già collegato per riga ' + rowIndex);
+        }
+      } else {
+        Logger.log('[censisciPDFEsistenti] ❌ PDF non trovato per riga ' + rowIndex);
+      }
+    }
+    
+    Logger.log('[censisciPDFEsistenti] Censimento completato');
+    Logger.log('[censisciPDFEsistenti] Trovati: ' + trovati + ' | Aggiornati: ' + aggiornati + ' | Già collegati: ' + giàCollegati);
+    
+    return createJsonResponse({
+      success: true,
+      message: 'Censimento completato',
+      pdfTrovati: trovati,
+      recordAggiornati: aggiornati,
+      giàCollegati: giàCollegati,
+      pdfNellaCartella: Object.keys(pdfMap).length
+    });
+    
+  } catch (err) {
+    Logger.log('[censisciPDFEsistenti] Errore: ' + err.message);
+    return createJsonResponse({ success: false, message: 'Errore censimento: ' + err.message }, 500);
+  }
+}
+
