@@ -181,6 +181,132 @@ function doPost(e){
       case 'sincronizzaClienti': return sincronizzaClienti();
       case 'checkReminders': return checkReminderEmails();
       case 'assegnaId': return assegnaIdPrenotazioniEsistenti();
+      case 'confermaPrenotazione': {
+  Logger.log('[confermaPrenotazione] Richiesta ricevuta per ID: ' + post.idPrenotazione);
+  
+  const idPrenotazione = String(post.idPrenotazione).trim();
+  
+  if (!idPrenotazione) {
+    Logger.log('[confermaPrenotazione] ERRORE: ID prenotazione mancante');
+    return createJsonResponse({
+      success: false,
+      message: 'ID prenotazione mancante'
+    }, 400);
+  }
+  
+  try {
+    // Leggi foglio PRENOTAZIONI
+    var sh = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    var data = sh.getDataRange().getValues();
+    var headers = data[0];
+    
+    // Trova l'indice della colonna ID prenotazione (con spazio!)
+    var idColIndex = -1;
+    for (var h = 0; h < headers.length; h++) {
+      var header = String(headers[h]).trim();
+      // Cerca sia "ID prenotazione" che "idPrenotazione" o altre varianti
+      if (header === 'ID prenotazione' || 
+          header === 'idPrenotazione' || 
+          header === 'IDPRENOTAZIONE' ||
+          header.toLowerCase().replace(/\s+/g, '') === 'idprenotazione') {
+        idColIndex = h;
+        Logger.log('[confermaPrenotazione] Trovata colonna ID alla posizione ' + h + ': "' + header + '"');
+        break;
+      }
+    }
+    
+    if (idColIndex === -1) {
+      Logger.log('[confermaPrenotazione] ERRORE: Colonna ID prenotazione non trovata');
+      Logger.log('[confermaPrenotazione] Headers disponibili: ' + headers.join(', '));
+      return createJsonResponse({
+        success: false,
+        message: 'Colonna ID prenotazione non trovata nel foglio'
+      }, 500);
+    }
+    
+    Logger.log('[confermaPrenotazione] Cercando ID "' + idPrenotazione + '" nella colonna ' + idColIndex);
+    
+    // Trova la riga della prenotazione
+    var rowIndex = -1;
+    for (var i = 1; i < data.length; i++) {
+      var rowId = String(data[i][idColIndex]).trim();
+      
+      if (rowId.toUpperCase() === idPrenotazione.toUpperCase()) {
+        rowIndex = i + 1; // +1 perché le righe sono 1-based
+        Logger.log('[confermaPrenotazione] ✅ Prenotazione trovata alla riga ' + rowIndex);
+        break;
+      }
+    }
+    
+    if (rowIndex === -1) {
+      Logger.log('[confermaPrenotazione] ❌ Prenotazione NON trovata con ID ' + idPrenotazione);
+      return createJsonResponse({
+        success: false,
+        message: 'Prenotazione non trovata con ID: ' + idPrenotazione
+      }, 404);
+    }
+    
+    // Trova l'indice della colonna stato
+    var statoColIndex = -1;
+    for (var h = 0; h < headers.length; h++) {
+      var header = String(headers[h]).trim();
+      if (header === 'stato' || 
+          header === 'statoPrenotazione' || 
+          header === 'Stato prenotazione' ||
+          header === 'STATOPRENOTAZIONE') {
+        statoColIndex = h;
+        Logger.log('[confermaPrenotazione] Trovata colonna stato alla posizione ' + h + ': "' + header + '"');
+        break;
+      }
+    }
+    
+    if (statoColIndex === -1) {
+      Logger.log('[confermaPrenotazione] ERRORE: Colonna stato non trovata');
+      return createJsonResponse({
+        success: false,
+        message: 'Colonna stato non trovata nel foglio'
+      }, 500);
+    }
+    
+    // Aggiorna lo stato a "Confermata"
+    sh.getRange(rowIndex, statoColIndex + 1).setValue('Confermata');
+    Logger.log('[confermaPrenotazione] Stato aggiornato a "Confermata"');
+    
+    // Genera PDF (se funzione esiste)
+    var pdfResult = null;
+    try {
+      Logger.log('[confermaPrenotazione] Tentativo generazione PDF...');
+      if (typeof generaPDFContratto === 'function') {
+        pdfResult = generaPDFContratto(idPrenotazione);
+        if (pdfResult && pdfResult.success) {
+          Logger.log('[confermaPrenotazione] PDF generato: ' + pdfResult.nomeFile);
+        }
+      }
+    } catch (e) {
+      Logger.log('[confermaPrenotazione] Errore generazione PDF: ' + e.message);
+    }
+    
+    Logger.log('[confermaPrenotazione] ✅ Operazione completata con successo');
+    
+    return createJsonResponse({
+      success: true,
+      message: 'Prenotazione confermata con successo',
+      data: {
+        idPrenotazione: idPrenotazione,
+        nuovoStato: 'Confermata',
+        riga: rowIndex,
+        pdfGenerato: pdfResult ? pdfResult.success : false
+      }
+    });
+    
+  } catch (error) {
+    Logger.log('[confermaPrenotazione] ERRORE: ' + error.message);
+    return createJsonResponse({
+      success: false,
+      message: 'Errore durante la conferma: ' + error.message
+    }, 500);
+  }
+}
       default: return createJsonResponse({success:false,message:'Azione POST non supportata: '+action},400);
     }
   }catch(err){
