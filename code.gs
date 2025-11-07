@@ -900,50 +900,101 @@ function checkDisponibilita(p){
 
 function updateStatiLive(){
   try{
-    var now=new Date(); var today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-    var ss=SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
-    var shP=ss.getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
-    var valsP=shP.getDataRange().getValues();
+    var now = new Date(); 
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var ss = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+    var shP = ss.getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    var valsP = shP.getDataRange().getValues();
     
-    for (var i=1;i<valsP.length;i++){
-      var r=valsP[i]; var stato=String(r[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE-1]||'');
-      var di=new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO-1]); var df=new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE-1]); var next=stato;
+    var aggiornamenti = 0;
+    
+    for (var i = 1; i < valsP.length; i++) {
+      var r = valsP[i]; 
+      var stato = String(r[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE - 1] || '').trim();
+      var di = new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO - 1]); 
+      var df = new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE - 1]); 
       
-      if (stato === 'In attesa') {
+      // Normalizza date (solo anno/mese/giorno, ignora ore)
+      var dataInizio = new Date(di.getFullYear(), di.getMonth(), di.getDate());
+      var dataFine = new Date(df.getFullYear(), df.getMonth(), df.getDate());
+      
+      var nuovoStato = stato;
+      
+      // Skip stati finali o in attesa
+      if (stato === 'In attesa' || stato === 'Rifiutata' || stato === 'Completata') {
         continue;
       }
       
-      if (stato === 'Confermata' && today < di) {
-        next = 'Programmata';
+      // 🔄 LOGICA CORRETTA DI TRANSIZIONE
+      
+      // 1️⃣ Se noleggio è CONCLUSO (data fine passata)
+      if (today > dataFine) {
+        nuovoStato = 'Completata';
       }
-      else if ((stato === 'Programmata' || stato === 'Confermata') && today >= di && today <= df) {
-        next = 'In corso';
+      // 2️⃣ Se noleggio è IN CORSO (tra data inizio e data fine, inclusi)
+      else if (today >= dataInizio && today <= dataFine) {
+        nuovoStato = 'In corso';
       }
-      else if ((stato === 'In corso' || stato === 'Programmata' || stato === 'Confermata') && today > df) {
-        next = 'Completata';
+      // 3️⃣ Se noleggio è FUTURO e confermato
+      else if (today < dataInizio && stato === 'Confermata') {
+        nuovoStato = 'Programmata';
       }
       
-      if (next !== stato) { 
-        shP.getRange(i+1, CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE, 1, 1).setValue(next); 
+      // Aggiorna solo se cambiato
+      if (nuovoStato !== stato) { 
+        shP.getRange(i + 1, CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE).setValue(nuovoStato);
+        aggiornamenti++;
+        Logger.log('[updateStatiLive] Riga ' + (i+1) + ': ' + stato + ' → ' + nuovoStato);
       }
     }
     
-    var shM=ss.getSheetByName(CONFIG.SHEETS.MANUTENZIONI);
-    if (shM){
-      var valsM=shM.getDataRange().getValues();
-      for (var j=1;j<valsM.length;j++){
-        var m=valsM[j]; var ms=String(m[CONFIG.MANUTENZIONI_COLS.STATO-1]||'');
-        var mdi=new Date(m[CONFIG.MANUTENZIONI_COLS.DATA_INIZIO-1]); var mdf=new Date(m[CONFIG.MANUTENZIONI_COLS.DATA_FINE-1]); var mnext=ms;
-        if (today>mdf && ms==='In corso') mnext='Completata';
-        else if (today>=mdi && today<=mdf && ms==='Programmata') mnext='In corso';
-        if (mnext!==ms){ shM.getRange(j+1, CONFIG.MANUTENZIONI_COLS.STATO, 1, 1).setValue(mnext); }
+    // Gestione manutenzioni (invariata)
+    var shM = ss.getSheetByName(CONFIG.SHEETS.MANUTENZIONI);
+    if (shM) {
+      var valsM = shM.getDataRange().getValues();
+      for (var j = 1; j < valsM.length; j++) {
+        var m = valsM[j]; 
+        var ms = String(m[CONFIG.MANUTENZIONI_COLS.STATO - 1] || '').trim();
+        var mdi = new Date(m[CONFIG.MANUTENZIONI_COLS.DATA_INIZIO - 1]); 
+        var mdf = new Date(m[CONFIG.MANUTENZIONI_COLS.DATA_FINE - 1]);
+        
+        var dataInizioMan = new Date(mdi.getFullYear(), mdi.getMonth(), mdi.getDate());
+        var dataFineMan = new Date(mdf.getFullYear(), mdf.getMonth(), mdf.getDate());
+        
+        var mnext = ms;
+        
+        // Skip stati finali
+        if (ms === 'Completata') continue;
+        
+        if (today > dataFineMan) {
+          mnext = 'Completata';
+        } else if (today >= dataInizioMan && today <= dataFineMan) {
+          mnext = 'In corso';
+        }
+        
+        if (mnext !== ms) { 
+          shM.getRange(j + 1, CONFIG.MANUTENZIONI_COLS.STATO).setValue(mnext);
+          aggiornamenti++;
+        }
       }
     }
-    return createJsonResponse({success:true,message:'Stati aggiornati'});
-  }catch(err){
-    return createJsonResponse({success:false,message:'Errore updateStatiLive: '+err.message},500);
+    
+    Logger.log('[updateStatiLive] Completato: ' + aggiornamenti + ' stati aggiornati');
+    return createJsonResponse({
+      success: true, 
+      message: 'Stati aggiornati',
+      aggiornamenti: aggiornamenti
+    });
+    
+  } catch(err) {
+    Logger.log('[updateStatiLive] Errore: ' + err.message);
+    return createJsonResponse({
+      success: false, 
+      message: 'Errore updateStatiLive: ' + err.message
+    }, 500);
   }
 }
+
 
 function creaPrenotazione(post){
   try{
@@ -1493,4 +1544,3 @@ function censisciPDFEsistenti() {
     return createJsonResponse({ success: false, message: 'Errore censimento: ' + err.message }, 500);
   }
 }
-
