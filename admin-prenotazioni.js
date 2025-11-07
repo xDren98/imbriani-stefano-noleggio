@@ -1,19 +1,26 @@
-// admin-prenotazioni.js v3.4 - Card cliccabile + fix tasti Modifica/Elimina + export fix
+// admin-prenotazioni.js v3.5 - Espone funzioni globali e fix reference
 (function(){
-  /* ...qui tutto il codice esistente come sopra... */
-
-  // --- tutte le funzioni come già in admin-prenotazioni.js ---
-
-  // Espongo la funzione globale per l'admin
-  window.caricaSezionePrenotazioni = function() {
-    // Qui è dove popoli/aggiorni la sezione 'admin-root' con le card delle prenotazioni
-    // Puoi copiare la renderPrenotazioniCard o il codice di attuale load...
-
-    // Utilizza direttamente la logica del render attuale già presente:
-    renderPrenotazioniCard();
-  };
-
+  // ---- VARIABILI e LOGICA attuali (tutto il codice che già esiste) ----
   // ...
 
-  console.log('[ADMIN-PRENOTAZIONI] v3.4 loaded - Card cliccabile, AZIONI FUNZIONANTI! 🚀 + EXPORT FIX');
+  // Copia la funzione reale, qui solo il pattern:
+  function renderPrenotazioniCard() {
+    // TUA LOGICA ESISTENTE! (dentro la funzione vera della repo, come nella tua versione più recente)
+    // ...
+  }
+
+  // Esponi la funzione anche su window
+  window.renderPrenotazioniCard = renderPrenotazioniCard;
+
+  // Stessa cosa se in futuro servono altre funzioni usate all'esterno
+  // Esempio:
+  // window.caricaPrenotazioniDaAPI = caricaPrenotazioniDaAPI;
+
+  // Export globale che usa la funzione corretta
+  window.caricaSezionePrenotazioni = function() {
+    // Puoi chiamare direttamente la funzione ora globale
+    window.renderPrenotazioniCard();
+  };
+
+  console.log('[ADMIN-PRENOTAZIONI] v3.5 loaded - Export globali + bugfix! 🚀');
 })();
