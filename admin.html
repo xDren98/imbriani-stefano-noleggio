@@ -13,8 +13,8 @@
   <link rel="stylesheet" href="admin-styles.css?v=2000">
 </head>
 <body class="h-100">
-  <!-- SIDEBAR -->
-  <nav class="sidebar" id="sidebar">
+  <!-- SIDEBAR aggiornata -->
+  <nav class="admin-sidebar" id="sidebar">
     <div class="sidebar-header">
       <h5 class="mb-0">🚐 Imbriani — Admin</h5>
       <small class="text-white-50">Dashboard Gestionale</small>
@@ -60,7 +60,7 @@
   <script src="shared-utils.js"></script>
   <script src="admin-scripts.js"></script>
   <script src="admin-prenotazioni.js"></script>
-  
+
   <script>
     // Sidebar toggle mobile
     document.getElementById('sidebar-toggle')?.addEventListener('click', () => {
@@ -71,12 +71,8 @@
     document.querySelectorAll('.sidebar-nav .nav-link').forEach(link => {
       link.addEventListener('click', (e) => {
         e.preventDefault();
-        
-        // Update active state
         document.querySelectorAll('.sidebar-nav .nav-link').forEach(l => l.classList.remove('active'));
         link.classList.add('active');
-        
-        // Update page title
         const titles = {
           'dashboard': 'Dashboard',
           'prenotazioni': 'Gestione Prenotazioni',
@@ -86,27 +82,21 @@
           'settings': 'Impostazioni'
         };
         document.getElementById('page-title').textContent = titles[link.dataset.section] || 'Dashboard';
-        
-        // Load section
         if (window.loadAdminSection) {
           loadAdminSection(link.dataset.section);
         }
-        
-        // Close sidebar on mobile
         if (window.innerWidth < 992) {
           document.getElementById('sidebar').classList.remove('show');
         }
       });
     });
 
-    // Initial load
     window.addEventListener('DOMContentLoaded', () => {
       if (window.loadAdminSection) {
         loadAdminSection('dashboard');
       }
     });
 
-    // Refresh button
     document.getElementById('refresh-all')?.addEventListener('click', () => {
       const activeSection = document.querySelector('.sidebar-nav .nav-link.active')?.dataset.section || 'dashboard';
       if (window.loadAdminSection) {
