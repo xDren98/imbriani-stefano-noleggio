@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calendario Disponibilità Veicoli — Imbriani Stefano Noleggio</title>
+  <meta name="description" content="Visualizza la disponibilità di tutti i veicoli su calendario interattivo.">
+  <meta name="theme-color" content="#0066FF">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.css">
+  <style>
+    body { background: linear-gradient(135deg,#0f172a,#1e293b); font-family: 'Inter',sans-serif; }
+    #calendar { background: #fff; border-radius: 16px; box-shadow: 0 2px 12px #0002; padding: 16px; }
+    .fc-daygrid-day.fc-day-today { background: #e0f2fe !important; }
+    .fc-event.available { background: #10b981 !important; border: none; }
+    .fc-event.busy { background: #ef4444 !important; border: none; }
+    .fc-event.maintenance { background: #facc15 !important; border: none; color:#363600; }
+    .legend-dot { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:6px; }
+    .dot-available { background:#10b981;}
+    .dot-busy { background:#ef4444;}
+    .dot-maintenance { background:#facc15;}
+  </style>
+</head>
+<body class="bg-dark py-4">
+  <div class="container">
+    <h2 class="text-white fw-bold mb-3"><i class="fas fa-calendar-alt me-2"></i>Calendario disponibilità veicoli</h2>
+    <div class="mb-3">
+      <label class="text-white mb-1">Seleziona veicolo:</label>
+      <select id="vehicle-select" class="form-select w-auto d-inline-block"></select>
+      <span class="ms-3">
+        <span class="legend-dot dot-available"></span>Disponibile
+        <span class="legend-dot dot-busy ms-3"></span>Prenotato
+        <span class="legend-dot dot-maintenance ms-3"></span>Manutenzione
+      </span>
+    </div>
+    <div id="calendar"></div>
+    <div id="event-details" class="mt-4"></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.js"></script>
+  <script src="config.js"></script>
+  <script src="shared-utils.js"></script>
+  <script>
+    let allVehicles = [];
+    let allPrenotazioni = [];
+    let allManutenzioni = [];
+
+    async function loadResources() {
+      const [veicoli, prenotazioni, manutenzioniData] = await Promise.all([
+        api.call({ action: 'getVeicoli' }),
+        api.call({ action: 'getPrenotazioni' }),
+        fetch(`${CONFIG.API_URL}?action=getSheet&name=MANUTENZIONI&token=${encodeURIComponent(CONFIG.AUTH_TOKEN)}`)
+          .then(r=>r.json())
+      ]);
+      allVehicles = veicoli.data || [];
+      allPrenotazioni = prenotazioni.data || [];
+      allManutenzioni = (manutenzioniData.success ? manutenzioniData.data : []) || [];
+      populateVehicleSelect();
+    }
+
+    function populateVehicleSelect() {
+      const select = document.getElementById('vehicle-select');
+      select.innerHTML = '';
+      allVehicles.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.Targa;
+        opt.textContent = `${v.Targa} - ${v.Marca} ${v.Modello}`;
+        select.appendChild(opt);
+      });
+      select.addEventListener('change', renderCalendar);
+      renderCalendar();
+    }
+
+    function renderCalendar() {
+      const targa = document.getElementById('vehicle-select').value;
+      const calendarEl = document.getElementById('calendar');
+      calendarEl.innerHTML = '';
+      let events = [];
+
+      // Prenotazioni
+      allPrenotazioni.filter(p => p.targa === targa && !['Rifiutata','Completata','Annullata'].includes(p.stato)).forEach(p => {
+        events.push({
+          title: 'Prenotato: ' + (p.destinazione ? p.destinazione : 'noleggio'),
+          start: p.giornoInizio,
+          end: advanceDate(p.giornoFine,1), // End is exclusive in FullCalendar
+          extendedProps: { type:'busy', nome: p.nomeAutista||'', tel: p.cellulare||'', destinazione: p.destinazione||'', id: p.idPrenotazione||'' },
+          className: 'busy'
+        });
+      });
+      // Manutenzioni
+      allManutenzioni.filter(m => m.Targa === targa || m.targa === targa).forEach(m => {
+        events.push({
+          title: 'Manutenzione',
+          start: m['Data Inizio Manutenzione'] || m.dataInizio || m[5],
+          end: advanceDate(m['Data Fine Manutenzione']||m.dataFine||m[6],1),
+          extendedProps: { type:'maintenance', note: m['Note']||m.note||m[8]||'' },
+          className: 'maintenance'
+        });
+      });
+
+      // Giorni disponibili
+      // Coloriamo i giorni SENZA prenotazione né manutenzione
+      // FullCalendar mostra solo eventi, lasciamo i giorni liberi senza eventi
+      
+      const calendar = new FullCalendar.Calendar(calendarEl, {
+        timeZone: 'local',
+        initialView: 'dayGridMonth',
+        locale:'it',
+        height: 'auto',
+        headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
+        events,
+        eventClick: function(info) {
+          showEventDetails(info.event);
+        },
+      });
+      calendar.render();
+      showEventDetails(null); // Svuota dettagli
+    }
+
+    function advanceDate(dateStr, n) {
+      if (!dateStr) return dateStr;
+      let d = new Date(dateStr);
+      d.setDate(d.getDate() + n);
+      return d.toISOString().split('T')[0];
+    }
+
+    function showEventDetails(event) {
+      const details = document.getElementById('event-details');
+      if (!event) { details.innerHTML = ''; return; }
+      let html = `<div class="card"><div class="card-body">`;
+      if (event.extendedProps.type==='maintenance') {
+        html += `<h5 class="mb-2"><i class="fas fa-wrench text-warning me-2"></i>Manutenzione</h5>`;
+        html += `<div><strong>Note:</strong> ${event.extendedProps.note||'—'}</div>`;
+        html += `<div><small>${formatDateIT(event.startStr)} - ${formatDateIT(event.endStr)}</small></div>`;
+      } else {
+        html += `<h5 class="mb-2"><i class="fas fa-calendar-check text-danger me-2"></i>Prenotazione</h5>`;
+        html += `<div><strong>Destinazione:</strong> ${event.extendedProps.destinazione||'—'}</div>`;
+        html += `<div><strong>Autista:</strong> ${event.extendedProps.nome||'—'} <strong>Tel:</strong> ${event.extendedProps.tel||'—'}</div>`;
+        html += `<div><small>${formatDateIT(event.startStr)} - ${formatDateIT(event.endStr)}</small></div>`;
+      }
+      html += `</div></div>`;
+      details.innerHTML = html;
+    }
+
+    function formatDateIT(dateStr) {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('it-IT');
+    }
+
+    window.formatDateIT = formatDateIT;
+
+    window.addEventListener('DOMContentLoaded', loadResources);
+  </script>
+</body>
+</html>
