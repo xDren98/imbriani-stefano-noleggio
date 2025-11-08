@@ -148,12 +148,33 @@
   <script src="config.js"></script>
   <script src="shared-utils.js"></script>
   <script>
-    // Patch minima: definizione globale searchAvailableVehicles safe
+    window.handleSearchVehicles = async function(e) {
+      e.preventDefault();
+      const dataInizio = document.getElementById('data_inizio').value;
+      const dataFine = document.getElementById('data_fine').value;
+      const oraRitiro = document.getElementById('ora_ritiro').value;
+      const oraRiconsegna = document.getElementById('ora_riconsegna').value;
+      if (!dataInizio || !dataFine || !oraRitiro || !oraRiconsegna) { if (window.showToast) showToast('Compila tutti i campi richiesti', 'error'); return; }
+      if (new Date(dataFine) < new Date(dataInizio)) { if (window.showToast) showToast('La fine deve essere successiva all\'inizio', 'error'); return; }
+      if (dataInizio === dataFine && oraRiconsegna <= oraRitiro) { if (window.showToast) showToast('Per lo stesso giorno serve un\'ora di riconsegna successiva', 'error'); return; }
+      // Salva dati selezionati
+      window.selectedDates = { dataInizio, dataFine, oraRitiro, oraRiconsegna };
+      // Nasconde form e mostra risultati
+      document.getElementById('date-form-section').classList.add('d-none');
+      document.getElementById('results-section').classList.remove('d-none');
+      document.getElementById('search-summary').textContent = `Da ${dataInizio} (${oraRitiro}) a ${dataFine} (${oraRiconsegna})`;
+      await window.searchAvailableVehicles();
+    };
     window.searchAvailableVehicles = async function(){
       window.availableVehicles = [];
       if (typeof displayVehicleResults === 'function') displayVehicleResults();
       return { success:true, data: window.availableVehicles };
-    }
+    };
+    document.getElementById('availability-form').onsubmit = window.handleSearchVehicles;
+    document.getElementById('modify-dates').onclick = function() {
+      document.getElementById('results-section').classList.add('d-none');
+      document.getElementById('date-form-section').classList.remove('d-none');
+    };
   </script>
 </body>
 </html>
