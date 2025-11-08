@@ -1,8 +1,35 @@
 /**
  * SERVIZIO GESTIONE VEICOLI
  * 
- * Gestisce veicoli, disponibilità e manutenzioni
+ * Gestisce veicoli, disponibilità e controllo sovrapposizioni con orari
+ * Versione: 8.9.1 - Fix disponibilità orari
  */
+
+// Fasce orarie ammesse: dalle 8:00 alle 22:00 ogni 2 ore
+const FASCE_ORARIE = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "22:00"];
+
+/**
+ * Verifica se un orario è una fascia valida
+ * @param {string} orario - Orario in formato HH:MM
+ * @return {boolean} True se valido
+ */
+function isValidFasciaOraria(orario) {
+  if (!orario) return false;
+  return FASCE_ORARIE.indexOf(orario) !== -1;
+}
+
+/**
+ * Ottiene la fascia oraria successiva
+ * @param {string} orario - Orario corrente
+ * @return {string|null} Fascia successiva o null se ultima
+ */
+function fasciaSuccessiva(orario) {
+  var idx = FASCE_ORARIE.indexOf(orario);
+  if (idx !== -1 && idx < FASCE_ORARIE.length - 1) {
+    return FASCE_ORARIE[idx + 1];
+  }
+  return null; // Se è 22:00, non c'è fascia successiva lo stesso giorno
+}
 
 /**
  * Recupera lista veicoli con stato disponibilità
@@ -107,98 +134,263 @@ function getVeicoli() {
 }
 
 /**
- * Controlla disponibilità veicolo per periodo specifico
- * Verifica conflitti con prenotazioni e manutenzioni
- * @param {Object} p - Parametri: targa, dataInizio, dataFine
+ * Controlla disponibilità veicolo considerando DATE + ORARI (fasce 8-22 ogni 2h)
+ * Un veicolo è disponibile dalla fascia oraria SUCCESSIVA alla riconsegna
+ * 
+ * @param {Object} p - Parametri: targa, dataInizio, dataFine, oraInizio, oraFine
  * @return {ContentService} Risposta JSON con disponibilità e conflitti
  */
 function checkDisponibilita(p) {
+  Logger.log('[checkDisponibilita] Parametri: ' + JSON.stringify(p));
+  
   try {
-    var t = p.targa;
-    var di = p.dataInizio;
-    var df = p.dataFine;
+    var targa = p.targa;
+    var dataInizioRichiesta = p.dataInizio;
+    var dataFineRichiesta = p.dataFine;
+    var oraInizioRichiesta = p.oraInizio || '08:00';
+    var oraFineRichiesta = p.oraFine || '22:00';
     
-    if (!t || !di || !df) {
+    if (!targa || !dataInizioRichiesta || !dataFineRichiesta) {
       return createJsonResponse({
         success: false,
-        message: 'Parametri mancanti: targa, dataInizio, dataFine'
+        message: 'Parametri mancanti: targa, dataInizio, dataFine richiesti'
       }, 400);
     }
     
-    var sh = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID)
-      .getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
-    var data = sh.getDataRange().getValues();
-    var disp = true;
-    var confl = [];
+    // Validazione fasce orarie
+    if (!isValidFasciaOraria(oraInizioRichiesta)) {
+      return createJsonResponse({
+        success: false,
+        message: 'Ora inizio non valida. Fasce ammesse: ' + FASCE_ORARIE.join(', ')
+      }, 400);
+    }
     
-    // Controlla conflitti con prenotazioni
-    for (var i = 1; i < data.length; i++) {
-      var r = data[i];
-      var tp = r[CONFIG.PRENOTAZIONI_COLS.TARGA - 1];
-      var st = String(r[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE - 1] || '');
+    if (!isValidFasciaOraria(oraFineRichiesta)) {
+      return createJsonResponse({
+        success: false,
+        message: 'Ora fine non valida. Fasce ammesse: ' + FASCE_ORARIE.join(', ')
+      }, 400);
+    }
+    
+    // Converti date richieste
+    var dtInizioRichiesta, dtFineRichiesta;
+    try {
+      dtInizioRichiesta = parseDateTimeString(dataInizioRichiesta, oraInizioRichiesta);
+      dtFineRichiesta = parseDateTimeString(dataFineRichiesta, oraFineRichiesta);
+    } catch(e) {
+      return createJsonResponse({
+        success: false,
+        message: 'Formato date non valido: ' + e.message
+      }, 400);
+    }
+    
+    // Validazione logica: data fine >= data inizio
+    if (dtFineRichiesta <= dtInizioRichiesta) {
+      return createJsonResponse({
+        success: false,
+        message: 'Data/ora fine deve essere successiva a data/ora inizio'
+      }, 400);
+    }
+    
+    // Recupera prenotazioni esistenti
+    var shPrenotazioni = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID)
+      .getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    var dataPrenotazioni = shPrenotazioni.getDataRange().getValues();
+    
+    var conflitti = [];
+    
+    // Controlla sovrapposizioni con prenotazioni esistenti
+    for (var i = 1; i < dataPrenotazioni.length; i++) {
+      var r = dataPrenotazioni[i];
+      var targaPrenotazione = r[CONFIG.PRENOTAZIONI_COLS.TARGA - 1];
+      var statoPrenotazione = r[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE - 1];
       
-      if (tp === t && ['Rifiutata', 'Completata'].indexOf(st) === -1) {
-        var ie = new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO - 1]);
-        var fe = new Date(r[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE - 1]);
-        var ni = new Date(di);
-        var nf = new Date(df);
+      // Skip se targa diversa o prenotazione non attiva
+      if (targaPrenotazione !== targa) continue;
+      if (!statoPrenotazione || 
+          statoPrenotazione === 'Rifiutata' || 
+          statoPrenotazione === 'Completata' ||
+          statoPrenotazione === 'Annullata') {
+        continue;
+      }
+      
+      var dataInizioPrenotazione = r[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO - 1];
+      var dataFinePrenotazione = r[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE - 1];
+      var oraInizioPrenotazione = r[CONFIG.PRENOTAZIONI_COLS.ORA_INIZIO - 1] || '08:00';
+      var oraFinePrenotazione = r[CONFIG.PRENOTAZIONI_COLS.ORA_FINE - 1] || '22:00';
+      
+      if (!dataInizioPrenotazione || !dataFinePrenotazione) continue;
+      
+      // Costruisci datetime completi per prenotazione esistente
+      var dtInizioPrenotazione, dtFinePrenotazione;
+      try {
+        dtInizioPrenotazione = parseDateTimeFromValues(dataInizioPrenotazione, oraInizioPrenotazione);
+        dtFinePrenotazione = parseDateTimeFromValues(dataFinePrenotazione, oraFinePrenotazione);
+      } catch(e) {
+        Logger.log('[checkDisponibilita] Errore parsing date prenotazione riga ' + (i+1) + ': ' + e.message);
+        continue;
+      }
+      
+      // LOGICA FASCIA SUCCESSIVA:
+      // Il veicolo diventa disponibile dalla fascia SUCCESSIVA alla riconsegna
+      var fasciaDisponibilita = fasciaSuccessiva(oraFinePrenotazione);
+      var dtDisponibilitaEffettiva = dtFinePrenotazione;
+      
+      if (fasciaDisponibilita) {
+        // Aggiorna l'orario di disponibilità alla fascia successiva
+        dtDisponibilitaEffettiva = parseDateTimeFromValues(dataFinePrenotazione, fasciaDisponibilita);
+      } else {
+        // Se riconsegna è alle 22:00, disponibile dal giorno dopo alle 08:00
+        var giornoSuccessivo = new Date(dtFinePrenotazione);
+        giornoSuccessivo.setDate(giornoSuccessivo.getDate() + 1);
+        dtDisponibilitaEffettiva = parseDateTimeFromValues(giornoSuccessivo, '08:00');
+      }
+      
+      // Controlla sovrapposizione: la nuova richiesta deve iniziare DOPO la disponibilità effettiva
+      if (dtInizioRichiesta < dtDisponibilitaEffettiva && dtFineRichiesta > dtInizioPrenotazione) {
+        conflitti.push({
+          idPrenotazione: r[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1] || '',
+          dataInizio: formatDateToItalian(dataInizioPrenotazione),
+          dataFine: formatDateToItalian(dataFinePrenotazione),
+          oraInizio: oraInizioPrenotazione,
+          oraFine: oraFinePrenotazione,
+          fasciaDisponibilita: fasciaDisponibilita || '08:00 (giorno successivo)',
+          stato: statoPrenotazione,
+          cliente: r[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1 - 1] || ''
+        });
+      }
+    }
+    
+    // Controlla manutenzioni (occupano l'intera giornata)
+    var shManutenzioni = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID)
+      .getSheetByName(CONFIG.SHEETS.MANUTENZIONI);
+    
+    if (shManutenzioni) {
+      var dataManutenzioni = shManutenzioni.getDataRange().getValues();
+      
+      for (var j = 1; j < dataManutenzioni.length; j++) {
+        var m = dataManutenzioni[j];
+        var targaManutenzione = m[CONFIG.MANUTENZIONI_COLS.TARGA - 1];
+        var statoManutenzione = m[CONFIG.MANUTENZIONI_COLS.STATO - 1];
         
-        // Controlla sovrapposizione date
-        if (!(nf < ie || ni > fe)) {
-          disp = false;
-          confl.push({
-            da: ie,
-            daFormatted: formatDateToItalian(ie),
-            a: fe,
-            aFormatted: formatDateToItalian(fe),
-            stato: st
+        if (targaManutenzione !== targa) continue;
+        if (!statoManutenzione || statoManutenzione === 'Completata') continue;
+        
+        var dataInizioManutenzione = m[CONFIG.MANUTENZIONI_COLS.DATA_INIZIO - 1];
+        var dataFineManutenzione = m[CONFIG.MANUTENZIONI_COLS.DATA_FINE - 1];
+        
+        if (!dataInizioManutenzione || !dataFineManutenzione) continue;
+        
+        // Per manutenzioni, consideriamo l'intera giornata (08:00 - 22:00)
+        var dtInizioManutenzione, dtFineManutenzione;
+        try {
+          dtInizioManutenzione = parseDateTimeFromValues(dataInizioManutenzione, '08:00');
+          dtFineManutenzione = parseDateTimeFromValues(dataFineManutenzione, '22:00');
+        } catch(e) {
+          Logger.log('[checkDisponibilita] Errore parsing date manutenzione: ' + e.message);
+          continue;
+        }
+        
+        if (dtInizioRichiesta < dtFineManutenzione && dtFineRichiesta > dtInizioManutenzione) {
+          conflitti.push({
+            tipo: 'manutenzione',
+            dataInizio: formatDateToItalian(dataInizioManutenzione),
+            dataFine: formatDateToItalian(dataFineManutenzione),
+            stato: statoManutenzione,
+            note: m[CONFIG.MANUTENZIONI_COLS.NOTE - 1] || ''
           });
         }
       }
     }
     
-    // Controlla conflitti con manutenzioni
-    var shM = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID)
-      .getSheetByName(CONFIG.SHEETS.MANUTENZIONI);
+    var disponibile = conflitti.length === 0;
     
-    if (shM) {
-      var dataM = shM.getDataRange().getValues();
-      for (var m = 1; m < dataM.length; m++) {
-        var mRow = dataM[m];
-        var targaMan = mRow[CONFIG.MANUTENZIONI_COLS.TARGA - 1];
-        var dataInizioMan = mRow[CONFIG.MANUTENZIONI_COLS.DATA_INIZIO - 1];
-        var dataFineMan = mRow[CONFIG.MANUTENZIONI_COLS.DATA_FINE - 1];
-        
-        if (targaMan === t && dataInizioMan && dataFineMan) {
-          var manInizio = new Date(dataInizioMan);
-          var manFine = new Date(dataFineMan);
-          var ni = new Date(di);
-          var nf = new Date(df);
-          
-          if (!(nf < manInizio || ni > manFine)) {
-            disp = false;
-            confl.push({
-              da: manInizio,
-              daFormatted: formatDateToItalian(manInizio),
-              a: manFine,
-              aFormatted: formatDateToItalian(manFine),
-              stato: mRow[CONFIG.MANUTENZIONI_COLS.STATO - 1] || 'Manutenzione',
-              tipo: 'manutenzione'
-            });
-          }
-        }
-      }
-    }
+    Logger.log('[checkDisponibilita] Targa ' + targa + ' - Disponibile: ' + disponibile + ' - Conflitti: ' + conflitti.length);
     
     return createJsonResponse({
       success: true,
-      disponibile: disp,
-      conflitti: confl
+      disponibile: disponibile,
+      targa: targa,
+      periodoRichiesto: {
+        dataInizio: dataInizioRichiesta,
+        dataFine: dataFineRichiesta,
+        oraInizio: oraInizioRichiesta,
+        oraFine: oraFineRichiesta
+      },
+      fasceOrarie: FASCE_ORARIE,
+      conflitti: conflitti,
+      message: disponibile 
+        ? 'Veicolo disponibile per il periodo richiesto' 
+        : 'Veicolo non disponibile - ' + conflitti.length + ' conflitto/i trovato/i'
     });
   } catch(err) {
+    Logger.log('[checkDisponibilita] Errore: ' + err.message);
     return createJsonResponse({
       success: false,
-      message: 'Errore controllo disponibilita: ' + err.message
+      message: 'Errore verifica disponibilità: ' + err.message
     }, 500);
   }
+}
+
+/**
+ * Parse stringa data + ora in oggetto Date
+ * @param {string} dateStr - Data in formato YYYY-MM-DD
+ * @param {string} timeStr - Ora in formato HH:MM
+ * @return {Date} Oggetto Date
+ */
+function parseDateTimeString(dateStr, timeStr) {
+  if (!dateStr) throw new Error('Data mancante');
+  if (!timeStr) timeStr = '08:00';
+  
+  // Parse data YYYY-MM-DD
+  var dateParts = dateStr.split('-');
+  if (dateParts.length !== 3) throw new Error('Formato data non valido: ' + dateStr);
+  
+  var year = parseInt(dateParts[0], 10);
+  var month = parseInt(dateParts[1], 10) - 1; // JS months are 0-indexed
+  var day = parseInt(dateParts[2], 10);
+  
+  // Parse ora HH:MM
+  var timeParts = timeStr.split(':');
+  if (timeParts.length !== 2) throw new Error('Formato ora non valido: ' + timeStr);
+  
+  var hours = parseInt(timeParts[0], 10);
+  var minutes = parseInt(timeParts[1], 10);
+  
+  return new Date(year, month, day, hours, minutes, 0, 0);
+}
+
+/**
+ * Parse Date object + stringa ora in oggetto Date completo
+ * @param {Date|string} dateObj - Oggetto Date o stringa data
+ * @param {string} timeStr - Ora in formato HH:MM
+ * @return {Date} Oggetto Date con ora
+ */
+function parseDateTimeFromValues(dateObj, timeStr) {
+  if (!dateObj) throw new Error('Data mancante');
+  
+  // Se è stringa, converti in Date
+  if (typeof dateObj === 'string') {
+    dateObj = new Date(dateObj);
+  }
+  
+  if (!(dateObj instanceof Date)) {
+    dateObj = new Date(dateObj);
+    if (isNaN(dateObj.getTime())) throw new Error('Data non valida');
+  }
+  
+  if (!timeStr) timeStr = '08:00';
+  
+  // Parse ora HH:MM
+  var timeParts = String(timeStr).split(':');
+  if (timeParts.length !== 2) throw new Error('Formato ora non valido: ' + timeStr);
+  
+  var hours = parseInt(timeParts[0], 10);
+  var minutes = parseInt(timeParts[1], 10);
+  
+  // Crea nuovo Date con ora specificata
+  var result = new Date(dateObj);
+  result.setHours(hours, minutes, 0, 0);
+  
+  return result;
 }
