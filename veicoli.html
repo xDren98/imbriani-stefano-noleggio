@@ -188,11 +188,9 @@
           if (guest.oraRiconsegna) document.getElementById('ora_riconsegna').value = guest.oraRiconsegna;
         }
         
-        // ✅ FIX OPZIONE A: Nascondi form e lancia ricerca SUBITO
         document.getElementById('date-form-section').classList.add('d-none');
         document.getElementById('results-section').classList.remove('d-none');
         
-        // Lancia ricerca automatica
         setTimeout(() => {
           const form = document.getElementById('availability-form');
           if (form) form.dispatchEvent(new Event('submit'));
@@ -293,13 +291,6 @@
 
       selectedDates = { dataInizio, dataFine, oraRitiro, oraRiconsegna };
 
-      try {
-        const upd = await fetch(`${CONFIG.API_URL}?action=updateStatiLive&token=${encodeURIComponent(CONFIG.AUTH_TOKEN)}`).then(r=>r.json());
-        console.log('updateStatiLive:', upd);
-      } catch (err) {
-        console.warn('updateStatiLive non disponibile, continuo');
-      }
-
       const searchBtn = document.querySelector('#availability-form button[type="submit"]');
       const searchSpinner = document.getElementById('search-spinner');
       const searchBtnText = document.getElementById('search-btn-text');
@@ -320,87 +311,41 @@
       }
     }
 
-    function toDate(d){ return new Date(d + 'T00:00:00'); }
-
-    function hasDateOverlap(reqStart, reqEnd, blkStart, blkEnd){
-      return !(reqEnd < blkStart || reqStart > blkEnd);
-    }
-
-    function hasDateTimeOverlap(req, pre){
-      const rStart = toDate(req.dataInizio);
-      const rEnd = toDate(req.dataFine);
-      const pStart = new Date(pre.giornoInizio);
-      const pEnd = new Date(pre.giornoFine);
-      if (!hasDateOverlap(rStart, rEnd, pStart, pEnd)) return false;
-
-      const sameStartDay = rStart.toDateString() === pStart.toDateString();
-      const sameEndDay = rEnd.toDateString() === pEnd.toDateString();
-      const toHour = (hhmm)=> parseInt(hhmm.split(':')[0],10);
-      const reqStartH = toHour(req.oraRitiro);
-      const reqEndH = toHour(req.oraRiconsegna);
-      const preStartH = toHour(pre.oraInizio||'08:00');
-      let preEndH = toHour(pre.oraFine||'20:00');
-      preEndH = Math.min(22, preEndH + 2);
-
-      if (sameStartDay && reqStartH < preEndH) return true;
-      if (sameEndDay && reqEndH > preStartH) return true;
-      return true;
-    }
-
-    function hasMaintenanceOverlap(req, man){
-      const stato = (man.stato || '').toLowerCase();
-      if (!(stato.includes('programmata') || stato.includes('in corso'))) return false;
-
-      const rStart = toDate(req.dataInizio);
-      const rEnd = toDate(req.dataFine);
-      const mStart = new Date(man.dataInizio);
-      const mEnd = new Date(man.dataFine);
-      return hasDateOverlap(rStart, rEnd, mStart, mEnd);
-    }
-
     async function searchAvailableVehicles(){
       try{
-        const [vehiclesResponse, prenotazioniResponse] = await Promise.all([
-          api.call({ action: 'getVeicoli' }),
-          api.call({ action: 'getPrenotazioni' })
-        ]);
-        if (!vehiclesResponse.success) { if (window.showToast) showToast('Errore caricamento veicoli', 'error'); return; }
+        // ✅ FIX: Usa getVeicoli per la lista, poi checkDisponibilita per ogni veicolo
+        const vehiclesResponse = await api.call({ action: 'getVeicoli' });
+        if (!vehiclesResponse.success) { 
+          if (window.showToast) showToast('Errore caricamento veicoli', 'error'); 
+          return; 
+        }
+        
         const allVehicles = vehiclesResponse.data || [];
-        const allPren = (prenotazioniResponse.success ? prenotazioniResponse.data : []) || [];
-
-        let manut = [];
-        try {
-          const url = `${CONFIG.API_URL}?action=getSheet&name=MANUTENZIONI&token=${encodeURIComponent(CONFIG.AUTH_TOKEN)}`;
-          const resp = await fetch(url).then(r => r.json());
-          manut = (resp.success ? resp.data : []) || [];
-        } catch(err) { console.warn('MANUTENZIONI non disponibili via API generica'); }
-
-        const maintRows = manut.map(r => ({
-          targa: r.Targa || r.targa || r[0],
-          stato: r.Stato || r.stato || r[4],
-          dataInizio: r['Data Inizio Manutenzione'] || r.dataInizio || r[5],
-          dataFine: r['Data Fine Manutenzione'] || r.dataFine || r[6],
-        })).filter(m => m.targa && m.dataInizio && m.dataFine);
-
+        console.log('🚗 Veicoli totali:', allVehicles.length);
+        
         availableVehicles = [];
-        for (const v of allVehicles){
-          if (!v.Disponibile) continue;
-
-          const prenV = allPren.filter(p => p.targa === v.Targa && !['Rifiutata','Completata','Da confermare'].includes(p.stato));
-          const manV = maintRows.filter(m => m.targa === v.Targa);
-
-          const manOverlap = manV.some(m => hasMaintenanceOverlap(selectedDates, m));
-          if (manOverlap) {
-            console.log(`🔧 ${v.Targa}: Escluso per manutenzione`);
-            continue;
+        
+        // ✅ FIX: Controlla disponibilità usando l'API checkDisponibilita per ogni veicolo
+        for (const v of allVehicles) {
+          console.log(`🔍 Controllo ${v.Targa}...`);
+          
+          try {
+            const checkUrl = `${CONFIG.API_URL}?action=checkDisponibilita&targa=${encodeURIComponent(v.Targa)}&dataInizio=${encodeURIComponent(selectedDates.dataInizio)}&dataFine=${encodeURIComponent(selectedDates.dataFine)}&oraInizio=${encodeURIComponent(selectedDates.oraRitiro)}&oraFine=${encodeURIComponent(selectedDates.oraRiconsegna)}&token=${encodeURIComponent(CONFIG.TOKEN)}`;
+            
+            const checkResp = await fetch(checkUrl).then(r => r.json());
+            
+            if (checkResp.success && checkResp.disponibile) {
+              console.log(`✅ ${v.Targa}: Disponibile`);
+              availableVehicles.push(v);
+            } else {
+              console.log(`❌ ${v.Targa}: NON disponibile`, checkResp.conflitti || checkResp.message);
+            }
+          } catch(err) {
+            console.error(`⚠️ Errore check ${v.Targa}:`, err);
           }
-
-          const preOverlap = prenV.some(p => hasDateTimeOverlap(selectedDates, p));
-          if (preOverlap) continue;
-
-          availableVehicles.push(v);
         }
 
+        console.log('✅ Veicoli disponibili:', availableVehicles.length);
         displayVehicleResults();
       }catch(err){
         console.error('Errore ricerca:', err);
@@ -474,7 +419,7 @@
       if (window.showToast) showToast(successMsg, 'success');
     }
 
-    console.log('✅ [VEICOLI] v2.0 - Skip pagina intermedia attivato!');
+    console.log('✅ [VEICOLI] v8.9.4 - Fix checkDisponibilita per manutenzioni');
   </script>
 </body>
 </html>
