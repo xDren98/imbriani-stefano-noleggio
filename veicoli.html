@@ -11,7 +11,16 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
-  <style>body{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);min-height:100vh}.vehicle-card{transition:all .3s ease;border:2px solid transparent}.vehicle-card:hover{transform:translateY(-4px);border-color:#0066ff30}.vehicle-card.selected{border-color:#0066ff;box-shadow:0 8px 25px rgba(0,102,255,.3)}.badge-passo-lungo{background:linear-gradient(45deg,#f59e0b,#d97706);color:#fff}.guest-badge{background:linear-gradient(45deg,#10b981,#059669);color:#fff;font-size:0.75rem}</style>
+  <style>body{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);min-height:100vh}.vehicle-card{transition:all .3s ease;border:2px solid transparent}.vehicle-card:hover{transform:translateY(-4px);border-color:#0066ff30}.vehicle-card.selected{border-color:#0066ff;box-shadow:0 8px 25px rgba(0,102,255,.3)}.badge-passo-lungo{background:linear-gradient(45deg,#f59e0b,#d97706);color:#fff}.guest-badge{background:linear-gradient(45deg,#10b981,#059669);color:#fff;font-size:0.75rem}
+        /* Fix usabilità calendario */
+        input[type=date]:focus, input[type=date]:active, input[type=date]:hover {
+          outline:2px solid #0066FF !important;
+          box-shadow:0 0 0 2px #0066FF60;
+        }
+        /* Aumenta area click */
+        input[type=date]{cursor:pointer;min-height:48px;min-width:50px;}
+        label[for=data_inizio],label[for=data_fine]{cursor:pointer;}
+      </style>
 </head>
 <body class="d-flex flex-column h-100">
   <header class="py-4">
@@ -47,11 +56,11 @@
         </h5>
         <form id="availability-form" class="row g-3">
           <div class="col-md-6">
-            <label class="form-label">Data inizio</label>
+            <label class="form-label" for="data_inizio">Data inizio</label>
             <input type="date" class="form-control form-control-modern" id="data_inizio" required>
           </div>
           <div class="col-md-6">
-            <label class="form-label">Data fine</label>
+            <label class="form-label" for="data_fine">Data fine</label>
             <input type="date" class="form-control form-control-modern" id="data_fine" required>
           </div>
           <div class="col-md-6">
@@ -144,54 +153,73 @@
   <script src="config.js"></script>
   <script src="shared-utils.js"></script>
   <script>
-    // Fix: debounce di ricerca e calendar picker
+    // Fix: debounce di ricerca e calendar picker usabilità
     let debounceTimeout = null;
 
-    // Inizializza Bootstrap Datepicker se vuoi compatibilità extra (ma input type="date" è nativo su quasi tutti i browser)
+    // Soluzione definitiva: dichiara sempre handleSearchVehicles globale
+    window.handleSearchVehicles = async function(e){
+      e.preventDefault();
+      const dataInizio = document.getElementById('data_inizio').value;
+      const dataFine = document.getElementById('data_fine').value;
+      const oraRitiro = document.getElementById('ora_ritiro').value;
+      const oraRiconsegna = document.getElementById('ora_riconsegna').value;
+      if (!dataInizio || !dataFine || !oraRitiro || !oraRiconsegna) { if (window.showToast) showToast('Compila tutti i campi richiesti', 'error'); return; }
+      if (new Date(dataFine) < new Date(dataInizio)) { if (window.showToast) showToast('La fine deve essere successiva all\'inizio', 'error'); return; }
+      if (dataInizio === dataFine && oraRiconsegna <= oraRitiro) { if (window.showToast) showToast('Per lo stesso giorno serve un\'ora di riconsegna successiva', 'error'); return; }
+      selectedDates = { dataInizio, dataFine, oraRitiro, oraRiconsegna };
+      try { const upd = await fetch(`${CONFIG.API_URL}?action=updateStatiLive&token=${encodeURIComponent(CONFIG.AUTH_TOKEN)}`).then(r=>r.json()); console.log('updateStatiLive:', upd); } catch (err) {console.warn('updateStatiLive non disponibile, continuo');}
+      const searchBtn = document.querySelector('#availability-form button[type="submit"]');
+      const searchSpinner = document.getElementById('search-spinner');
+      const searchBtnText = document.getElementById('search-btn-text');
+      if (searchBtn) {searchBtn.disabled = true;
+        if (searchSpinner) searchSpinner.classList.remove('d-none');
+        if (searchBtnText) searchBtnText.textContent = 'Ricerca in corso...';
+      }
+      try { await searchAvailableVehicles(); }
+      catch (error) { console.error('Errore ricerca veicoli:', error); if (window.showToast) showToast('Errore durante la ricerca veicoli', 'error'); }
+      finally { if (searchBtn) {searchBtn.disabled = false;
+        if (searchSpinner) searchSpinner.classList.add('d-none');
+        if (searchBtnText) searchBtnText.textContent = 'Cerca veicoli disponibili';
+      }}
+    };
+
     document.addEventListener('DOMContentLoaded', async () => {
       setupUI();
-      // Evento focus su input date: mostra il calendario
-      document.getElementById('data_inizio').addEventListener('focus', function(){ this.showPicker && this.showPicker(); });
-      document.getElementById('data_fine').addEventListener('focus', function(){ this.showPicker && this.showPicker(); });
+      // Evento user-friendly: attiva showPicker su qualsiasi click/focus (amplia area e aggiungi listeners)
+      const inizio = document.getElementById('data_inizio');
+      const fine = document.getElementById('data_fine');
+      function showCalendar(e){
+        if (inizio.showPicker) inizio.showPicker();
+      }
+      function showCalendar2(e){
+        if (fine.showPicker) fine.showPicker();
+      }
+      inizio.addEventListener('mousedown', showCalendar);
+      inizio.addEventListener('focus', showCalendar);
+      inizio.addEventListener('touchstart', showCalendar);
+      fine.addEventListener('mousedown', showCalendar2);
+      fine.addEventListener('focus', showCalendar2);
+      fine.addEventListener('touchstart', showCalendar2);
+      // Permetti click anche sul label
+      document.querySelector('label[for="data_inizio"]').addEventListener('click', () => inizio.focus());
+      document.querySelector('label[for="data_fine"]').addEventListener('click', () => fine.focus());
     });
 
     function setupUI() {
       document.getElementById('back-btn')?.addEventListener('click', () => {
-        if (isGuestUser) {
-          window.location.href = 'index.html';
-        } else {
-          window.location.href = currentUser ? 'area-personale.html' : 'index.html';
-        }
-      });
+        if (isGuestUser) { window.location.href = 'index.html'; } else { window.location.href = currentUser ? 'area-personale.html' : 'index.html'; }});
       document.getElementById('logout-btn')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        localStorage.removeItem('imbriani_user');
-        localStorage.removeItem('imbriani_session');
-        localStorage.removeItem('imbriani_guest_booking');
-        if (window.showToast) showToast('Logout effettuato', 'info');
-        setTimeout(() => window.location.href = 'index.html', 600);
-      });
+        e.preventDefault(); localStorage.removeItem('imbriani_user'); localStorage.removeItem('imbriani_session'); localStorage.removeItem('imbriani_guest_booking'); if (window.showToast) showToast('Logout effettuato', 'info'); setTimeout(() => window.location.href = 'index.html', 600);});
       document.getElementById('availability-form')?.addEventListener('submit', function(e){
         e.preventDefault();
-        // Applica debounce per la ricerca
         if (debounceTimeout) clearTimeout(debounceTimeout);
-        debounceTimeout = setTimeout(() => handleSearchVehicles(e), 300);
+        debounceTimeout = setTimeout(() => window.handleSearchVehicles(e), 300);
       });
       document.getElementById('modify-dates')?.addEventListener('click', () => {
-        document.getElementById('date-form-section').classList.remove('d-none');
-        document.getElementById('results-section').classList.add('d-none');
-        document.getElementById('vehicle-selected-section').classList.add('d-none');
-        selectedVehicle = null;
-      });
-      document.getElementById('change-vehicle')?.addEventListener('click', () => {
-        document.getElementById('vehicle-selected-section').classList.add('d-none');
-        document.getElementById('results-section').classList.remove('d-none');
-        selectedVehicle = null;
-      });
+        document.getElementById('date-form-section').classList.remove('d-none'); document.getElementById('results-section').classList.add('d-none'); document.getElementById('vehicle-selected-section').classList.add('d-none'); selectedVehicle = null; });
+      document.getElementById('change-vehicle')?.addEventListener('click', () => { document.getElementById('vehicle-selected-section').classList.add('d-none'); document.getElementById('results-section').classList.remove('d-none'); selectedVehicle = null; });
       document.getElementById('proceed-next-step')?.addEventListener('click', proceedToNextStep);
-      const today = new Date().toISOString().split('T')[0];
-      document.getElementById('data_inizio').min = today;
-      document.getElementById('data_fine').min = today;
+      const today = new Date().toISOString().split('T')[0]; document.getElementById('data_inizio').min = today; document.getElementById('data_fine').min = today;
     }
 
     // ... resto del codice JS invariato ...
