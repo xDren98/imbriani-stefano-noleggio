@@ -116,14 +116,15 @@
             </button>
           </div>
           <div class="col-md-6">
-            <a href="tel:+393286589618" 
-               class="btn phone-btn cta-button w-100 py-3 text-decoration-none">
+            <button type="button" 
+                    id="phone-btn"
+                    class="btn phone-btn cta-button w-100 py-3">
               <i class="fas fa-phone me-2"></i>
               <div>
-                <div class="fw-bold text-white">Chiama ora</div>
-                <div class="small opacity-75 text-white">328 658 9618</div>
+                <div class="fw-bold">Chiama ora</div>
+                <div class="small opacity-75">328 658 9618</div>
               </div>
-            </a>
+            </button>
           </div>
         </div>
       </div>
@@ -160,13 +161,11 @@
     let contactConfirmed = false;
 
     document.addEventListener('DOMContentLoaded', async () => {
-      // Recupera dati utente
       const userData = localStorage.getItem('imbriani_user');
       if (userData) {
         currentUser = JSON.parse(userData);
       }
 
-      // Recupera dati selezione da URL params o localStorage
       loadSelectionData();
       
       if (!selectedVehicle || !selectedDates) {
@@ -180,7 +179,6 @@
     });
 
     function loadSelectionData() {
-      // Prova a recuperare da URL params
       const urlParams = new URLSearchParams(window.location.search);
       const vehicleData = urlParams.get('vehicle');
       const datesData = urlParams.get('dates');
@@ -198,7 +196,6 @@
         }
       }
 
-      // Fallback a localStorage
       if (!selectedVehicle || !selectedDates) {
         const storedVehicle = localStorage.getItem('imbriani_selected_vehicle');
         const storedDates = localStorage.getItem('imbriani_selected_dates');
@@ -216,7 +213,7 @@
 
     function displaySelectionSummary() {
       const summaryEl = document.getElementById('selection-summary');
-      const formatDate = (d) => new Date(d).toLocaleDateString('it-IT');
+      const formatDate = (d) => window.formatDateIT ? window.formatDateIT(d) : new Date(d).toLocaleDateString('it-IT');
       
       summaryEl.innerHTML = `
         <div class="row align-items-center">
@@ -247,25 +244,19 @@
     }
 
     function setupUI() {
-      // Back button
       document.getElementById('back-btn')?.addEventListener('click', () => {
         window.location.href = 'veicoli.html';
       });
 
-      // Input destinazione
       const destinazioneInput = document.getElementById('destinazione');
       destinazioneInput?.addEventListener('input', updateWhatsAppButton);
 
-      // WhatsApp button
       document.getElementById('whatsapp-btn')?.addEventListener('click', openWhatsApp);
-
-      // Conferma contatto
-      document.getElementById('confirm-contact-btn')?.addEventListener('click', confirmContact);
       
-      // Procedi ai dati autisti
+      document.getElementById('phone-btn')?.addEventListener('click', handlePhoneCall);
+      document.getElementById('confirm-contact-btn')?.addEventListener('click', confirmContact);
       document.getElementById('proceed-drivers-btn')?.addEventListener('click', proceedToDrivers);
 
-      // Update WhatsApp button iniziale
       updateWhatsAppButton();
     }
 
@@ -282,6 +273,15 @@
       }
     }
 
+    function handlePhoneCall() {
+      window.location.href = 'tel:+393286589618';
+      setTimeout(() => {
+        document.getElementById('confirmation-section').classList.remove('d-none');
+        document.getElementById('confirmation-section').scrollIntoView({ behavior: 'smooth' });
+        if (window.showToast) showToast('📞 Chiamata avviata! Conferma il contatto qui sotto.', 'success');
+      }, 500);
+    }
+
     function openWhatsApp() {
       const destinazione = document.getElementById('destinazione').value.trim();
       const note = document.getElementById('note-aggiuntive').value.trim();
@@ -291,7 +291,7 @@
         return;
       }
 
-      const formatDate = (d) => new Date(d).toLocaleDateString('it-IT');
+      const formatDate = (d) => window.formatDateIT ? window.formatDateIT(d) : new Date(d).toLocaleDateString('it-IT');
       
       let messaggio = `🚐 *RICHIESTA PREVENTIVO*\n\n`;
       messaggio += `📅 *Periodo:* ${formatDate(selectedDates.dataInizio)} ${selectedDates.oraRitiro} → ${formatDate(selectedDates.dataFine)} ${selectedDates.oraRiconsegna}\n`;
@@ -314,10 +314,8 @@
 
       const whatsappUrl = `https://wa.me/${CONFIG.WHATSAPP_NUMBER.replace(/\D/g, '')}?text=${encodeURIComponent(messaggio)}`;
       
-      // Apri WhatsApp
       window.open(whatsappUrl, '_blank');
       
-      // Mostra sezione conferma dopo un breve delay
       setTimeout(() => {
         document.getElementById('confirmation-section').classList.remove('d-none');
         document.getElementById('confirmation-section').scrollIntoView({ behavior: 'smooth' });
@@ -345,22 +343,21 @@
         return;
       }
 
-      // Salva la destinazione nei dati della prenotazione
       selectedDates.destinazione = destinazione;
       selectedDates.noteAggiuntive = document.getElementById('note-aggiuntive').value.trim();
 
-      // Salva tutto in localStorage per il prossimo step
       localStorage.setItem('imbriani_selected_vehicle', JSON.stringify(selectedVehicle));
       localStorage.setItem('imbriani_selected_dates', JSON.stringify(selectedDates));
       localStorage.setItem('imbriani_preventivo_richiesto', 'true');
 
       if (window.showToast) showToast('Reindirizzamento ai dati autisti...', 'info');
       
-      // Redirect diretto, senza TODO e senza popup
       setTimeout(() => {
         window.location.href = 'dati-autisti.html';
       }, 600);
     }
+
+    console.log('✅ [PREVENTIVO] v2.0 - Fix bottone telefono attivato!');
   </script>
 </body>
 </html>
