@@ -157,18 +157,49 @@
       if (!dataInizio || !dataFine || !oraRitiro || !oraRiconsegna) { if (window.showToast) showToast('Compila tutti i campi richiesti', 'error'); return; }
       if (new Date(dataFine) < new Date(dataInizio)) { if (window.showToast) showToast('La fine deve essere successiva all\'inizio', 'error'); return; }
       if (dataInizio === dataFine && oraRiconsegna <= oraRitiro) { if (window.showToast) showToast('Per lo stesso giorno serve un\'ora di riconsegna successiva', 'error'); return; }
-      // Salva dati selezionati
       window.selectedDates = { dataInizio, dataFine, oraRitiro, oraRiconsegna };
-      // Nasconde form e mostra risultati
       document.getElementById('date-form-section').classList.add('d-none');
       document.getElementById('results-section').classList.remove('d-none');
       document.getElementById('search-summary').textContent = `Da ${dataInizio} (${oraRitiro}) a ${dataFine} (${oraRiconsegna})`;
       await window.searchAvailableVehicles();
     };
     window.searchAvailableVehicles = async function(){
-      window.availableVehicles = [];
-      if (typeof displayVehicleResults === 'function') displayVehicleResults();
+      // Chiamata reale all'API veicoli
+      const response = await window.api.call({ action: 'getVeicoli' });
+      if (response && response.success && response.data) {
+        window.availableVehicles = response.data;
+      } else {
+        window.availableVehicles = [];
+        if (window.showToast) showToast('Errore nella ricerca veicoli', 'error');
+      }
+      window.displayVehicleResults();
       return { success:true, data: window.availableVehicles };
+    };
+    window.displayVehicleResults = function(){
+      const vehiclesList = document.getElementById('vehicles-list');
+      const noVehicles = document.getElementById('no-vehicles');
+      if (!window.availableVehicles || window.availableVehicles.length === 0) {
+        vehiclesList.innerHTML = '';
+        noVehicles.classList.remove('d-none');
+        return;
+      }
+      noVehicles.classList.add('d-none');
+      vehiclesList.innerHTML =
+        '<div class="row g-4">' +
+        window.availableVehicles.map(vehicle => `
+          <div class="col-lg-4 col-md-6">
+            <div class="glass-card vehicle-card p-4 h-100">
+              <h6 class="fw-bold text-white mb-0">${vehicle.Targa}</h6>
+              <div class="mb-2"><span class="text-white fw-semibold">${vehicle.Marca} ${vehicle.Modello}</span></div>
+              <div class="mb-3">
+                <span class="badge bg-success"><i class="fas fa-users me-1"></i>${vehicle.Posti} posti</span>
+                <span class="badge bg-info ms-1"><i class="fas fa-check-circle me-1"></i>Disponibile</span>
+              </div>
+              ${vehicle.Note ? `<div class="small text-white-50 mb-3">${vehicle.Note}</div>` : ''}
+            </div>
+          </div>
+        `).join('') +
+        '</div>';
     };
     document.getElementById('availability-form').onsubmit = window.handleSearchVehicles;
     document.getElementById('modify-dates').onclick = function() {
