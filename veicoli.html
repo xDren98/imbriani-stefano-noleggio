@@ -1,29 +1,55 @@
-async function searchAvailableVehicles() {
-  try {
-    const vehiclesResponse = await api.call({ action: 'getVeicoli' });
-    if (!vehiclesResponse.success) { 
-      if (window.showToast) showToast('Errore caricamento veicoli', 'error'); 
-      return; 
+<!DOCTYPE html>
+<html lang="it" class="h-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Selezione Veicoli — Imbriani Stefano Noleggio</title>
+  <meta name="description" content="Selezione veicoli disponibili - Imbriani Stefano Noleggio">
+  <meta name="theme-color" content="#0066FF">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- ... tutto il contenuto HTML della pagina ... -->
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="config.js"></script>
+  <script src="shared-utils.js"></script>
+  <script>
+    // Tutto il codice originale javascript ...
+
+    // ⚡️ VERSIONE OTTIMIZZATA PARALLELA
+    async function searchAvailableVehicles() {
+      try {
+        const vehiclesResponse = await api.call({ action: 'getVeicoli' });
+        if (!vehiclesResponse.success) { 
+          if (window.showToast) showToast('Errore caricamento veicoli', 'error'); 
+          return; 
+        }
+        const allVehicles = vehiclesResponse.data || [];
+        console.log('🚗 Veicoli totali:', allVehicles.length);
+        availableVehicles = [];
+
+        // 🚀 Parallellizza tutte le chiamate checkDisponibilita
+        const checkPromises = allVehicles.map(v => {
+          const checkUrl = `${CONFIG.API_URL}?action=checkDisponibilita&targa=${encodeURIComponent(v.Targa)}&dataInizio=${encodeURIComponent(selectedDates.dataInizio)}&dataFine=${encodeURIComponent(selectedDates.dataFine)}&oraInizio=${encodeURIComponent(selectedDates.oraRitiro)}&oraFine=${encodeURIComponent(selectedDates.oraRiconsegna)}&token=${encodeURIComponent(CONFIG.TOKEN)}`;
+          return fetch(checkUrl)
+            .then(r => r.json())
+            .then(checkResp => ({ v, checkResp }))
+            .catch(err => { console.error(`Errore check ${v.Targa}:`, err); return null; });
+        });
+
+        const results = (await Promise.all(checkPromises)).filter(res => res && res.checkResp && res.checkResp.success);
+        availableVehicles = results.filter(res => res.checkResp.disponibile).map(res => res.v);
+        console.log('✅ Veicoli disponibili:', availableVehicles.length);
+        displayVehicleResults();
+      } catch (err) {
+        console.error('Errore ricerca:', err);
+        if (window.showToast) showToast('Errore ricerca veicoli', 'error');
+      }
     }
-    const allVehicles = vehiclesResponse.data || [];
-    console.log('🚗 Veicoli totali:', allVehicles.length);
-    availableVehicles = [];
-
-    // 🚀 Parallellizza tutte le chiamate checkDisponibilita
-    const checkPromises = allVehicles.map(v => {
-      const checkUrl = `${CONFIG.API_URL}?action=checkDisponibilita&targa=${encodeURIComponent(v.Targa)}&dataInizio=${encodeURIComponent(selectedDates.dataInizio)}&dataFine=${encodeURIComponent(selectedDates.dataFine)}&oraInizio=${encodeURIComponent(selectedDates.oraRitiro)}&oraFine=${encodeURIComponent(selectedDates.oraRiconsegna)}&token=${encodeURIComponent(CONFIG.TOKEN)}`;
-      return fetch(checkUrl)
-        .then(r => r.json())
-        .then(checkResp => ({ v, checkResp }))
-        .catch(err => { console.error(`Errore check ${v.Targa}:`, err); return null; });
-    });
-
-    const results = (await Promise.all(checkPromises)).filter(res => res && res.checkResp && res.checkResp.success);
-    availableVehicles = results.filter(res => res.checkResp.disponibile).map(res => res.v);
-    console.log('✅ Veicoli disponibili:', availableVehicles.length);
-    displayVehicleResults();
-  } catch (err) {
-    console.error('Errore ricerca:', err);
-    if (window.showToast) showToast('Errore ricerca veicoli', 'error');
-  }
-}
+  </script>
+</body>
+</html>
