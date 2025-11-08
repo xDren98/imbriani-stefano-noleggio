@@ -1,4 +1,4 @@
-// Shared Utils v8.8 - Fixed Authorization header for all API calls
+// Shared Utils v8.9 - Added formatDateIT for Italian date formatting
 (function(){
   window.api = window.api || {};
 
@@ -81,6 +81,32 @@
     container.style.zIndex = '1055';
     document.body.appendChild(container);
     return container;
+  }
+
+  /**
+   * 🇮🇹 Formatta una data in formato italiano (gg/mm/aaaa)
+   * @param {string|Date} date - Data da formattare
+   * @returns {string} Data formattata in formato italiano o '-' se invalida
+   * @example
+   * formatDateIT('2025-11-08') // '08/11/2025'
+   * formatDateIT(new Date()) // '08/11/2025'
+   * formatDateIT(null) // '-'
+   */
+  function formatDateIT(date) {
+    if (!date) return '-';
+    
+    try {
+      const d = typeof date === 'string' ? new Date(date) : date;
+      if (isNaN(d.getTime())) return '-';
+      
+      return d.toLocaleDateString('it-IT', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    } catch {
+      return '-';
+    }
   }
 
   // ✅ FIX: Aggiungi funzione secureGet con Authorization header
@@ -201,6 +227,7 @@
   window.secureGet = secureGet;  // ✅ Export anche come funzione globale
   window.securePost = securePost;  // ✅ Export anche come funzione globale
   window.showToast = showToast;
+  window.formatDateIT = formatDateIT;  // 🇮🇹 Export funzione formattazione date italiane
   
-  console.log('[SHARED-UTILS] v8.8 loaded - Authorization header fixed for GET/POST');
+  console.log('[SHARED-UTILS] v8.9 loaded - formatDateIT added for Italian dates (gg/mm/aaaa)');
 })();
