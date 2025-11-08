@@ -1,12 +1,12 @@
 /**
  * CONFIGURAZIONE GLOBALE
- * Imbriani Stefano Noleggio - Backend v8.9
+ * Imbriani Stefano Noleggio - Backend v8.9.5
  * 
  * Contiene tutte le configurazioni e costanti del sistema
  */
 
 const CONFIG = {
-  VERSION: '8.9',
+  VERSION: '8.9.5',
   SPREADSHEET_ID: '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns',
   TOKEN: 'imbriani_secret_2025',
   
@@ -99,6 +99,13 @@ const CONFIG = {
     DATA_FINE: 7,
     COSTO: 8,
     NOTE: 9
+  },
+  
+  GOOGLE: {
+    // API Key per Google Cloud Vision (OCR documenti)
+    // Costi: ~$1.50 per 1000 immagini
+    // Dashboard: https://console.cloud.google.com/apis/credentials
+    VISION_API_KEY: 'AIzaSyA0xqCwwA3ywzW8rOIErg1WS6CnjQeUU2Y'
   },
   
   TELEGRAM: {
