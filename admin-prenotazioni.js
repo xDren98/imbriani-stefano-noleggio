@@ -1,4 +1,4 @@
-// admin-prenotazioni.js v3.7 - Card cliccabile + Modifica/Elimina con API reali
+// admin-prenotazioni.js v3.8 - Formato date italiano gg/mm/aaaa con formatDateIT
 (function(){
   const STATI_TABELLA = ['Tutte', 'In attesa', 'Programmata', 'In corso', 'Completata'];
   const STATI_COLORI = {
@@ -231,8 +231,8 @@
     container.innerHTML = `<div class="row g-3">` +
       sorted.map(p => {
         const statoConfig = STATI_COLORI[p.stato] || STATI_COLORI['In attesa'];
-        const dataInizio = p.giornoInizio ? new Date(p.giornoInizio).toLocaleDateString('it-IT') : '-';
-        const dataFine = p.giornoFine ? new Date(p.giornoFine).toLocaleDateString('it-IT') : '-';
+        const dataInizio = window.formatDateIT ? window.formatDateIT(p.giornoInizio) : '-';
+        const dataFine = window.formatDateIT ? window.formatDateIT(p.giornoFine) : '-';
         const oraInizio = p.oraInizio || '';
         const oraFine = p.oraFine || '';
         
@@ -339,8 +339,8 @@
               <tbody>
                 ${sorted.map(p => {
                   const statoConfig = STATI_COLORI[p.stato] || STATI_COLORI['In attesa'];
-                  const dataInizio = p.giornoInizio ? new Date(p.giornoInizio).toLocaleDateString('it-IT') : '-';
-                  const dataFine = p.giornoFine ? new Date(p.giornoFine).toLocaleDateString('it-IT') : '-';
+                  const dataInizio = window.formatDateIT ? window.formatDateIT(p.giornoInizio) : '-';
+                  const dataFine = window.formatDateIT ? window.formatDateIT(p.giornoFine) : '-';
                   const oraInizio = p.oraInizio || '';
                   const oraFine = p.oraFine || '';
                   
@@ -432,8 +432,8 @@
 
     const p = prenotazione;
     const statoConfig = STATI_COLORI[p.stato] || STATI_COLORI['In attesa'];
-    const dataInizio = p.giornoInizio ? new Date(p.giornoInizio).toLocaleDateString('it-IT') : '-';
-    const dataFine = p.giornoFine ? new Date(p.giornoFine).toLocaleDateString('it-IT') : '-';
+    const dataInizio = window.formatDateIT ? window.formatDateIT(p.giornoInizio) : '-';
+    const dataFine = window.formatDateIT ? window.formatDateIT(p.giornoFine) : '-';
 
     // Crea modale se non esiste
     let modal = document.getElementById('dettaglioPrenotazioneModal');
@@ -660,5 +660,5 @@
   window.renderPrenotazioniCard = renderPrenotazioniCard;
   window.renderPrenotazioniTable = renderPrenotazioniTable;
 
-  console.log('[ADMIN-PRENOTAZIONI] v3.7 loaded - Card cliccabile + Modifica/Elimina con API reali! 🚀');
+  console.log('[ADMIN-PRENOTAZIONI] v3.8 loaded - Date in formato italiano gg/mm/aaaa! 🇮🇹');
 })();
