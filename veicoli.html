@@ -148,6 +148,83 @@
   <script src="config.js"></script>
   <script src="shared-utils.js"></script>
   <script>
+    // Parametro per skippare form se in URL e guest
+    document.addEventListener('DOMContentLoaded', async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const dal = urlParams.get('dal');
+      const al = urlParams.get('al');
+      if (dal && al) {
+        document.getElementById('data_inizio').value = dal;
+        document.getElementById('data_fine').value = al;
+        // Se vuoi popolare le ore di default:
+        document.getElementById('ora_ritiro').value = '08:00';
+        document.getElementById('ora_riconsegna').value = '20:00';
+        document.getElementById('date-form-section').classList.add('d-none');
+        document.getElementById('results-section').classList.remove('d-none');
+        window.selectedDates = { dataInizio: dal, dataFine: al, oraRitiro: '08:00', oraRiconsegna: '20:00' };
+        await window.searchAvailableVehicles();
+      }
+    });
+    window.searchAvailableVehicles = async function(){
+      const prenRes = await window.api.call({ action: 'getPrenotazioni' });
+      const veicoliRes = await window.api.call({ action: 'getVeicoli' });
+      const manutRes = await fetch(`${CONFIG.API_URL}?action=getSheet&name=MANUTENZIONI&token=${encodeURIComponent(CONFIG.TOKEN)}`).then(r=>r.json()).catch(_=>({success:false,data:[]}));
+      let prenotazioni = prenRes && prenRes.success && prenRes.data ? prenRes.data : [];
+      let veicoli = veicoliRes && veicoliRes.success && veicoliRes.data ? veicoliRes.data : [];
+      let manutenzioni = manutRes && manutRes.success && manutRes.data ? manutRes.data : [];
+      const reqInizio = new Date(window.selectedDates.dataInizio);
+      const reqFine = new Date(window.selectedDates.dataFine);
+      function toDate(d){return new Date(d+'T00:00:00');}
+      window.availableVehicles = veicoli.filter(veicolo => {
+        // Escludi veicolo se prenotato con overlap
+        const pren = prenotazioni.filter(p => p.targa === veicolo.Targa && !['Rifiutata','Completata','Da confermare'].includes(p.stato));
+        const overlap = pren.some(p => {
+          const pStart = toDate(p.giornoInizio);
+          const pEnd = toDate(p.giornoFine);
+          // Overlap date range + orari (semplificato, migliorabile)
+          return !(reqFine < pStart || reqInizio > pEnd);
+        });
+        if (overlap) return false;
+        // Escludi veicolo se in manutenzione su date richieste
+        const manut = manutenzioni.filter(m => (m.Targa||m.targa||m[0]) === veicolo.Targa && ['programmata','in corso',''].some(s => String(m.Stato||m.stato||m[4]||'').toLowerCase().includes(s)));
+        const manOverlap = manut.some(m => {
+          const mStart = toDate(m['Data Inizio Manutenzione']||m.dataInizio||m[5]);
+          const mEnd = toDate(m['Data Fine Manutenzione']||m.dataFine||m[6]);
+          return !(reqFine < mStart || reqInizio > mEnd);
+        });
+        if (manOverlap) return false;
+        return true;
+      });
+      window.displayVehicleResults();
+      return { success:true, data: window.availableVehicles };
+    };
+    window.displayVehicleResults = function(){
+      const vehiclesList = document.getElementById('vehicles-list');
+      const noVehicles = document.getElementById('no-vehicles');
+      if (!window.availableVehicles || window.availableVehicles.length === 0) {
+        vehiclesList.innerHTML = '';
+        noVehicles.classList.remove('d-none');
+        return;
+      }
+      noVehicles.classList.add('d-none');
+      vehiclesList.innerHTML = '<div class="row g-4">' + window.availableVehicles.map(vehicle => `\
+        <div class="col-lg-4 col-md-6">\
+          <div class="glass-card vehicle-card p-4 h-100">\
+            <h6 class="fw-bold text-white mb-0">${vehicle.Targa}</h6>\
+            <div class="mb-2"><span class="text-white fw-semibold">${vehicle.Marca} ${vehicle.Modello}</span></div>\
+            <div class="mb-3">\
+              <span class="badge bg-success"><i class="fas fa-users me-1"></i>${vehicle.Posti} posti</span>\
+              <span class="badge bg-info ms-1"><i class="fas fa-check-circle me-1"></i>Disponibile</span>\
+            </div>\
+            ${vehicle.Note ? `<div class=\"small text-white-50 mb-3\">${vehicle.Note}</div>` : ''}\
+          </div>\
+        </div>`).join('') + '</div>';
+    };
+    document.getElementById('availability-form').onsubmit = window.handleSearchVehicles;
+    document.getElementById('modify-dates').onclick = function() {
+      document.getElementById('results-section').classList.add('d-none');
+      document.getElementById('date-form-section').classList.remove('d-none');
+    };
     window.handleSearchVehicles = async function(e) {
       e.preventDefault();
       const dataInizio = document.getElementById('data_inizio').value;
@@ -162,49 +239,6 @@
       document.getElementById('results-section').classList.remove('d-none');
       document.getElementById('search-summary').textContent = `Da ${dataInizio} (${oraRitiro}) a ${dataFine} (${oraRiconsegna})`;
       await window.searchAvailableVehicles();
-    };
-    window.searchAvailableVehicles = async function(){
-      // Chiamata reale all'API veicoli
-      const response = await window.api.call({ action: 'getVeicoli' });
-      if (response && response.success && response.data) {
-        window.availableVehicles = response.data;
-      } else {
-        window.availableVehicles = [];
-        if (window.showToast) showToast('Errore nella ricerca veicoli', 'error');
-      }
-      window.displayVehicleResults();
-      return { success:true, data: window.availableVehicles };
-    };
-    window.displayVehicleResults = function(){
-      const vehiclesList = document.getElementById('vehicles-list');
-      const noVehicles = document.getElementById('no-vehicles');
-      if (!window.availableVehicles || window.availableVehicles.length === 0) {
-        vehiclesList.innerHTML = '';
-        noVehicles.classList.remove('d-none');
-        return;
-      }
-      noVehicles.classList.add('d-none');
-      vehiclesList.innerHTML =
-        '<div class="row g-4">' +
-        window.availableVehicles.map(vehicle => `
-          <div class="col-lg-4 col-md-6">
-            <div class="glass-card vehicle-card p-4 h-100">
-              <h6 class="fw-bold text-white mb-0">${vehicle.Targa}</h6>
-              <div class="mb-2"><span class="text-white fw-semibold">${vehicle.Marca} ${vehicle.Modello}</span></div>
-              <div class="mb-3">
-                <span class="badge bg-success"><i class="fas fa-users me-1"></i>${vehicle.Posti} posti</span>
-                <span class="badge bg-info ms-1"><i class="fas fa-check-circle me-1"></i>Disponibile</span>
-              </div>
-              ${vehicle.Note ? `<div class="small text-white-50 mb-3">${vehicle.Note}</div>` : ''}
-            </div>
-          </div>
-        `).join('') +
-        '</div>';
-    };
-    document.getElementById('availability-form').onsubmit = window.handleSearchVehicles;
-    document.getElementById('modify-dates').onclick = function() {
-      document.getElementById('results-section').classList.add('d-none');
-      document.getElementById('date-form-section').classList.remove('d-none');
     };
   </script>
 </body>
