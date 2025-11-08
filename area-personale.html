@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="it" class="h-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Area Personale — Imbriani Stefano Noleggio</title>
+  <meta name="description" content="Area riservata clienti - Imbriani Stefano Noleggio">
+  <meta name="theme-color" content="#0066FF">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚐</text></svg>">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=8012">
+  <style>
+    body{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);min-height:100vh}
+    .stat-card{transition:all .3s cubic-bezier(.4,0,.2,1)}
+    .stat-card:hover{transform:translateY(-2px)}
+    .booking-status{display:inline-block;padding:.25rem .75rem;border-radius:1rem;font-size:.75rem;font-weight:600}
+    .status-attesa{background:rgba(251,191,36,.2);color:#f59e0b;border:1px solid rgba(251,191,36,.3)}
+    .status-confermata{background:rgba(34,197,94,.2);color:#22c55e;border:1px solid rgba(34,197,94,.3)}
+    .status-completata{background:rgba(107,114,128,.2);color:#9ca3af;border:1px solid rgba(107,114,128,.3)}
+    .status-rifiutata{background:rgba(239,68,68,.2);color:#ef4444;border:1px solid rgba(239,68,68,.3)}
+  </style>
+</head>
+<body class="d-flex flex-column h-100">
+  <header class="py-4">
+    <div class="container">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+          <h1 class="h3 text-white fw-bold mb-1">
+            <i class="fas fa-user-circle me-2"></i>
+            Benvenuto, <span id="user-name">Cliente</span>
+          </h1>
+          <p class="text-white-50 mb-0">La tua area personale per gestire prenotazioni e profilo</p>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" id="logout-btn" class="btn btn-outline-light btn-sm">
+            <i class="fas fa-sign-out-alt me-1"></i>Logout
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-grow-1 py-4">
+    <div class="container">
+      <!-- Statistiche rapide -->
+      <div class="row g-4 mb-4">
+        <div class="col-md-3">
+          <div class="glass-card stat-card p-3 text-center">
+            <div class="h4 text-success mb-1" id="stat-prenotazioni-attive">-</div>
+            <div class="small text-muted">Prenotazioni Attive</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="glass-card stat-card p-3 text-center">
+            <div class="h4 text-info mb-1" id="stat-prenotazioni-totali">-</div>
+            <div class="small text-muted">Totali</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="glass-card stat-card p-3 text-center">
+            <div class="h4 text-warning mb-1" id="stat-prossima-scadenza">-</div>
+            <div class="small text-muted">Prossima Patente</div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="glass-card stat-card p-3 text-center">
+            <button type="button" id="nuova-prenotazione" class="btn btn-premium w-100">
+              <i class="fas fa-plus me-2"></i>Nuova Prenotazione
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-4">
+        <!-- Prenotazioni Attive -->
+        <div class="col-lg-8">
+          <div class="glass-card p-4">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <h5 class="fw-bold text-white mb-0">
+                <i class="fas fa-calendar-check me-2"></i>Le tue prenotazioni
+              </h5>
+              <button type="button" id="refresh-bookings" class="btn btn-outline-light btn-sm">
+                <i class="fas fa-sync-alt"></i>
+              </button>
+            </div>
+            <div id="bookings-list">
+              <div class="text-center text-muted py-4">
+                <div class="spinner-border spinner-border-sm me-2"></div>
+                Caricamento prenotazioni...
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Profilo Utente -->
+        <div class="col-lg-4">
+          <div class="glass-card p-4">
+            <h5 class="fw-bold text-white mb-3">
+              <i class="fas fa-user me-2"></i>Il tuo profilo
+            </h5>
+            <div id="user-profile">
+              <div class="text-center text-muted py-3">
+                <div class="spinner-border spinner-border-sm me-2"></div>
+                Caricamento profilo...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal Modifica Profilo -->
+  <div class="modal fade" id="editProfileModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Modifica Profilo</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="edit-profile-form" class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Nome</label>
+              <input type="text" class="form-control form-control-modern" id="ep_nome" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Codice Fiscale</label>
+              <input type="text" class="form-control form-control-modern" id="ep_cf" disabled>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Luogo di nascita</label>
+              <input type="text" class="form-control form-control-modern" id="ep_luogoNascita">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Comune di residenza</label>
+              <input type="text" class="form-control form-control-modern" id="ep_comuneResidenza">
+            </div>
+            <div class="col-8">
+              <label class="form-label">Via di residenza</label>
+              <input type="text" class="form-control form-control-modern" id="ep_viaResidenza">
+            </div>
+            <div class="col-4">
+              <label class="form-label">Civico</label>
+              <input type="text" class="form-control form-control-modern" id="ep_civicoResidenza">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Numero patente</label>
+              <input type="text" class="form-control form-control-modern" id="ep_numeroPatente">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Inizio validità patente</label>
+              <input type="date" class="form-control form-control-modern" id="ep_inizioValiditaPatente">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Scadenza patente</label>
+              <input type="date" class="form-control form-control-modern" id="ep_scadenzaPatente">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Cellulare</label>
+              <input type="text" class="form-control form-control-modern" id="ep_cellulare">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Email</label>
+              <input type="email" class="form-control form-control-modern" id="ep_email">
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+          <button type="button" id="ep_save_btn" class="btn btn-premium">
+            <span class="spinner-border spinner-border-sm me-2 d-none" id="ep_saving_spinner"></span>
+            <span id="ep_save_text">Salva Modifiche</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container" class="position-fixed top-0 end-0 p-3" style="z-index:1055"></div>
+  <div id="spinner" class="loader-premium d-none"><div class="loader-spinner"></div><div class="loader-text" id="loader-message">Caricamento...</div></div>
+
+  <!-- Bootstrap JS necessario per i toast -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="config.js"></script>
+  <script src="shared-utils.js"></script>
+  <script>
+    let currentUser = null;
+    let editProfileModal = null;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const userData = localStorage.getItem('imbriani_user');
+      if (!userData) { if (window.showToast) showToast('Sessione scaduta. Effettua di nuovo il login.', 'warning'); setTimeout(()=>location.href='index.html',1500); return; }
+      currentUser = JSON.parse(userData);
+      document.getElementById('user-name').textContent = currentUser.nome || 'Cliente';
+
+      await loadUserData();
+      bindUI();
+    });
+
+    function bindUI(){
+      document.getElementById('logout-btn')?.addEventListener('click', (e)=>{ e.preventDefault(); localStorage.removeItem('imbriani_user'); localStorage.removeItem('imbriani_session'); if (window.showToast) showToast('Logout effettuato', 'info'); setTimeout(()=>location.href='index.html',600); });
+      document.getElementById('nuova-prenotazione')?.addEventListener('click', ()=> location.href='veicoli.html');
+      document.getElementById('refresh-bookings')?.addEventListener('click', loadBookings);
+
+      document.querySelector('#user-profile')?.addEventListener('click', (e)=>{
+        const btn = e.target.closest('button[data-role="edit-profile"]');
+        if (!btn) return;
+        openEditProfile();
+      });
+
+      editProfileModal = new bootstrap.Modal(document.getElementById('editProfileModal'));
+      document.getElementById('ep_save_btn')?.addEventListener('click', saveProfile);
+    }
+
+    async function loadUserData(){ await Promise.all([loadProfile(), loadBookings(), loadStats()]); }
+
+    function safe(v){ return (v===undefined||v===null||v==='') ? 'N/A' : v }
+
+    async function loadProfile(){
+      const profileEl = document.getElementById('user-profile');
+      const scadenzaPatente = currentUser.scadenzaPatente ? new Date(currentUser.scadenzaPatente) : null;
+      const inizioValidita = currentUser.inizioValiditaPatente ? new Date(currentUser.inizioValiditaPatente) : null;
+      const giorni = scadenzaPatente ? Math.ceil((scadenzaPatente - new Date())/(1000*60*60*24)) : null;
+      const indirizzoFull = `${safe(currentUser.viaResidenza)} ${safe(currentUser.civicoResidenza)}`.trim();
+      profileEl.innerHTML = `
+        <div class="mb-2"><strong class="text-white">Nome:</strong> <span class="text-white-75">${safe(currentUser.nome)}</span></div>
+        <div class="mb-2"><strong class="text-white">Codice Fiscale:</strong> <span class="text-white-75">${safe(currentUser.codiceFiscale)}</span></div>
+        <div class="mb-2"><strong class="text-white">Comune:</strong> <span class="text-white-75">${safe(currentUser.comuneResidenza)}</span></div>
+        <div class="mb-2"><strong class="text-white">Indirizzo:</strong> <span class="text-white-75">${indirizzoFull !== 'N/A N/A' ? indirizzoFull : 'N/A'}</span></div>
+        <div class="mb-2"><strong class="text-white">Luogo di nascita:</strong> <span class="text-white-75">${safe(currentUser.luogoNascita)}</span></div>
+        <div class="mb-2"><strong class="text-white">Patente:</strong> <span class="text-white-75">${safe(currentUser.numeroPatente)}</span></div>
+        <div class="mb-2"><strong class="text-white">Inizio validità:</strong> <span class="text-white-75">${inizioValidita ? inizioValidita.toLocaleDateString('it-IT') : 'N/A'}</span></div>
+        <div class="mb-3"><strong class="text-white">Scadenza:</strong> <span class="text-white-75">${scadenzaPatente ? scadenzaPatente.toLocaleDateString('it-IT') : 'N/A'}</span> ${giorni && giorni < 60 ? `<span class="badge bg-warning ms-1">${giorni}g</span>` : ''}</div>
+        <div class="mb-2"><strong class="text-white">Telefono:</strong> <span class="text-white-75">${safe(currentUser.cellulare)}</span></div>
+        <div class="mb-3 d-flex align-items-center justify-content-between">
+          <div><strong class="text-white">Email:</strong> <span class="text-white-75">${safe(currentUser.email) || 'N/A'}</span></div>
+          <button type="button" class="btn btn-outline-light btn-sm" data-role="edit-profile"><i class="fas fa-edit me-1"></i>Modifica Profilo</button>
+        </div>`;
+    }
+
+    function openEditProfile(){
+      document.getElementById('ep_nome').value = currentUser.nome || '';
+      document.getElementById('ep_cf').value = currentUser.codiceFiscale || '';
+      document.getElementById('ep_luogoNascita').value = currentUser.luogoNascita || '';
+      document.getElementById('ep_comuneResidenza').value = currentUser.comuneResidenza || '';
+      document.getElementById('ep_viaResidenza').value = currentUser.viaResidenza || '';
+      document.getElementById('ep_civicoResidenza').value = currentUser.civicoResidenza || '';
+      document.getElementById('ep_numeroPatente').value = currentUser.numeroPatente || '';
+      document.getElementById('ep_inizioValiditaPatente').value = currentUser.inizioValiditaPatente ? new Date(currentUser.inizioValiditaPatente).toISOString().slice(0,10) : '';
+      document.getElementById('ep_scadenzaPatente').value = currentUser.scadenzaPatente ? new Date(currentUser.scadenzaPatente).toISOString().slice(0,10) : '';
+      document.getElementById('ep_cellulare').value = currentUser.cellulare || '';
+      document.getElementById('ep_email').value = currentUser.email || '';
+      editProfileModal.show();
+    }
+
+    async function saveProfile(){
+      const btn = document.getElementById('ep_save_btn');
+      const spn = document.getElementById('ep_saving_spinner');
+      const txt = document.getElementById('ep_save_text');
+
+      // UI loading state
+      btn.disabled = true; spn.classList.remove('d-none'); txt.textContent = 'Salvataggio...';
+
+      const payload = {
+        action: 'aggiornaCliente',
+        codiceFiscale: currentUser.codiceFiscale,
+        nome: document.getElementById('ep_nome').value.trim(),
+        luogoNascita: document.getElementById('ep_luogoNascita').value.trim(),
+        comuneResidenza: document.getElementById('ep_comuneResidenza').value.trim(),
+        viaResidenza: document.getElementById('ep_viaResidenza').value.trim(),
+        civicoResidenza: document.getElementById('ep_civicoResidenza').value.trim(),
+        numeroPatente: document.getElementById('ep_numeroPatente').value.trim(),
+        inizioValiditaPatente: document.getElementById('ep_inizioValiditaPatente').value,
+        scadenzaPatente: document.getElementById('ep_scadenzaPatente').value,
+        cellulare: document.getElementById('ep_cellulare').value.trim(),
+        email: document.getElementById('ep_email').value.trim()
+      };
+      try{
+        const res = await api.call(payload);
+        if (res.success){
+          if (window.showToast) showToast('Profilo aggiornato con successo', 'success');
+          Object.assign(currentUser, payload);
+          localStorage.setItem('imbriani_user', JSON.stringify(currentUser));
+          await loadProfile();
+          editProfileModal.hide();
+        } else {
+          if (window.showToast) showToast(res.message || 'Errore aggiornamento profilo', 'error');
+        }
+      }catch(err){ if (window.showToast) showToast('Errore di rete: '+err.message, 'error'); }
+      finally{ btn.disabled = false; spn.classList.add('d-none'); txt.textContent = 'Salva Modifiche'; }
+    }
+
+    async function loadBookings(){
+      const listEl = document.getElementById('bookings-list');
+      try {
+        const response = await api.call({ action: 'getPrenotazioni' });
+        if (!response.success){ listEl.innerHTML = '<div class="text-danger">Errore caricamento prenotazioni</div>'; return; }
+        const bookings = (response.data || []).filter(b => b.codiceFiscaleAutista1 === currentUser.codiceFiscale);
+        if (bookings.length === 0){ listEl.innerHTML = `<div class="text-center text-muted py-4"><i class="fas fa-calendar-times mb-2" style="font-size:2rem"></i><div>Nessuna prenotazione trovata</div><button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="document.getElementById('nuova-prenotazione').click()">Crea la tua prima prenotazione</button></div>`; return; }
+        listEl.innerHTML = bookings.slice(0,5).map(booking => {
+          const status = booking.stato || 'In attesa';
+          const statusClass = { 'In attesa':'status-attesa','Confermata':'status-confermata','Completata':'status-completata','Rifiutata':'status-rifiutata' }[status] || 'status-attesa';
+          const targa = booking.targa || 'Targa N/A';
+          const dataInizio = booking.giornoInizio ? new Date(booking.giornoInizio).toLocaleDateString('it-IT') : 'N/A';
+          const dataFine = booking.giornoFine ? new Date(booking.giornoFine).toLocaleDateString('it-IT') : 'N/A';
+          const destinazione = booking.destinazione || 'Destinazione N/A';
+          const importo = booking.importo ? `${booking.importo}€` : '';
+          return `<div class="border-bottom border-secondary pb-3 mb-3"><div class="d-flex justify-content-between align-items-start mb-1"><h6 class="text-white fw-semibold mb-0">${targa}</h6><span class="booking-status ${statusClass}">${status}</span></div><div class="small text-white-50 mb-1"><i class="fas fa-calendar me-1"></i>${dataInizio} → ${dataFine}</div><div class="small text-white-75 mb-2"><i class="fas fa-map-marker-alt me-1"></i>${destinazione}</div>${importo ? `<div class="small text-success text-end">${importo}</div>` : ''}</div>`; }).join('');
+        if (bookings.length > 5){ listEl.innerHTML += `<div class="text-center mt-3"><button class="btn btn-outline-light btn-sm">Vedi tutte (${bookings.length})</button></div>`; }
+      } catch (error) { console.error('Errore caricamento prenotazioni:', error); listEl.innerHTML = '<div class="text-danger">Errore caricamento prenotazioni</div>'; }
+    }
+
+    async function loadStats(){
+      try{
+        const response = await api.call({ action: 'getPrenotazioni' }); if (!response.success) return;
+        const bookings = (response.data || []).filter(b => b.codiceFiscaleAutista1 === currentUser.codiceFiscale);
+        const attive = bookings.filter(b => ['In attesa','Confermata'].includes(b.stato)).length;
+        const totali = bookings.length;
+        document.getElementById('stat-prenotazioni-attive').textContent = attive;
+        document.getElementById('stat-prenotazioni-totali').textContent = totali;
+        if (currentUser.scadenzaPatente){ const scadenza = new Date(currentUser.scadenzaPatente); const giorni = Math.ceil((scadenza - new Date())/(1000*60*60*24)); document.getElementById('stat-prossima-scadenza').textContent = giorni > 0 ? `${giorni}gg` : 'Scaduta'; if (giorni < 60) document.getElementById('stat-prossima-scadenza').className = 'h4 text-danger mb-1'; }
+      }catch(error){ console.error('Errore caricamento statistiche:', error); }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+/**
+ * IMBRIANI STEFANO NOLEGGIO - STYLES v8.1.1 (Legibility tweaks)
+ * Migliora leggibilità dei testi secondari e icone inline nelle card scure
+ */
+
+:root {
+  --primary-color: #0066FF;
+  --primary-2: #4F46E5;
+  --text-light: #E2E8F0;
+}
+
+/* Testo secondario/note: migliore contrasto su glass scuro */
+.form-text,
+.text-muted,
+.text-white-50 {
+  color: rgba(255, 255, 255, 0.88) !important;
+  text-shadow: 0 0 8px rgba(0, 0, 0, .35);
+  font-weight: 500;
+}
+
+/* Icona info all'inizio della nota: visibilità maggiore */
+.form-text i,
+.small i,
+.text-muted i {
+  color: rgba(255, 255, 255, 0.92) !important;
+  filter: drop-shadow(0 0 6px rgba(0,0,0,.4));
+  opacity: 1;
+}
+
+/* Spaziatura specifica per la nota sotto il CF */
+#cf-input + i + div.form-text {
+  margin-top: 6px;
+}

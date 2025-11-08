@@ -1,0 +1,153 @@
+/**
+ * IMBRIANI STEFANO NOLEGGIO - STYLES v8.5 (Micro-Interactions)
+ * Focus outline, ripple effect, tap highlight, spinner loading, smooth transitions
+ */
+:root {
+  --primary-color: #0066FF;
+  --primary-2: #4F46E5;
+  --primary-hover: #667eea;
+  --primary-active: #764ba2;
+  --success-color: #10B981;
+  --warning-color: #F59E0B;
+  --danger-color: #EF4444;
+  --dark-bg: #0f172a;
+  --dark-card: rgba(17, 24, 39, 0.75);
+  --glass-bg: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-highlight: rgba(255, 255, 255, 0.35);
+  --text-light: #E2E8F0;
+  --text-muted: #94A3B8;
+  --heading-weight: 800;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: rgba(102,126,234,0.16);
+  touch-action: manipulation;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: radial-gradient(1200px 800px at 10% -10%, rgba(100,116,255,0.15), transparent 60%),
+              radial-gradient(900px 600px at 110% 0%, rgba(147,51,234,0.16), transparent 50%),
+              linear-gradient(135deg, var(--dark-bg) 0%, #1e293b 100%);
+  color: var(--text-light);
+  min-height: 100vh;
+}
+
+/* TYPOGRAPHY from v8.4 ... (unchanged) */
+.display-1-modern, h1 {
+  font-size: clamp(2.3rem,5vw,3.4rem);
+  font-weight: var(--heading-weight);
+  letter-spacing: -0.025em;
+  line-height: 1.12;
+  margin-bottom: .65em;
+}
+/* ... rest headings unchanged */
+
+.lead-modern {
+  font-size: 1.20rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  line-height: 1.55;
+  max-width: 660px;
+  margin-left: auto; margin-right: auto;
+  margin-bottom: 1.15em;
+}
+
+p, .card-sub, .form-text {
+  line-height: 1.62;
+  margin-bottom: 1em;
+  color: var(--text-muted);
+}
+
+/* MICRO-INTERACTIONS */
+*:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.btn-premium {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 65%, var(--primary-active) 100%);
+  border: none;
+  border-radius: 12px;
+  color: #fff !important;
+  font-weight: 600;
+  padding: 12px 24px;
+  filter: saturate(1.1) brightness(1.06);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.28s cubic-bezier(0.4,0,0.2,1), filter 0.28s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: 0 2px 10px rgba(102,126,234,0.22);
+  position: relative;
+  overflow: hidden;
+}
+.btn-premium:hover {
+  transform: translateY(-2px) scale(1.04);
+  background: linear-gradient(135deg, var(--primary-hover) 0%, var(--primary-active) 100%);
+  box-shadow: 0 8px 25px rgba(102,126,234,0.38);
+  filter: saturate(1.18) brightness(1.14);
+}
+.btn-premium:active::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 120%; height: 120%;
+  border-radius: inherit;
+  background: radial-gradient(circle, rgba(255,255,255,.14) 0%, transparent 70%);
+  animation: ripple 0.5s cubic-bezier(0.4,0,0.2,1);
+  pointer-events: none;
+}
+@keyframes ripple {
+  0% { opacity:1; transform: translate(-50%,-50%) scale(0.55); }
+  50% { opacity:.9; }
+  100% { opacity:0; transform: translate(-50%,-50%) scale(1.22); }
+}
+.btn-premium:disabled {
+  opacity: .62;
+  transform: none;
+  box-shadow: none;
+  background: linear-gradient(135deg, #A5B4FC 0%, #a7a5d1 100%);
+  color: #f3f3fa !important;
+}
+.btn-premium.loading {
+  pointer-events: none;
+  position: relative;
+  color: #b2b2c1 !important;
+}
+.btn-premium.loading::before {
+  content: '';
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 20px; height: 20px;
+  border: 2.5px solid rgba(255,255,255,.26);
+  border-top: 2.5px solid #fff;
+  border-radius: 50%;
+  animation: spin .9s linear infinite;
+  z-index: 2;
+}
+@keyframes spin {
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.glass-card, .btn, input, select, textarea {
+  transition-timing-function: cubic-bezier(0.4,0,0.2,1);
+}
+
+/* REST retained from v8.4+ (glass, forms, helper text contrast, etc.) */
+.glass-card { position: relative; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 16px; backdrop-filter: blur(24px) saturate(160%); -webkit-backdrop-filter: blur(24px) saturate(160%); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), 0 1px 0 0 rgba(255, 255, 255, 0.1) inset, 0 -1px 0 0 rgba(0, 0, 0, 0.08) inset; transition: transform .28s cubic-bezier(.4,0,.2,1), box-shadow .28s cubic-bezier(.4,0,.2,1), border-color .28s ease; }
+.glass-card::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,0) 38%); mix-blend-mode: overlay; opacity: .75; }
+.glass-card:hover { transform: translateY(-2px); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.06) inset; border-color: rgba(255, 255, 255, 0.28); }
+@media (max-width: 768px) { .glass-card { box-shadow: 0 8px 24px rgba(0,0,0,.28); border-radius: 14px; } }
+
+label.form-label { color: #E5E7EB !important; font-weight: 500; margin-bottom: 8px; }
+.form-control-modern, .form-select.form-control-modern { background: rgba(11, 18, 32, 0.9) !important; border: 1px solid rgba(255,255,255,.2); border-radius: 12px; color: #E5E7EB !important; font-weight: 500; padding: 12px 16px; transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease; }
+.form-control-modern:focus, .form-select.form-control-modern:focus { background: rgba(11, 18, 32, 1) !important; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.12); color: #fff !important; outline: none; }
+.form-control-modern::placeholder { color: #B6C2D1 !important; opacity: 1; }
+select.form-select option { color: #0f172a !important; background: #ffffff !important; }
+select.form-select:focus option, select.form-select:hover option { color: #0f172a !important; }
+@supports (-webkit-appearance: none) or (-webkit-touch-callout: none) { select.form-select option { -webkit-text-fill-color: #0f172a; } }
+
+.form-text, .text-muted, .text-white-50 { color: rgba(255, 255, 255, 0.88) !important; text-shadow: 0 0 8px rgba(0, 0, 0, .35); font-weight: 500; }
+.form-text i, .small i, .text-muted i { color: rgba(255, 255, 255, 0.92) !important; filter: drop-shadow(0 0 6px rgba(0,0,0,.4)); opacity: 1; }
+#cf-input + i + div.form-text { margin-top: 6px; }
