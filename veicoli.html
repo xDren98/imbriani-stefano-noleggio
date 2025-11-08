@@ -311,69 +311,29 @@
       }
     }
 
+    // 🔥 VERSIONE UNICA PARALLELA
     async function searchAvailableVehicles(){
-  try{
-    const vehiclesResponse = await api.call({ action: 'getVeicoli' });
-    if (!vehiclesResponse.success) { 
-      if (window.showToast) showToast('Errore caricamento veicoli', 'error'); 
-      return; 
-    }
-    const allVehicles = vehiclesResponse.data || [];
-    console.log('🚗 Veicoli totali:', allVehicles.length);
-    availableVehicles = [];
-
-    // 🚀 Parallellizza tutte le chiamate checkDisponibilita
-    const checkPromises = allVehicles.map(v => {
-      const checkUrl = `${CONFIG.API_URL}?action=checkDisponibilita&targa=${encodeURIComponent(v.Targa)}&dataInizio=${encodeURIComponent(selectedDates.dataInizio)}&dataFine=${encodeURIComponent(selectedDates.dataFine)}&oraInizio=${encodeURIComponent(selectedDates.oraRitiro)}&oraFine=${encodeURIComponent(selectedDates.oraRiconsegna)}&token=${encodeURIComponent(CONFIG.TOKEN)}`;
-      return fetch(checkUrl)
-        .then(r => r.json())
-        .then(checkResp => ({ v, checkResp }))
-        .catch(err => { console.error(`Errore check ${v.Targa}:`, err); return null; });
-    });
-
-    const results = (await Promise.all(checkPromises)).filter(res => res && res.checkResp && res.checkResp.success);
-    availableVehicles = results.filter(res => res.checkResp.disponibile).map(res => res.v);
-    console.log('✅ Veicoli disponibili:', availableVehicles.length);
-    displayVehicleResults();
-  }catch(err){
-    console.error('Errore ricerca:', err);
-    if (window.showToast) showToast('Errore ricerca veicoli', 'error');
-  }
-}
-
       try{
-        // ✅ FIX: Usa getVeicoli per la lista, poi checkDisponibilita per ogni veicolo
         const vehiclesResponse = await api.call({ action: 'getVeicoli' });
         if (!vehiclesResponse.success) { 
           if (window.showToast) showToast('Errore caricamento veicoli', 'error'); 
           return; 
         }
-        
         const allVehicles = vehiclesResponse.data || [];
         console.log('🚗 Veicoli totali:', allVehicles.length);
-        
         availableVehicles = [];
-        
-        // ✅ FIX: Controlla disponibilità usando l'API checkDisponibilita per ogni veicolo
-        for (const v of allVehicles) {
-          console.log(`🔍 Controllo ${v.Targa}...`);
-          
-          try {
-            const checkUrl = `${CONFIG.API_URL}?action=checkDisponibilita&targa=${encodeURIComponent(v.Targa)}&dataInizio=${encodeURIComponent(selectedDates.dataInizio)}&dataFine=${encodeURIComponent(selectedDates.dataFine)}&oraInizio=${encodeURIComponent(selectedDates.oraRitiro)}&oraFine=${encodeURIComponent(selectedDates.oraRiconsegna)}&token=${encodeURIComponent(CONFIG.TOKEN)}`;
-            
-            const checkResp = await fetch(checkUrl).then(r => r.json());
-            
-            if (checkResp.success && checkResp.disponibile) {
-              console.log(`✅ ${v.Targa}: Disponibile`);
-              availableVehicles.push(v);
-            } else {
-              console.log(`❌ ${v.Targa}: NON disponibile`, checkResp.conflitti || checkResp.message);
-            }
-          } catch(err) {
-            console.error(`⚠️ Errore check ${v.Targa}:`, err);
-          }
-        }
 
+        // 🚀 Parallellizza tutte le chiamate checkDisponibilita
+        const checkPromises = allVehicles.map(v => {
+          const checkUrl = `${CONFIG.API_URL}?action=checkDisponibilita&targa=${encodeURIComponent(v.Targa)}&dataInizio=${encodeURIComponent(selectedDates.dataInizio)}&dataFine=${encodeURIComponent(selectedDates.dataFine)}&oraInizio=${encodeURIComponent(selectedDates.oraRitiro)}&oraFine=${encodeURIComponent(selectedDates.oraRiconsegna)}&token=${encodeURIComponent(CONFIG.TOKEN)}`;
+          return fetch(checkUrl)
+            .then(r => r.json())
+            .then(checkResp => ({ v, checkResp }))
+            .catch(err => { console.error(`Errore check ${v.Targa}:`, err); return null; });
+        });
+
+        const results = (await Promise.all(checkPromises)).filter(res => res && res.checkResp && res.checkResp.success);
+        availableVehicles = results.filter(res => res.checkResp.disponibile).map(res => res.v);
         console.log('✅ Veicoli disponibili:', availableVehicles.length);
         displayVehicleResults();
       }catch(err){
@@ -448,7 +408,7 @@
       if (window.showToast) showToast(successMsg, 'success');
     }
 
-    console.log('✅ [VEICOLI] v8.9.4 - Fix checkDisponibilita per manutenzioni');
+    console.log('✅ [VEICOLI] v8.9.6 - Solo funzione parallela, bug doppioni eliminato!');
   </script>
 </body>
 </html>
