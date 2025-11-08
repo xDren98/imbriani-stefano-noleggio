@@ -2,7 +2,7 @@
  * SERVIZIO GESTIONE VEICOLI
  * 
  * Gestisce veicoli, disponibilità e controllo sovrapposizioni con orari
- * Versione: 8.9.2 - Fix manutenzioni
+ * Versione: 8.9.3 - Debug manutenzioni
  */
 
 // Fasce orarie ammesse: dalle 8:00 alle 22:00 ogni 2 ore
@@ -28,7 +28,7 @@ function fasciaSuccessiva(orario) {
   if (idx !== -1 && idx < FASCE_ORARIE.length - 1) {
     return FASCE_ORARIE[idx + 1];
   }
-  return null; // Se è 22:00, non c'è fascia successiva lo stesso giorno
+  return null;
 }
 
 /**
@@ -73,28 +73,55 @@ function getVeicoli() {
     // Mappa manutenzioni ATTIVE per targa
     var manut = {};
     var oggi = normalizeDate(new Date());
+    Logger.log('[getVeicoli] Oggi normalizzato: ' + oggi);
     
     if (shM) {
       var dataM = shM.getDataRange().getValues();
+      Logger.log('[getVeicoli] Righe MANUTENZIONI: ' + (dataM.length - 1));
+      
       for (var i = 1; i < dataM.length; i++) {
         var r = dataM[i];
         var t = r[CONFIG.MANUTENZIONI_COLS.TARGA - 1];
         var st = r[CONFIG.MANUTENZIONI_COLS.STATO - 1];
         
+        Logger.log('[getVeicoli] Riga ' + i + ' - Targa: ' + t + ' | Stato: "' + st + '"');
+        
         // Skip manutenzioni completate
-        if (!t || !st || st === 'Completata') continue;
+        if (!t) {
+          Logger.log('[getVeicoli] Riga ' + i + ' - Skip: targa vuota');
+          continue;
+        }
+        if (!st) {
+          Logger.log('[getVeicoli] Riga ' + i + ' - Skip: stato vuoto');
+          continue;
+        }
+        if (st === 'Completata') {
+          Logger.log('[getVeicoli] Riga ' + i + ' - Skip: stato Completata');
+          continue;
+        }
         
         var dataInizioMan = r[CONFIG.MANUTENZIONI_COLS.DATA_INIZIO - 1];
         var dataFineMan = r[CONFIG.MANUTENZIONI_COLS.DATA_FINE - 1];
         
-        if (!dataInizioMan || !dataFineMan) continue;
+        Logger.log('[getVeicoli] Riga ' + i + ' - Data Inizio: ' + dataInizioMan + ' | Data Fine: ' + dataFineMan);
+        
+        if (!dataInizioMan || !dataFineMan) {
+          Logger.log('[getVeicoli] Riga ' + i + ' - Skip: date mancanti');
+          continue;
+        }
         
         // Normalizza date manutenzione (solo giorno, no orari)
         var di = normalizeDate(new Date(dataInizioMan));
         var df = normalizeDate(new Date(dataFineMan));
         
+        Logger.log('[getVeicoli] Riga ' + i + ' - Data Inizio normalizzata: ' + di);
+        Logger.log('[getVeicoli] Riga ' + i + ' - Data Fine normalizzata: ' + df);
+        Logger.log('[getVeicoli] Riga ' + i + ' - Confronto: oggi=' + oggi.getTime() + ' >= di=' + di.getTime() + ' && oggi=' + oggi.getTime() + ' <= df=' + df.getTime());
+        
         // Verifica se manutenzione è attiva OGGI
         var inManutenzioneOggi = (oggi >= di && oggi <= df);
+        
+        Logger.log('[getVeicoli] Riga ' + i + ' - In manutenzione oggi: ' + inManutenzioneOggi);
         
         manut[t] = {
           stato: st,
@@ -116,6 +143,8 @@ function getVeicoli() {
       
       var man = manut[tp];
       var inMan = man && man.attiva;
+      
+      Logger.log('[getVeicoli] Veicolo ' + tp + ' - Ha manutenzione: ' + (man ? 'SI' : 'NO') + ' - Attiva: ' + inMan);
       
       var base = rp[CONFIG.PULMINI_COLS.STATO - 1] || 'Disponibile';
       var note = rp[CONFIG.PULMINI_COLS.NOTE - 1] || '';
@@ -294,29 +323,49 @@ function checkDisponibilita(p) {
     
     if (shManutenzioni) {
       var dataManutenzioni = shManutenzioni.getDataRange().getValues();
+      Logger.log('[checkDisponibilita] Controllo ' + (dataManutenzioni.length - 1) + ' righe manutenzioni per targa ' + targa);
       
       for (var j = 1; j < dataManutenzioni.length; j++) {
         var m = dataManutenzioni[j];
         var targaManutenzione = m[CONFIG.MANUTENZIONI_COLS.TARGA - 1];
         var statoManutenzione = m[CONFIG.MANUTENZIONI_COLS.STATO - 1];
         
+        Logger.log('[checkDisponibilita] Manutenzione riga ' + j + ' - Targa: ' + targaManutenzione + ' | Stato: "' + statoManutenzione + '"');
+        
         if (targaManutenzione !== targa) continue;
-        if (!statoManutenzione || statoManutenzione === 'Completata') continue;
+        if (!statoManutenzione || statoManutenzione === 'Completata') {
+          Logger.log('[checkDisponibilita] Manutenzione riga ' + j + ' - Skip: completata o senza stato');
+          continue;
+        }
         
         var dataInizioManutenzione = m[CONFIG.MANUTENZIONI_COLS.DATA_INIZIO - 1];
         var dataFineManutenzione = m[CONFIG.MANUTENZIONI_COLS.DATA_FINE - 1];
         
-        if (!dataInizioManutenzione || !dataFineManutenzione) continue;
+        Logger.log('[checkDisponibilita] Manutenzione riga ' + j + ' - Data Inizio: ' + dataInizioManutenzione + ' | Data Fine: ' + dataFineManutenzione);
+        
+        if (!dataInizioManutenzione || !dataFineManutenzione) {
+          Logger.log('[checkDisponibilita] Manutenzione riga ' + j + ' - Skip: date mancanti');
+          continue;
+        }
         
         // MANUTENZIONI: normalizza solo la data (senza orari)
         var dtInizioManNorm = normalizeDate(new Date(dataInizioManutenzione));
         var dtFineManNorm = normalizeDate(new Date(dataFineManutenzione));
         
-        if (!dtInizioManNorm || !dtFineManNorm) continue;
+        Logger.log('[checkDisponibilita] Manutenzione riga ' + j + ' - Data Inizio norm: ' + dtInizioManNorm + ' | Data Fine norm: ' + dtFineManNorm);
+        Logger.log('[checkDisponibilita] Manutenzione riga ' + j + ' - Confronto: dataFineRich=' + dataFineRichiestaNorm.getTime() + ' < dtInizioMan=' + dtInizioManNorm.getTime() + ' || dataInizioRich=' + dataInizioRichiestaNorm.getTime() + ' > dtFineMan=' + dtFineManNorm.getTime());
+        
+        if (!dtInizioManNorm || !dtFineManNorm) {
+          Logger.log('[checkDisponibilita] Manutenzione riga ' + j + ' - Skip: errore normalizzazione date');
+          continue;
+        }
         
         // Controlla sovrapposizione a livello di GIORNATE (non orari)
         // Se c'è anche solo UN giorno di sovrapposizione → conflitto
-        if (!(dataFineRichiestaNorm < dtInizioManNorm || dataInizioRichiestaNorm > dtFineManNorm)) {
+        var sovrappone = !(dataFineRichiestaNorm < dtInizioManNorm || dataInizioRichiestaNorm > dtFineManNorm);
+        Logger.log('[checkDisponibilita] Manutenzione riga ' + j + ' - Sovrappone: ' + sovrappone);
+        
+        if (sovrappone) {
           Logger.log('[checkDisponibilita] Conflitto manutenzione trovato: ' + formatDateToItalian(dataInizioManutenzione) + ' - ' + formatDateToItalian(dataFineManutenzione));
           conflitti.push({
             tipo: 'manutenzione',
