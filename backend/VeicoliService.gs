@@ -2,7 +2,7 @@
  * SERVIZIO GESTIONE VEICOLI
  * 
  * Gestisce veicoli, disponibilità e controllo sovrapposizioni con orari
- * Versione: 8.9.1 - Fix disponibilità orari
+ * Versione: 8.9.2 - Fix manutenzioni
  */
 
 // Fasce orarie ammesse: dalle 8:00 alle 22:00 ogni 2 ore
@@ -32,8 +32,20 @@ function fasciaSuccessiva(orario) {
 }
 
 /**
+ * Normalizza Date per confronto solo su anno/mese/giorno (ignora orari)
+ * @param {Date} date - Data da normalizzare
+ * @return {Date} Data normalizzata alle 00:00:00
+ */
+function normalizeDate(date) {
+  if (!date || !(date instanceof Date)) return null;
+  var normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+}
+
+/**
  * Recupera lista veicoli con stato disponibilità
- * Controlla anche manutenzioni attive
+ * Controlla anche manutenzioni attive OGGI
  * @return {ContentService} Risposta JSON con lista veicoli
  */
 function getVeicoli() {
@@ -58,8 +70,10 @@ function getVeicoli() {
       });
     }
     
-    // Mappa manutenzioni per targa
+    // Mappa manutenzioni ATTIVE per targa
     var manut = {};
+    var oggi = normalizeDate(new Date());
+    
     if (shM) {
       var dataM = shM.getDataRange().getValues();
       for (var i = 1; i < dataM.length; i++) {
@@ -67,16 +81,30 @@ function getVeicoli() {
         var t = r[CONFIG.MANUTENZIONI_COLS.TARGA - 1];
         var st = r[CONFIG.MANUTENZIONI_COLS.STATO - 1];
         
-        if (t && st) {
-          manut[t] = {
-            stato: st,
-            dataInizio: r[CONFIG.MANUTENZIONI_COLS.DATA_INIZIO - 1],
-            dataInizioFormatted: formatDateToItalian(r[CONFIG.MANUTENZIONI_COLS.DATA_INIZIO - 1]),
-            dataFine: r[CONFIG.MANUTENZIONI_COLS.DATA_FINE - 1],
-            dataFineFormatted: formatDateToItalian(r[CONFIG.MANUTENZIONI_COLS.DATA_FINE - 1]),
-            note: r[CONFIG.MANUTENZIONI_COLS.NOTE - 1]
-          };
-        }
+        // Skip manutenzioni completate
+        if (!t || !st || st === 'Completata') continue;
+        
+        var dataInizioMan = r[CONFIG.MANUTENZIONI_COLS.DATA_INIZIO - 1];
+        var dataFineMan = r[CONFIG.MANUTENZIONI_COLS.DATA_FINE - 1];
+        
+        if (!dataInizioMan || !dataFineMan) continue;
+        
+        // Normalizza date manutenzione (solo giorno, no orari)
+        var di = normalizeDate(new Date(dataInizioMan));
+        var df = normalizeDate(new Date(dataFineMan));
+        
+        // Verifica se manutenzione è attiva OGGI
+        var inManutenzioneOggi = (oggi >= di && oggi <= df);
+        
+        manut[t] = {
+          stato: st,
+          dataInizio: dataInizioMan,
+          dataInizioFormatted: formatDateToItalian(dataInizioMan),
+          dataFine: dataFineMan,
+          dataFineFormatted: formatDateToItalian(dataFineMan),
+          note: r[CONFIG.MANUTENZIONI_COLS.NOTE - 1] || '',
+          attiva: inManutenzioneOggi
+        };
       }
     }
     
@@ -87,17 +115,7 @@ function getVeicoli() {
       if (!tp) continue;
       
       var man = manut[tp];
-      var inMan = false;
-      
-      // Verifica se veicolo è in manutenzione oggi
-      if (man && man.dataInizio && man.dataFine) {
-        var oggi = new Date();
-        var di = new Date(man.dataInizio);
-        var df = new Date(man.dataFine);
-        if (oggi >= di && oggi <= df) {
-          inMan = true;
-        }
-      }
+      var inMan = man && man.attiva;
       
       var base = rp[CONFIG.PULMINI_COLS.STATO - 1] || 'Disponibile';
       var note = rp[CONFIG.PULMINI_COLS.NOTE - 1] || '';
@@ -115,10 +133,12 @@ function getVeicoli() {
         DataInizioManutenzioneFormatted: man && man.dataInizioFormatted ? man.dataInizioFormatted : '',
         DataFineManutenzione: man && man.dataFine ? man.dataFine : '',
         DataFineManutenzioneFormatted: man && man.dataFineFormatted ? man.dataFineFormatted : '',
+        InManutenzioneOggi: inMan,
         DisponibileDate: !inMan && (base === 'Disponibile' || base === 'Attivo')
       });
     }
     
+    Logger.log('[getVeicoli] Trovati ' + res.length + ' veicoli, controllate manutenzioni attive');
     return createJsonResponse({
       success: true,
       message: 'Trovati ' + res.length + ' veicoli',
@@ -126,6 +146,7 @@ function getVeicoli() {
       count: res.length
     });
   } catch(err) {
+    Logger.log('[getVeicoli] Errore: ' + err.message);
     return createJsonResponse({
       success: false,
       message: 'Errore caricamento veicoli: ' + err.message
@@ -136,6 +157,7 @@ function getVeicoli() {
 /**
  * Controlla disponibilità veicolo considerando DATE + ORARI (fasce 8-22 ogni 2h)
  * Un veicolo è disponibile dalla fascia oraria SUCCESSIVA alla riconsegna
+ * Le MANUTENZIONI bloccano l'intero periodo (senza orari)
  * 
  * @param {Object} p - Parametri: targa, dataInizio, dataFine, oraInizio, oraFine
  * @return {ContentService} Risposta JSON con disponibilità e conflitti
@@ -192,6 +214,10 @@ function checkDisponibilita(p) {
       }, 400);
     }
     
+    // Normalizza date richieste per confronto con manutenzioni (solo giorno)
+    var dataInizioRichiestaNorm = normalizeDate(dtInizioRichiesta);
+    var dataFineRichiestaNorm = normalizeDate(dtFineRichiesta);
+    
     // Recupera prenotazioni esistenti
     var shPrenotazioni = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID)
       .getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
@@ -199,7 +225,7 @@ function checkDisponibilita(p) {
     
     var conflitti = [];
     
-    // Controlla sovrapposizioni con prenotazioni esistenti
+    // 1️⃣ CONTROLLA SOVRAPPOSIZIONI CON PRENOTAZIONI (con orari)
     for (var i = 1; i < dataPrenotazioni.length; i++) {
       var r = dataPrenotazioni[i];
       var targaPrenotazione = r[CONFIG.PRENOTAZIONI_COLS.TARGA - 1];
@@ -249,6 +275,7 @@ function checkDisponibilita(p) {
       // Controlla sovrapposizione: la nuova richiesta deve iniziare DOPO la disponibilità effettiva
       if (dtInizioRichiesta < dtDisponibilitaEffettiva && dtFineRichiesta > dtInizioPrenotazione) {
         conflitti.push({
+          tipo: 'prenotazione',
           idPrenotazione: r[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1] || '',
           dataInizio: formatDateToItalian(dataInizioPrenotazione),
           dataFine: formatDateToItalian(dataFinePrenotazione),
@@ -261,7 +288,7 @@ function checkDisponibilita(p) {
       }
     }
     
-    // Controlla manutenzioni (occupano l'intera giornata)
+    // 2️⃣ CONTROLLA MANUTENZIONI (bloccano l'intero periodo, senza orari)
     var shManutenzioni = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID)
       .getSheetByName(CONFIG.SHEETS.MANUTENZIONI);
     
@@ -281,23 +308,23 @@ function checkDisponibilita(p) {
         
         if (!dataInizioManutenzione || !dataFineManutenzione) continue;
         
-        // Per manutenzioni, consideriamo l'intera giornata (08:00 - 22:00)
-        var dtInizioManutenzione, dtFineManutenzione;
-        try {
-          dtInizioManutenzione = parseDateTimeFromValues(dataInizioManutenzione, '08:00');
-          dtFineManutenzione = parseDateTimeFromValues(dataFineManutenzione, '22:00');
-        } catch(e) {
-          Logger.log('[checkDisponibilita] Errore parsing date manutenzione: ' + e.message);
-          continue;
-        }
+        // MANUTENZIONI: normalizza solo la data (senza orari)
+        var dtInizioManNorm = normalizeDate(new Date(dataInizioManutenzione));
+        var dtFineManNorm = normalizeDate(new Date(dataFineManutenzione));
         
-        if (dtInizioRichiesta < dtFineManutenzione && dtFineRichiesta > dtInizioManutenzione) {
+        if (!dtInizioManNorm || !dtFineManNorm) continue;
+        
+        // Controlla sovrapposizione a livello di GIORNATE (non orari)
+        // Se c'è anche solo UN giorno di sovrapposizione → conflitto
+        if (!(dataFineRichiestaNorm < dtInizioManNorm || dataInizioRichiestaNorm > dtFineManNorm)) {
+          Logger.log('[checkDisponibilita] Conflitto manutenzione trovato: ' + formatDateToItalian(dataInizioManutenzione) + ' - ' + formatDateToItalian(dataFineManutenzione));
           conflitti.push({
             tipo: 'manutenzione',
             dataInizio: formatDateToItalian(dataInizioManutenzione),
             dataFine: formatDateToItalian(dataFineManutenzione),
             stato: statoManutenzione,
-            note: m[CONFIG.MANUTENZIONI_COLS.NOTE - 1] || ''
+            note: m[CONFIG.MANUTENZIONI_COLS.NOTE - 1] || '',
+            descrizione: 'Veicolo in manutenzione per l\'intero periodo'
           });
         }
       }
