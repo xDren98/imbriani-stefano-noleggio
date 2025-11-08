@@ -1,23 +1,18 @@
 /**
- * SERVIZIO OCR DOCUMENTI AUTISTI
+ * SERVIZIO OCR DOCUMENTI AUTISTI - Multi-documento Guidato
  * 
- * Gestisce riconoscimento automatico documenti (patente, carta identità)
- * usando Google Cloud Vision API
- * Versione: 1.2.0 - Fix parsing patente europea formato standard
+ * Supporta:
+ * - Patente fronte (nome, date, numero, comune nascita)
+ * - Carta Identità cartacea/CIE (residenza)
+ * - Tessera Sanitaria (CF)
+ * 
+ * Versione: 2.0.0 - Parser universale multi-documento
  */
 
-/**
- * Endpoint principale per OCR documento autista
- * Riceve immagine base64, chiama Google Vision API, estrae dati strutturati
- * 
- * @param {Object} post - Payload POST con { image: "base64...", autista: 1-3 }
- * @return {ContentService} Risposta JSON con dati estratti
- */
 function ocrDocument(post) {
   Logger.log('[OCR] Richiesta OCR ricevuta');
   
   try {
-    // Validazione input
     if (!post || !post.image) {
       return createJsonResponse({
         success: false,
@@ -27,24 +22,21 @@ function ocrDocument(post) {
     
     var imageBase64 = post.image;
     var autistaNum = post.autista || 1;
+    var tipoDoc = post.tipoDocumento || 'auto'; // patente, carta, tessera, auto
     
-    // Rimuovi prefisso data:image se presente
     if (imageBase64.indexOf('base64,') !== -1) {
       imageBase64 = imageBase64.split('base64,')[1];
     }
     
-    Logger.log('[OCR] Autista: ' + autistaNum + ' | Dimensione immagine: ~' + Math.round(imageBase64.length / 1024) + 'KB');
+    Logger.log('[OCR] Autista: ' + autistaNum + ' | Tipo: ' + tipoDoc + ' | Size: ~' + Math.round(imageBase64.length / 1024) + 'KB');
     
-    // Chiama Google Cloud Vision API
-    var visionApiKey = CONFIG.GOOGLE && CONFIG.GOOGLE.VISION_API_KEY 
-      ? CONFIG.GOOGLE.VISION_API_KEY 
-      : '';
+    var visionApiKey = CONFIG.GOOGLE && CONFIG.GOOGLE.VISION_API_KEY ? CONFIG.GOOGLE.VISION_API_KEY : '';
     
     if (!visionApiKey) {
-      Logger.log('[OCR] ERRORE: API Key Google Vision non configurata');
+      Logger.log('[OCR] ERRORE: API Key non configurata');
       return createJsonResponse({
         success: false,
-        message: 'Servizio OCR non configurato. Contatta l\'amministratore.'
+        message: 'Servizio OCR non configurato.'
       }, 500);
     }
     
@@ -53,17 +45,12 @@ function ocrDocument(post) {
     var payload = {
       requests: [{
         image: { content: imageBase64 },
-        features: [{ 
-          type: 'DOCUMENT_TEXT_DETECTION', 
-          maxResults: 1 
-        }],
-        imageContext: { 
-          languageHints: ['it', 'en'] 
-        }
+        features: [{ type: 'DOCUMENT_TEXT_DETECTION', maxResults: 1 }],
+        imageContext: { languageHints: ['it', 'en'] }
       }]
     };
     
-    Logger.log('[OCR] Chiamata Google Vision API...');
+    Logger.log('[OCR] Chiamata Vision API...');
     
     var options = {
       method: 'post',
@@ -82,8 +69,7 @@ function ocrDocument(post) {
       Logger.log('[OCR] Errore Vision API: ' + responseText);
       return createJsonResponse({
         success: false,
-        message: 'Errore servizio OCR: ' + responseCode,
-        debug: responseText.substring(0, 200)
+        message: 'Errore servizio OCR: ' + responseCode
       }, 500);
     }
     
@@ -95,17 +81,23 @@ function ocrDocument(post) {
     }
     
     if (!text) {
-      Logger.log('[OCR] Nessun testo estratto dall\'immagine');
+      Logger.log('[OCR] Nessun testo estratto');
       return createJsonResponse({
         success: false,
-        message: 'Impossibile leggere il documento. Riprova con una foto più nitida.'
+        message: 'Impossibile leggere il documento. Riprova con foto più nitida.'
       }, 400);
     }
     
-    Logger.log('[OCR] Testo estratto (primi 500 caratteri): ' + text.substring(0, 500));
+    Logger.log('[OCR] Testo estratto (primi 500 char): ' + text.substring(0, 500));
     
-    // Parsing dati documento italiano
-    var extracted = parseItalianDocument(text);
+    // Auto-detect tipo documento se non specificato
+    if (tipoDoc === 'auto') {
+      tipoDoc = detectDocumentType(text);
+      Logger.log('[OCR] Tipo documento auto-rilevato: ' + tipoDoc);
+    }
+    
+    // Parsing basato sul tipo documento
+    var extracted = parseMultiDocument(text, tipoDoc);
     
     Logger.log('[OCR] Dati estratti: ' + JSON.stringify(extracted));
     
@@ -114,11 +106,12 @@ function ocrDocument(post) {
       message: 'Documento scansionato con successo',
       data: extracted,
       autista: autistaNum,
-      debugText: text.substring(0, 500) // Prime 500 char per debug
+      tipoDocumento: tipoDoc,
+      debugText: text.substring(0, 500)
     });
     
   } catch (err) {
-    Logger.log('[OCR] Errore: ' + err.message + ' | Stack: ' + err.stack);
+    Logger.log('[OCR] Errore: ' + err.message);
     return createJsonResponse({
       success: false,
       message: 'Errore durante la scansione: ' + err.message
@@ -127,17 +120,25 @@ function ocrDocument(post) {
 }
 
 /**
- * Parsing intelligente di documenti italiani (patente europea)
- * Estrae: nome, cognome, CF, data nascita, numero documento
- * Versione 1.2.0 - Ottimizzato per patente europea formato:
- * 1. COGNOME
- * 2. NOME
- * 3. DATA E LUOGO NASCITA
- * 
- * @param {string} text - Testo OCR completo
- * @return {Object} Dati estratti strutturati
+ * Rileva automaticamente il tipo di documento
  */
-function parseItalianDocument(text) {
+function detectDocumentType(text) {
+  if (/PATENTE\s+DI\s+GUIDA|DRIVING\s+LICENCE/i.test(text)) {
+    return 'patente';
+  }
+  if (/CARTA\s+D.?\s?IDENTIT|IDENTITY\s+CARD/i.test(text)) {
+    return 'carta';
+  }
+  if (/TESSERA\s+SANITARIA|MINISTERO.*SALUTE/i.test(text)) {
+    return 'tessera';
+  }
+  return 'generico';
+}
+
+/**
+ * Parser universale multi-documento
+ */
+function parseMultiDocument(text, tipoDoc) {
   var result = {
     nomeCompleto: '',
     nome: '',
@@ -148,157 +149,189 @@ function parseItalianDocument(text) {
     numeroPatente: '',
     numeroDocumento: '',
     dataInizioPatente: '',
-    scadenzaPatente: ''
+    scadenzaPatente: '',
+    comuneResidenza: '',
+    viaResidenza: '',
+    civicoResidenza: ''
   };
   
-  Logger.log('[PARSE] Inizio parsing...');
+  Logger.log('[PARSE] Tipo documento: ' + tipoDoc);
   
-  // 1. CODICE FISCALE (16 caratteri alfanumerici)
+  // SEMPRE estrai CF (presente su tutti i documenti)
   var cfMatch = text.match(/\b([A-Z]{6}[0-9]{2}[A-Z][0-9]{2}[A-Z][0-9]{3}[A-Z])\b/i);
   if (cfMatch) {
     result.codiceFiscale = cfMatch[1].toUpperCase();
     Logger.log('[PARSE] ✅ CF: ' + result.codiceFiscale);
   }
   
-  // 2. FORMATO PATENTE EUROPEA (priorità massima)
-  // Pattern: "1. COGNOME" seguito da "2. NOME"
-  var lines = text.split('\n');
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines[i].trim();
-    
-    // Cerca "1." seguito da testo (COGNOME)
-    if (line.match(/^1[\.\s]/)) {
-      var cognomeText = line.replace(/^1[\.\s]+/, '').trim();
-      // Rimuovi eventuali label tipo "COGNOME", "SURNAME"
-      cognomeText = cognomeText.replace(/^(COGNOME|SURNAME)[:\s]*/i, '');
-      if (cognomeText && cognomeText.length > 0) {
-        result.cognome = cognomeText;
-        Logger.log('[PARSE] ✅ Cognome (da 1.): ' + result.cognome);
-      }
-    }
-    
-    // Cerca "2." seguito da testo (NOME)
-    if (line.match(/^2[\.\s]/)) {
-      var nomeText = line.replace(/^2[\.\s]+/, '').trim();
-      // Rimuovi eventuali label tipo "NOME", "NAME"
-      nomeText = nomeText.replace(/^(NOME|NAME)[:\s]*/i, '');
-      if (nomeText && nomeText.length > 0) {
-        result.nome = nomeText;
-        Logger.log('[PARSE] ✅ Nome (da 2.): ' + result.nome);
-      }
-    }
-    
-    // Cerca "3." per data e luogo nascita
-    if (line.match(/^3[\.\s]/)) {
-      var nascitaText = line.replace(/^3[\.\s]+/, '').trim();
-      Logger.log('[PARSE] Riga 3 (nascita): ' + nascitaText);
-      
-      // Estrai data
-      var dateMatch = nascitaText.match(/(\d{2})[\/.:\-](\d{2})[\/.:\-](\d{4})/);
-      if (dateMatch) {
-        result.dataNascita = dateMatch[3] + '-' + dateMatch[2] + '-' + dateMatch[1];
-        Logger.log('[PARSE] ✅ Data nascita (da 3.): ' + result.dataNascita);
-      }
-      
-      // Estrai luogo (tutto ciò che viene dopo la data)
-      var luogoMatch = nascitaText.match(/\d{4}\s+(.+?)(?=\(|$)/);
-      if (luogoMatch) {
-        result.luogoNascita = luogoMatch[1].trim();
-        Logger.log('[PARSE] ✅ Luogo nascita (da 3.): ' + result.luogoNascita);
-      }
-    }
-  }
-  
-  // 3. FALLBACK: Se non trovati con pattern numerici, cerca keyword
-  if (!result.cognome) {
-    var cognomeMatch = text.match(/(?:COGNOME|SURNAME)[:\s]+([A-Z]+)/i);
-    if (cognomeMatch) {
-      result.cognome = cognomeMatch[1].trim();
-      Logger.log('[PARSE] ✅ Cognome (fallback): ' + result.cognome);
-    }
-  }
-  
-  if (!result.nome) {
-    var nomeMatch = text.match(/(?:NOME|NAME)[:\s]+([A-Z]+)/i);
-    if (nomeMatch) {
-      result.nome = nomeMatch[1].trim();
-      Logger.log('[PARSE] ✅ Nome (fallback): ' + result.nome);
-    }
-  }
-  
-  // 4. DATA DI NASCITA (se non trovata in "3.")
-  if (!result.dataNascita) {
-    var dateMatch = text.match(/\b(\d{2})[\/.:\-](\d{2})[\/.:\-](\d{4})\b/);
-    if (dateMatch) {
-      result.dataNascita = dateMatch[3] + '-' + dateMatch[2] + '-' + dateMatch[1];
-      Logger.log('[PARSE] ✅ Data nascita (fallback): ' + result.dataNascita);
-    }
-  }
-  
-  // 5. Costruisci nome completo
-  if (result.nome && result.cognome) {
-    result.nomeCompleto = result.nome + ' ' + result.cognome;
-  } else if (result.cognome) {
-    result.nomeCompleto = result.cognome;
-  } else if (result.nome) {
-    result.nomeCompleto = result.nome;
-  }
-  
-  Logger.log('[PARSE] ✅ Nome completo: ' + result.nomeCompleto);
-  
-  // 6. NUMERO PATENTE (formato vario: U1C1234567, MI1234567, etc)
-  var patenteMatch = text.match(/\b([A-Z0-9]{9,10})\b/);
-  if (patenteMatch) {
-    var candidato = patenteMatch[1];
-    // Verifica che non sia il CF
-    if (candidato !== result.codiceFiscale && candidato.length >= 9) {
-      result.numeroPatente = candidato;
-      result.numeroDocumento = candidato;
-      Logger.log('[PARSE] ✅ Numero patente: ' + result.numeroPatente);
-    }
-  }
-  
-  // 7. LUOGO DI NASCITA (se non trovato in "3.")
-  if (!result.luogoNascita) {
-    var luogoMatch = text.match(/(?:NATO\s+A|LUOGO\s+DI\s+NASCITA|PLACE\s+OF\s+BIRTH)[:\s]+([A-Z][A-Z\s\(\)]+?)(?=\s+IL|\s+\d{2}|\n|$)/i);
-    if (luogoMatch) {
-      result.luogoNascita = luogoMatch[1].trim();
-      Logger.log('[PARSE] ✅ Luogo nascita (fallback): ' + result.luogoNascita);
-    }
-  }
-  
-  // 8. DATE PATENTE (4a. e 4b.)
-  var rilascioMatch = text.match(/(?:4a\.|VALID\s+FROM)[:\s]*(\d{2})[\/.:\-](\d{2})[\/.:\-](\d{4})/i);
-  if (rilascioMatch) {
-    result.dataInizioPatente = rilascioMatch[3] + '-' + rilascioMatch[2] + '-' + rilascioMatch[1];
-    Logger.log('[PARSE] ✅ Inizio validità: ' + result.dataInizioPatente);
-  }
-  
-  var scadenzaMatch = text.match(/(?:4b\.|VALID\s+UNTIL)[:\s]*(\d{2})[\/.:\-](\d{2})[\/.:\-](\d{4})/i);
-  if (scadenzaMatch) {
-    result.scadenzaPatente = scadenzaMatch[3] + '-' + scadenzaMatch[2] + '-' + scadenzaMatch[1];
-    Logger.log('[PARSE] ✅ Scadenza: ' + result.scadenzaPatente);
+  // PARSING SPECIFICO PER TIPO
+  if (tipoDoc === 'patente') {
+    parsePatente(text, result);
+  } else if (tipoDoc === 'carta') {
+    parseCartaIdentita(text, result);
+  } else if (tipoDoc === 'tessera') {
+    parseTesseraSanitaria(text, result);
+  } else {
+    // Generico: prova tutti i pattern
+    parsePatente(text, result);
+    parseCartaIdentita(text, result);
   }
   
   return result;
 }
 
 /**
- * Test endpoint OCR (per sviluppo)
- * GET ?action=testOcr&token=xxx
+ * Parser specifico PATENTE (formato europeo)
+ */
+function parsePatente(text, result) {
+  Logger.log('[PARSE PATENTE] Inizio...');
+  
+  var lines = text.split('\n');
+  
+  // Formato europeo: 1. COGNOME, 2. NOME, 3. DATA/LUOGO
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    
+    // 1. COGNOME
+    if (line.match(/^1[\.\s]/)) {
+      var cognome = line.replace(/^1[\.\s]+/, '').replace(/COGNOME|SURNAME/i, '').trim();
+      if (cognome) result.cognome = cognome;
+    }
+    
+    // 2. NOME
+    if (line.match(/^2[\.\s]/)) {
+      var nome = line.replace(/^2[\.\s]+/, '').replace(/NOME|NAME/i, '').trim();
+      if (nome) result.nome = nome;
+    }
+    
+    // 3. DATA E LUOGO NASCITA
+    if (line.match(/^3[\.\s]/)) {
+      var nascita = line.replace(/^3[\.\s]+/, '').trim();
+      
+      // Data
+      var dateMatch = nascita.match(/(\d{2})[\/.:\-](\d{2})[\/.:\-](\d{4})/);
+      if (dateMatch) {
+        result.dataNascita = dateMatch[3] + '-' + dateMatch[2] + '-' + dateMatch[1];
+      }
+      
+      // Luogo (dopo la data)
+      var luogoMatch = nascita.match(/\d{4}\s+([A-Z][A-Z\s]+?)(?=\(|$)/);
+      if (luogoMatch) {
+        result.luogoNascita = luogoMatch[1].trim();
+      }
+    }
+  }
+  
+  // Nome completo
+  if (result.nome && result.cognome) {
+    result.nomeCompleto = result.nome + ' ' + result.cognome;
+  }
+  
+  // Numero patente (9-10 caratteri alfanumerici)
+  var numPatenteMatch = text.match(/\b([A-Z0-9]{9,10})\b/);
+  if (numPatenteMatch && numPatenteMatch[1] !== result.codiceFiscale) {
+    result.numeroPatente = numPatenteMatch[1];
+    result.numeroDocumento = numPatenteMatch[1];
+  }
+  
+  // Date validità: 4a. e 4b.
+  var rilascio = text.match(/4a[\.\s]+(\d{2})[\/.:\-](\d{2})[\/.:\-](\d{4})/i);
+  if (rilascio) {
+    result.dataInizioPatente = rilascio[3] + '-' + rilascio[2] + '-' + rilascio[1];
+  }
+  
+  var scadenza = text.match(/4b[\.\s]+(\d{2})[\/.:\-](\d{2})[\/.:\-](\d{4})/i);
+  if (scadenza) {
+    result.scadenzaPatente = scadenza[3] + '-' + scadenza[2] + '-' + scadenza[1];
+  }
+  
+  Logger.log('[PARSE PATENTE] ✅ Completato');
+}
+
+/**
+ * Parser specifico CARTA IDENTITÀ
+ */
+function parseCartaIdentita(text, result) {
+  Logger.log('[PARSE CARTA] Inizio...');
+  
+  // Nome e Cognome (fallback se non già presenti)
+  if (!result.nome) {
+    var nomeMatch = text.match(/(?:NOME|NAME)[:\s]+([A-Z]+)/i);
+    if (nomeMatch) result.nome = nomeMatch[1].trim();
+  }
+  
+  if (!result.cognome) {
+    var cognomeMatch = text.match(/(?:COGNOME|SURNAME)[:\s]+([A-Z]+)/i);
+    if (cognomeMatch) result.cognome = cognomeMatch[1].trim();
+  }
+  
+  // RESIDENZA - Pattern multipli
+  
+  // Comune
+  var comuneMatch = text.match(/(?:RESIDENZA|COMUNE)[:\s]+([A-Z][A-Z\s]+?)(?=\s+VIA|\s+\d{5}|\n|$)/i);
+  if (comuneMatch) {
+    result.comuneResidenza = comuneMatch[1].trim();
+  }
+  
+  // Via/Indirizzo
+  var viaMatch = text.match(/VIA[:\s]+([A-Z][A-Z\s\.,0-9]+?)(?=\s+\d{1,4}\s|$|\n)/i);
+  if (viaMatch) {
+    result.viaResidenza = viaMatch[1].trim();
+  }
+  
+  // Civico (cerca numero dopo via o standalone)
+  var civicoMatch = text.match(/(?:N[\.\s°]?|CIVICO)[:\s]*(\d{1,4}[A-Z]?)/i);
+  if (civicoMatch) {
+    result.civicoResidenza = civicoMatch[1];
+  }
+  
+  // Luogo nascita (se non già presente)
+  if (!result.luogoNascita) {
+    var luogoMatch = text.match(/(?:NATO\s+A|LUOGO\s+NASCITA|PLACE\s+OF\s+BIRTH)[:\s]+([A-Z][A-Z\s\(\)]+?)(?=\s+IL|\s+\d{2}|\n|$)/i);
+    if (luogoMatch) {
+      result.luogoNascita = luogoMatch[1].trim();
+    }
+  }
+  
+  Logger.log('[PARSE CARTA] ✅ Completato');
+}
+
+/**
+ * Parser specifico TESSERA SANITARIA
+ */
+function parseTesseraSanitaria(text, result) {
+  Logger.log('[PARSE TESSERA] Inizio...');
+  
+  // CF (già estratto prima, ma verifica)
+  if (!result.codiceFiscale) {
+    var cfMatch = text.match(/\b([A-Z]{6}[0-9]{2}[A-Z][0-9]{2}[A-Z][0-9]{3}[A-Z])\b/i);
+    if (cfMatch) {
+      result.codiceFiscale = cfMatch[1].toUpperCase();
+    }
+  }
+  
+  // Nome e Cognome (pattern tessera)
+  var cognomeNomeMatch = text.match(/([A-Z]+)\s+([A-Z]+)/);
+  if (cognomeNomeMatch && !result.cognome && !result.nome) {
+    result.cognome = cognomeNomeMatch[1];
+    result.nome = cognomeNomeMatch[2];
+    result.nomeCompleto = result.nome + ' ' + result.cognome;
+  }
+  
+  Logger.log('[PARSE TESSERA] ✅ Completato');
+}
+
+/**
+ * Test endpoint OCR
  */
 function testOcrService() {
-  Logger.log('[TEST OCR] Verifica configurazione');
-  
-  var apiKey = CONFIG.GOOGLE && CONFIG.GOOGLE.VISION_API_KEY 
-    ? CONFIG.GOOGLE.VISION_API_KEY 
-    : '';
+  var apiKey = CONFIG.GOOGLE && CONFIG.GOOGLE.VISION_API_KEY ? CONFIG.GOOGLE.VISION_API_KEY : '';
   
   return createJsonResponse({
     success: true,
-    message: 'OCR Service configurato',
+    message: 'OCR Service Multi-Documento v2.0',
     apiKeyConfigured: apiKey ? true : false,
-    apiKeyLength: apiKey ? apiKey.length : 0,
-    endpoint: 'POST /exec con action=ocrDocument'
+    supportedDocuments: ['patente', 'carta', 'tessera'],
+    endpoint: 'POST /exec?action=ocrDocument'
   });
 }
