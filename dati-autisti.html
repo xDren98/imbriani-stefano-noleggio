@@ -54,8 +54,7 @@
       <div id="ocr-error-1" class="alert alert-danger mt-2 mb-0" style="display:none"></div>
       <form id="driver-form-1" autocomplete="off">
         <div class="row gy-3 mt-1">
-          <div class="col-md-6"><label class="form-label">Nome</label><input class="form-control form-control-modern" type="text" id="nome-1" required placeholder="Mario"></div>
-          <div class="col-md-6"><label class="form-label">Cognome</label><input class="form-control form-control-modern" type="text" id="cognome-1" required placeholder="Rossi"></div>
+          <div class="col-md-12"><label class="form-label">Nome completo</label><input class="form-control form-control-modern" type="text" id="nomeCompleto-1" required placeholder="Mario Rossi"></div>
           <div class="col-md-6"><label class="form-label">Codice Fiscale</label><input class="form-control form-control-modern" type="text" id="cf-1" required maxlength="16" placeholder="RSSMRA80A12H501L"></div>
           <div class="col-md-6"><label class="form-label">Cellulare</label><input class="form-control form-control-modern" type="tel" id="cell-1" placeholder="+39..." required></div>
           <div class="col-md-6"><label class="form-label">Data di nascita</label><input type="date" class="form-control form-control-modern" id="nascita-1" required></div>
@@ -85,8 +84,7 @@
       <div id="ocr-error-2" class="alert alert-danger mt-2 mb-0" style="display:none"></div>
       <form id="driver-form-2" autocomplete="off">
         <div class="row gy-3 mt-1">
-          <div class="col-md-6"><label class="form-label">Nome</label><input class="form-control form-control-modern" type="text" id="nome-2" placeholder="Mario"></div>
-          <div class="col-md-6"><label class="form-label">Cognome</label><input class="form-control form-control-modern" type="text" id="cognome-2" placeholder="Rossi"></div>
+          <div class="col-md-12"><label class="form-label">Nome completo</label><input class="form-control form-control-modern" type="text" id="nomeCompleto-2" placeholder="Mario Rossi"></div>
           <div class="col-md-6"><label class="form-label">Codice Fiscale</label><input class="form-control form-control-modern" type="text" id="cf-2" maxlength="16" placeholder="RSSMRA80A12H501L"></div>
           <div class="col-md-6"><label class="form-label">Cellulare</label><input class="form-control form-control-modern" type="tel" id="cell-2" placeholder="+39..."></div>
           <div class="col-md-6"><label class="form-label">Data di nascita</label><input type="date" class="form-control form-control-modern" id="nascita-2"></div>
@@ -116,8 +114,7 @@
       <div id="ocr-error-3" class="alert alert-danger mt-2 mb-0" style="display:none"></div>
       <form id="driver-form-3" autocomplete="off">
         <div class="row gy-3 mt-1">
-          <div class="col-md-6"><label class="form-label">Nome</label><input class="form-control form-control-modern" type="text" id="nome-3" placeholder="Mario"></div>
-          <div class="col-md-6"><label class="form-label">Cognome</label><input class="form-control form-control-modern" type="text" id="cognome-3" placeholder="Rossi"></div>
+          <div class="col-md-12"><label class="form-label">Nome completo</label><input class="form-control form-control-modern" type="text" id="nomeCompleto-3" placeholder="Mario Rossi"></div>
           <div class="col-md-6"><label class="form-label">Codice Fiscale</label><input class="form-control form-control-modern" type="text" id="cf-3" maxlength="16" placeholder="RSSMRA80A12H501L"></div>
           <div class="col-md-6"><label class="form-label">Cellulare</label><input class="form-control form-control-modern" type="tel" id="cell-3" placeholder="+39..."></div>
           <div class="col-md-6"><label class="form-label">Data di nascita</label><input type="date" class="form-control form-control-modern" id="nascita-3"></div>
@@ -160,15 +157,17 @@ function renderSummary() {
 }
 function prefillDriver(i, data) {
   if(!data) return;
+  if(document.getElementById(`nomeCompleto-${i}`)&&data.nomeCompleto)
+    document.getElementById(`nomeCompleto-${i}`).value = data.nomeCompleto;
   for(const key in data) {
-    if(document.getElementById(`${key}-${i}`) && data[key])
+    if(key!=='nomeCompleto'&&document.getElementById(`${key}-${i}`) && data[key])
       document.getElementById(`${key}-${i}`).value = data[key];
   }
 }
 function analyzeFieldsAutista(i) {
   const id = `${i}`;
   let missing = [];
-  ['nome','cognome','cf','cell','nascita','luogo','patente','rilascio','scadenza','residenza']
+  ['nomeCompleto','cf','cell','nascita','luogo','patente','rilascio','scadenza','residenza']
     .forEach(f=>{if(!document.getElementById(f+'-'+id).value) missing.push(f);});
   return missing;
 }
@@ -197,9 +196,7 @@ function onSubmit() {
 function getDriver(i) {
   const id = `${i}`;
   return {
-    nomeCompleto: document.getElementById('nome-'+id).value + ' ' + document.getElementById('cognome-'+id).value,
-    nome: document.getElementById('nome-'+id).value,
-    cognome: document.getElementById('cognome-'+id).value,
+    nomeCompleto: document.getElementById('nomeCompleto-'+id).value,
     codiceFiscale: document.getElementById('cf-'+id).value,
     cell: document.getElementById('cell-'+id).value,
     dataNascita: document.getElementById('nascita-'+id).value,
@@ -207,7 +204,7 @@ function getDriver(i) {
     numeroPatente: document.getElementById('patente-'+id).value,
     inizioValiditaPatente: document.getElementById('rilascio-'+id).value,
     scadenzaPatente: document.getElementById('scadenza-'+id).value,
-    comuneResidenza: document.getElementById('residenza-'+id).value // adattamento rapido
+    comuneResidenza: document.getElementById('residenza-'+id).value
   };
 }
 function handleOCRScan(i, tipo, e) {
@@ -234,7 +231,7 @@ function handleOCRScan(i, tipo, e) {
   });
 }
 function mergeFieldsSafe(fields) {
-  const mapping = { codiceFiscale:'cf', nome:'nome', cognome:'cognome', dataNascita:'nascita', luogoNascita:'luogo', numeroPatente:'patente', dataInizioPatente:'rilascio', scadenzaPatente:'scadenza', comuneResidenza:'residenza', viaResidenza:'', civicoResidenza:'' };
+  const mapping = { nomeCompleto:'nomeCompleto', codiceFiscale:'cf', cell:'cell', dataNascita:'nascita', luogoNascita:'luogo', numeroPatente:'patente', dataInizioPatente:'rilascio', scadenzaPatente:'scadenza', comuneResidenza:'residenza', viaResidenza:'', civicoResidenza:'' };
   let mapped = {};
   for(const key in mapping){ if(fields[key]) mapped[mapping[key]]=fields[key]; }
   return mapped;
@@ -255,15 +252,13 @@ document.addEventListener('DOMContentLoaded', ()=>{
       if(!dateStr) return '';
       const parts = dateStr.split(/[\/-]/);
       if(parts.length === 3) {
-        // Accetta sia GG/MM/AAAA che AAAA-MM-GG
         if(parts[2].length === 4) return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
         if(parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
       }
       return dateStr;
     }
     prefillDriver(1, {
-      nome: user.nome,
-      cognome: user.nomeCompleto && user.nomeCompleto.split(' ').length > 1 ? user.nomeCompleto.split(' ')[1] : '',
+      nomeCompleto: user.nomeCompleto||user.nome||'',
       cf: user.codiceFiscale,
       cell: user.cellulare,
       nascita: toISO(user.dataNascitaFormatted||user.dataNascita),
