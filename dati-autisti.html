@@ -1,4 +1,3 @@
-<!-- dati-autisti.html - OCR Multi-Documento Guidato v2.2 MINIMAL OCR SECTION -->
 <!DOCTYPE html>
 <html lang="it" class="h-100">
 <head>
@@ -14,12 +13,6 @@
     .driver-card{border:2px dashed #334155;background:rgba(51,65,85,.35);margin-bottom:2rem}
     .driver-card.required{border-color:#f59e0b}
     .glass-card{background:rgba(15,23,42,.8);border:1px solid rgba(148,163,184,.2);border-radius:12px;backdrop-filter:blur(10px)}
-    .form-control-modern{background:rgba(51,65,85,.5);border:1px solid #475569;color:#e2e8f0}
-    .form-control-modern:focus{background:rgba(51,65,85,.8);border-color:#0ea5e9;color:#f1f5f9}
-    .btn-premium{background:linear-gradient(45deg,#0ea5e9,#3b82f6);border:none;color:#fff;font-weight:600}
-    .btn-premium:hover{background:linear-gradient(45deg,#0284c7,#2563eb);color:#fff}
-    .residence-section{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);border-radius:8px;padding:16px;margin:12px 0}
-    .residence-title{color:#22c55e;font-weight:600;font-size:.9rem;margin-bottom:12px}
     .ocr-minimal{background:none;padding:0;display:flex;gap:8px;margin-bottom:8px}
     .ocr-minimal label{background:rgba(22,22,22,0.2);border:1px solid #334155;color:#e2e8f0;padding:8px 16px;border-radius:8px;cursor:pointer;transition:.2s;display:flex;align-items:center;font-size:.95em;font-weight:500;}
     .ocr-minimal label:hover{background:rgba(59,130,246,0.15);color:#38bdf8;border-color:#0ea5e9;}
@@ -47,13 +40,11 @@
     <!-- AUTISTA 1 -->
     <div class="glass-card p-4 mb-4 driver-card required">
       <h5 class="fw-bold text-white mb-3"><span class="badge bg-warning text-dark me-2">1</span> Autista principale</h5>
-
-      <!-- SEZIONE OCR MINIMAL -->
-      <div class="ocr-minimal">
+      <div class="ocr-minimal mb-4">
         <span class="text-white-50 small fw-semibold">Scansione rapida:</span>
         <label for="ocr-patente-1"><i class="fas fa-id-card me-1"></i>Patente</label>
-        <label for="ocr-carta-1"><i class="fas fa-address-card me-1"></i>Carta</label>
-        <label for="ocr-tessera-1"><i class="fas fa-credit-card me-1"></i>Tessera</label>
+        <label for="ocr-carta-1"><i class="fas fa-address-card me-1"></i>Carta d'identità</label>
+        <label for="ocr-tessera-1"><i class="fas fa-credit-card me-1"></i>Tessera sanitaria</label>
       </div>
       <input type="file" id="ocr-patente-1" accept="image/*" capture="environment" style="display:none">
       <input type="file" id="ocr-carta-1" accept="image/*" capture="environment" style="display:none">
@@ -62,4 +53,184 @@
       <div id="ocr-loader-1" class="mt-2 text-info" style="display:none"><div class="spinner-border spinner-border-sm me-2"></div>Scansione...</div>
       <div id="ocr-success-1" class="alert alert-success mt-2 mb-0" style="display:none"></div>
       <div id="ocr-error-1" class="alert alert-danger mt-2 mb-0" style="display:none"></div>
-      <!-- resto della card e form invariato... -->
+      <form id="driver-form-1" autocomplete="off">
+        <div class="row gy-3 mt-1">
+          <div class="col-md-6"><label class="form-label">Nome</label><input class="form-control form-control-modern" type="text" id="nome-1" required placeholder="Mario"></div>
+          <div class="col-md-6"><label class="form-label">Cognome</label><input class="form-control form-control-modern" type="text" id="cognome-1" required placeholder="Rossi"></div>
+          <div class="col-md-6"><label class="form-label">Codice Fiscale</label><input class="form-control form-control-modern" type="text" id="cf-1" required maxlength="16" placeholder="RSSMRA80A12H501L"></div>
+          <div class="col-md-6"><label class="form-label">Cellulare</label><input class="form-control form-control-modern" type="tel" id="cell-1" placeholder="+39..." required></div>
+          <div class="col-md-6"><label class="form-label">Data di nascita</label><input type="date" class="form-control form-control-modern" id="nascita-1" required></div>
+          <div class="col-md-6"><label class="form-label">Luogo di nascita</label><input class="form-control form-control-modern" type="text" id="luogo-1" required placeholder="Comune (PR)"></div>
+          <div class="col-md-6"><label class="form-label">Numero Patente</label><input class="form-control form-control-modern" type="text" id="patente-1" required placeholder="..." autocomplete="off"></div>
+          <div class="col-md-6"><label class="form-label">Data rilascio patente</label><input type="date" class="form-control form-control-modern" id="rilascio-1" required></div>
+          <div class="col-md-6"><label class="form-label">Data scadenza patente</label><input type="date" class="form-control form-control-modern" id="scadenza-1" required></div>
+          <div class="col-md-8"><label class="form-label">Residenza</label><input class="form-control form-control-modern" id="residenza-1" placeholder="Via/Piazza, n°, Comune, (PR)"></div>
+        </div>
+      </form>
+    </div>
+    <!-- AUTISTA 2 -->
+    <div class="glass-card p-4 mb-4 driver-card">
+      <h5 class="fw-bold text-white mb-3"><span class="badge bg-secondary text-light me-2">2</span> Autista secondario (opzionale)</h5>
+      <div class="ocr-minimal mb-4">
+        <span class="text-white-50 small fw-semibold">Scansione rapida:</span>
+        <label for="ocr-patente-2"><i class="fas fa-id-card me-1"></i>Patente</label>
+        <label for="ocr-carta-2"><i class="fas fa-address-card me-1"></i>Carta d'identità</label>
+        <label for="ocr-tessera-2"><i class="fas fa-credit-card me-1"></i>Tessera sanitaria</label>
+      </div>
+      <input type="file" id="ocr-patente-2" accept="image/*" capture="environment" style="display:none">
+      <input type="file" id="ocr-carta-2" accept="image/*" capture="environment" style="display:none">
+      <input type="file" id="ocr-tessera-2" accept="image/*" capture="environment" style="display:none">
+      <div id="ocr-preview-2" class="mt-2"></div>
+      <div id="ocr-loader-2" class="mt-2 text-info" style="display:none"><div class="spinner-border spinner-border-sm me-2"></div>Scansione...</div>
+      <div id="ocr-success-2" class="alert alert-success mt-2 mb-0" style="display:none"></div>
+      <div id="ocr-error-2" class="alert alert-danger mt-2 mb-0" style="display:none"></div>
+      <form id="driver-form-2" autocomplete="off">
+        <div class="row gy-3 mt-1">
+          <div class="col-md-6"><label class="form-label">Nome</label><input class="form-control form-control-modern" type="text" id="nome-2" placeholder="Mario"></div>
+          <div class="col-md-6"><label class="form-label">Cognome</label><input class="form-control form-control-modern" type="text" id="cognome-2" placeholder="Rossi"></div>
+          <div class="col-md-6"><label class="form-label">Codice Fiscale</label><input class="form-control form-control-modern" type="text" id="cf-2" maxlength="16" placeholder="RSSMRA80A12H501L"></div>
+          <div class="col-md-6"><label class="form-label">Cellulare</label><input class="form-control form-control-modern" type="tel" id="cell-2" placeholder="+39..."></div>
+          <div class="col-md-6"><label class="form-label">Data di nascita</label><input type="date" class="form-control form-control-modern" id="nascita-2"></div>
+          <div class="col-md-6"><label class="form-label">Luogo di nascita</label><input class="form-control form-control-modern" type="text" id="luogo-2" placeholder="Comune (PR)"></div>
+          <div class="col-md-6"><label class="form-label">Numero Patente</label><input class="form-control form-control-modern" type="text" id="patente-2" placeholder="..." autocomplete="off"></div>
+          <div class="col-md-6"><label class="form-label">Data rilascio patente</label><input type="date" class="form-control form-control-modern" id="rilascio-2"></div>
+          <div class="col-md-6"><label class="form-label">Data scadenza patente</label><input type="date" class="form-control form-control-modern" id="scadenza-2"></div>
+          <div class="col-md-8"><label class="form-label">Residenza</label><input class="form-control form-control-modern" id="residenza-2" placeholder="Via/Piazza, n°, Comune, (PR)"></div>
+        </div>
+      </form>
+    </div>
+    <!-- AUTISTA 3 -->
+    <div class="glass-card p-4 mb-4 driver-card">
+      <h5 class="fw-bold text-white mb-3"><span class="badge bg-secondary text-light me-2">3</span> Autista aggiuntivo (opzionale)</h5>
+      <div class="ocr-minimal mb-4">
+        <span class="text-white-50 small fw-semibold">Scansione rapida:</span>
+        <label for="ocr-patente-3"><i class="fas fa-id-card me-1"></i>Patente</label>
+        <label for="ocr-carta-3"><i class="fas fa-address-card me-1"></i>Carta d'identità</label>
+        <label for="ocr-tessera-3"><i class="fas fa-credit-card me-1"></i>Tessera sanitaria</label>
+      </div>
+      <input type="file" id="ocr-patente-3" accept="image/*" capture="environment" style="display:none">
+      <input type="file" id="ocr-carta-3" accept="image/*" capture="environment" style="display:none">
+      <input type="file" id="ocr-tessera-3" accept="image/*" capture="environment" style="display:none">
+      <div id="ocr-preview-3" class="mt-2"></div>
+      <div id="ocr-loader-3" class="mt-2 text-info" style="display:none"><div class="spinner-border spinner-border-sm me-2"></div>Scansione...</div>
+      <div id="ocr-success-3" class="alert alert-success mt-2 mb-0" style="display:none"></div>
+      <div id="ocr-error-3" class="alert alert-danger mt-2 mb-0" style="display:none"></div>
+      <form id="driver-form-3" autocomplete="off">
+        <div class="row gy-3 mt-1">
+          <div class="col-md-6"><label class="form-label">Nome</label><input class="form-control form-control-modern" type="text" id="nome-3" placeholder="Mario"></div>
+          <div class="col-md-6"><label class="form-label">Cognome</label><input class="form-control form-control-modern" type="text" id="cognome-3" placeholder="Rossi"></div>
+          <div class="col-md-6"><label class="form-label">Codice Fiscale</label><input class="form-control form-control-modern" type="text" id="cf-3" maxlength="16" placeholder="RSSMRA80A12H501L"></div>
+          <div class="col-md-6"><label class="form-label">Cellulare</label><input class="form-control form-control-modern" type="tel" id="cell-3" placeholder="+39..."></div>
+          <div class="col-md-6"><label class="form-label">Data di nascita</label><input type="date" class="form-control form-control-modern" id="nascita-3"></div>
+          <div class="col-md-6"><label class="form-label">Luogo di nascita</label><input class="form-control form-control-modern" type="text" id="luogo-3" placeholder="Comune (PR)"></div>
+          <div class="col-md-6"><label class="form-label">Numero Patente</label><input class="form-control form-control-modern" type="text" id="patente-3" placeholder="..." autocomplete="off"></div>
+          <div class="col-md-6"><label class="form-label">Data rilascio patente</label><input type="date" class="form-control form-control-modern" id="rilascio-3"></div>
+          <div class="col-md-6"><label class="form-label">Data scadenza patente</label><input type="date" class="form-control form-control-modern" id="scadenza-3"></div>
+          <div class="col-md-8"><label class="form-label">Residenza</label><input class="form-control form-control-modern" id="residenza-3" placeholder="Via/Piazza, n°, Comune, (PR)"></div>
+        </div>
+      </form>
+    </div>
+    <!-- Footer -->
+    <div class="text-end">
+      <button id="prosegui-btn" class="btn btn-premium px-4 py-2"><i class="fas fa-arrow-right me-2"></i>Procedi al riepilogo</button>
+    </div>
+    <!-- Toast per notifiche -->
+    <div id="toast-container" class="position-fixed top-0 end-0 p-3" style="z-index:1055;"></div>
+  </div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="config.js"></script>
+<script src="shared-utils.js"></script>
+<script>
+// --- JavaScript completato e validato ---
+const DRIVERS = [1,2,3];
+function bindUI() {
+  document.getElementById('back-btn').onclick = ()=>history.back();
+  document.getElementById('prosegui-btn').onclick = onSubmit;
+  DRIVERS.forEach(i=>{
+    ['patente', 'carta', 'tessera'].forEach(tipo=>{
+      const input=document.getElementById(`ocr-${tipo}-${i}`);
+      const label=document.querySelector(`label[for='ocr-${tipo}-${i}']`);
+      if(input && label){
+        label.onclick=()=>input.click();
+        input.onchange=e=>handleOCRScan(i, tipo, e);
+      }
+    });
+  });
+}
+function renderSummary() {
+  document.getElementById('summary').innerHTML = `<div class='text-white'><strong>Attenzione:</strong> Compila almeno i dati dell'autista principale. Usa le card successive per aggiungere autisti extra.</div>`;
+}
+function prefillDriver(i, data) {
+  if(!data) return;
+  for(const key in data) {
+    if(document.getElementById(`${key}-${i}`) && data[key])
+      document.getElementById(`${key}-${i}`).value = data[key];
+  }
+}
+function analyzeFieldsAutista(i) {
+  const id = `${i}`;
+  let missing = [];
+  ['nome','cognome','cf','cell','nascita','luogo','patente','rilascio','scadenza','residenza']
+    .forEach(f=>{if(!document.getElementById(f+'-'+id).value) missing.push(f);});
+  return missing;
+}
+function showMissingFieldsGuided(i) {
+  const missing = analyzeFieldsAutista(i);
+  if(missing.length>0) {
+    showToast(`Compilare tutti i campi. Mancano: ${missing.join(', ')}`,'warning',5000);
+    return false;
+  }
+  return true;
+}
+function onSubmit() {
+  if(!showMissingFieldsGuided(1)) return;
+  //Basta validare l'autista1, gli altri sono opzionali!
+  showToast('Dati validati correttamente! Proseguo...','success',3500);
+  setTimeout(()=>{
+    window.location.href = 'riepilogo.html';
+  }, 800);
+}
+function handleOCRScan(i, tipo, e) {
+  const input = e.target;
+  if(!input.files.length) return;
+  const loader = document.getElementById('ocr-loader-'+i);
+  const successDiv = document.getElementById('ocr-success-'+i);
+  const errorDiv = document.getElementById('ocr-error-'+i);
+  loader.style.display='block'; successDiv.style.display='none'; errorDiv.style.display='none';
+  fileToBase64(input.files[0], (base64)=>{
+    api.securePost('ocrDocument', { image: base64, autista: i, tipoDocumento: tipo })
+     .then(res=>{
+       loader.style.display='none';
+       if(res && res.success) {
+         prefillDriver(i, mergeFieldsSafe(res.data));
+         successDiv.textContent = 'Dati riconosciuti con successo!';
+         successDiv.style.display='block';
+       } else {
+         errorDiv.textContent = (res && res.message) ? res.message : 'Documento non riconosciuto.';
+         errorDiv.style.display='block';
+       }
+     })
+     .catch(()=>{ loader.style.display='none'; errorDiv.textContent='Errore servizio OCR.'; errorDiv.style.display='block'; });
+  });
+}
+function mergeFieldsSafe(fields) {
+  // Ci assicuriamo che le chiavi tornino match con i campi form
+  const mapping = { codiceFiscale:'cf', nome:'nome', cognome:'cognome', dataNascita:'nascita', luogoNascita:'luogo', numeroPatente:'patente', dataInizioPatente:'rilascio', scadenzaPatente:'scadenza', comuneResidenza:'residenza', viaResidenza:'', civicoResidenza:'' };
+  let mapped = {};
+  for(const key in mapping){ if(fields[key]) mapped[mapping[key]]=fields[key]; }
+  return mapped;
+}
+function fileToBase64(file, cb) {
+  const reader = new FileReader();
+  reader.onload = ()=>cb(reader.result.split(',')[1]);
+  reader.onerror = ()=>cb('');
+  reader.readAsDataURL(file);
+}
+document.addEventListener('DOMContentLoaded', ()=>{
+  renderSummary();
+  bindUI();
+});
+</script>
+</body>
+</html>
