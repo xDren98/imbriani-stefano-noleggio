@@ -1,5 +1,4 @@
-
-// admin-prenotazioni.js v3.10 - Card cliccabile + Modifica/Elimina con API reali
+// admin-prenotazioni.js v3.11 - Card cliccabile + Modale Modifica Funzionante!
 (function(){
   const STATI_TABELLA = ['Tutte', 'In attesa', 'Programmata', 'In corso', 'Completata'];
   const STATI_COLORI = {
@@ -615,17 +614,349 @@
     }
   };
 
-  // FUNZIONE MODIFICA - Placeholder per form modale
+  // FUNZIONE MODIFICA COMPLETA - Modale con form editabile
   window.modificaPrenotazione = async function(idPrenotazione) {
     const prenotazione = allPrenotazioni.find(p => (p.idPrenotazione || p.id) === idPrenotazione);
     if (!prenotazione) {
       window.showToast('❌ Prenotazione non trovata', 'error');
       return;
     }
+
+    const p = prenotazione;
     
-    // TODO: Implementare modale modifica con form completo
-    window.showToast('⚙️ Funzione modifica in sviluppo - Form modale in arrivo', 'info');
-    console.log('[MODIFICA] Prenotazione da modificare:', prenotazione);
+    // Crea modale modifica se non esiste
+    let modalModifica = document.getElementById('modificaPrenotazioneModal');
+    if (!modalModifica) {
+      modalModifica = document.createElement('div');
+      modalModifica.id = 'modificaPrenotazioneModal';
+      modalModifica.className = 'modal fade';
+      modalModifica.tabIndex = -1;
+      document.body.appendChild(modalModifica);
+    }
+
+    // Formatta date per input date (YYYY-MM-DD)
+    const formatDateForInput = (dateStr) => {
+      if (!dateStr) return '';
+      // Se già in formato YYYY-MM-DD, restituiscilo
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+      // Altrimenti prova a parsarlo
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return '';
+      return date.toISOString().split('T')[0];
+    };
+
+    modalModifica.innerHTML = `
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header bg-warning text-dark">
+            <h5 class="modal-title">
+              <i class="fas fa-edit me-2"></i>Modifica Prenotazione #${p.idPrenotazione || p.id}
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          
+          <div class="modal-body">
+            <form id="formModificaPrenotazione">
+              
+              <!-- Veicolo e Periodo -->
+              <div class="card mb-3">
+                <div class="card-header bg-primary text-white">
+                  <i class="fas fa-car me-2"></i>Veicolo e Periodo
+                </div>
+                <div class="card-body">
+                  <div class="row g-3">
+                    <div class="col-md-4">
+                      <label class="form-label fw-semibold">Targa Veicolo <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control" id="edit-targa" value="${p.targa || ''}" required>
+                    </div>
+                    
+                    <div class="col-md-4">
+                      <label class="form-label fw-semibold">Data Inizio <span class="text-danger">*</span></label>
+                      <input type="date" class="form-control" id="edit-dataInizio" 
+                             value="${formatDateForInput(p.giornoInizio)}" required>
+                    </div>
+                    
+                    <div class="col-md-4">
+                      <label class="form-label fw-semibold">Ora Inizio</label>
+                      <input type="time" class="form-control" id="edit-oraInizio" value="${p.oraInizio || ''}">
+                    </div>
+                    
+                    <div class="col-md-4">
+                      <label class="form-label fw-semibold">Data Fine <span class="text-danger">*</span></label>
+                      <input type="date" class="form-control" id="edit-dataFine" 
+                             value="${formatDateForInput(p.giornoFine)}" required>
+                    </div>
+                    
+                    <div class="col-md-4">
+                      <label class="form-label fw-semibold">Ora Fine</label>
+                      <input type="time" class="form-control" id="edit-oraFine" value="${p.oraFine || ''}">
+                    </div>
+                    
+                    <div class="col-md-4">
+                      <label class="form-label fw-semibold">Stato</label>
+                      <select class="form-select" id="edit-stato" required>
+                        <option value="In attesa" ${p.stato === 'In attesa' ? 'selected' : ''}>In attesa</option>
+                        <option value="Confermata" ${p.stato === 'Confermata' ? 'selected' : ''}>Confermata</option>
+                        <option value="Programmata" ${p.stato === 'Programmata' ? 'selected' : ''}>Programmata</option>
+                        <option value="In corso" ${p.stato === 'In corso' ? 'selected' : ''}>In corso</option>
+                        <option value="Completata" ${p.stato === 'Completata' ? 'selected' : ''}>Completata</option>
+                        <option value="Rifiutata" ${p.stato === 'Rifiutata' ? 'selected' : ''}>Rifiutata</option>
+                      </select>
+                    </div>
+                    
+                    <div class="col-md-8">
+                      <label class="form-label fw-semibold">Destinazione</label>
+                      <input type="text" class="form-control" id="edit-destinazione" 
+                             value="${p.destinazione || ''}" placeholder="Città o luogo di destinazione">
+                    </div>
+                    
+                    <div class="col-md-4">
+                      <label class="form-label fw-semibold">Importo Preventivo (€)</label>
+                      <input type="number" step="0.01" class="form-control" id="edit-importo" 
+                             value="${p.importoPreventivo || ''}" placeholder="0.00">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Primo Autista -->
+              <div class="card mb-3">
+                <div class="card-header bg-success text-white">
+                  <i class="fas fa-user me-2"></i>Primo Autista (Principale)
+                </div>
+                <div class="card-body">
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label class="form-label fw-semibold">Nome Completo <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control" id="edit-nomeAutista1" 
+                             value="${p.nomeAutista1 || ''}" required>
+                    </div>
+                    
+                    <div class="col-md-6">
+                      <label class="form-label fw-semibold">Codice Fiscale <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control" id="edit-cfAutista1" 
+                             value="${p.codiceFiscaleAutista1 || ''}" maxlength="16" required>
+                    </div>
+                    
+                    <div class="col-md-4">
+                      <label class="form-label fw-semibold">Data Nascita</label>
+                      <input type="date" class="form-control" id="edit-dataNascitaAutista1" 
+                             value="${formatDateForInput(p.dataNascitaAutista1)}">
+                    </div>
+                    
+                    <div class="col-md-4">
+                      <label class="form-label fw-semibold">Luogo Nascita</label>
+                      <input type="text" class="form-control" id="edit-luogoNascitaAutista1" 
+                             value="${p.luogoNascitaAutista1 || ''}">
+                    </div>
+                    
+                    <div class="col-md-4">
+                      <label class="form-label fw-semibold">Numero Patente</label>
+                      <input type="text" class="form-control" id="edit-patenteAutista1" 
+                             value="${p.numeroPatenteAutista1 || ''}">
+                    </div>
+                    
+                    <div class="col-md-4">
+                      <label class="form-label fw-semibold">Scadenza Patente</label>
+                      <input type="date" class="form-control" id="edit-scadenzaPatenteAutista1" 
+                             value="${formatDateForInput(p.scadenzaPatenteAutista1)}">
+                    </div>
+                    
+                    <div class="col-md-4">
+                      <label class="form-label fw-semibold">Cellulare <span class="text-danger">*</span></label>
+                      <input type="tel" class="form-control" id="edit-cellulare" 
+                             value="${p.cellulare || ''}" required>
+                    </div>
+                    
+                    <div class="col-md-4">
+                      <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
+                      <input type="email" class="form-control" id="edit-email" 
+                             value="${p.email || ''}" required>
+                    </div>
+                    
+                    <div class="col-md-6">
+                      <label class="form-label fw-semibold">Comune Residenza</label>
+                      <input type="text" class="form-control" id="edit-comuneResAutista1" 
+                             value="${p.comuneResidenzaAutista1 || ''}">
+                    </div>
+                    
+                    <div class="col-md-4">
+                      <label class="form-label fw-semibold">Via Residenza</label>
+                      <input type="text" class="form-control" id="edit-viaResAutista1" 
+                             value="${p.viaResidenzaAutista1 || ''}">
+                    </div>
+                    
+                    <div class="col-md-2">
+                      <label class="form-label fw-semibold">Civico</label>
+                      <input type="text" class="form-control" id="edit-civicoResAutista1" 
+                             value="${p.civicoResidenzaAutista1 || ''}">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Secondo Autista (Opzionale) -->
+              <div class="card mb-3">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                  <span><i class="fas fa-user me-2"></i>Secondo Autista (Opzionale)</span>
+                  <button type="button" class="btn btn-sm btn-light" onclick="document.getElementById('secondoAutistaFields').classList.toggle('d-none')">
+                    <i class="fas fa-chevron-down"></i>
+                  </button>
+                </div>
+                <div class="card-body ${p.nomeAutista2 ? '' : 'd-none'}" id="secondoAutistaFields">
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label class="form-label fw-semibold">Nome Completo</label>
+                      <input type="text" class="form-control" id="edit-nomeAutista2" 
+                             value="${p.nomeAutista2 || ''}">
+                    </div>
+                    
+                    <div class="col-md-6">
+                      <label class="form-label fw-semibold">Codice Fiscale</label>
+                      <input type="text" class="form-control" id="edit-cfAutista2" 
+                             value="${p.codiceFiscaleAutista2 || ''}" maxlength="16">
+                    </div>
+                    
+                    <div class="col-md-6">
+                      <label class="form-label fw-semibold">Numero Patente</label>
+                      <input type="text" class="form-control" id="edit-patenteAutista2" 
+                             value="${p.numeroPatenteAutista2 || ''}">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Terzo Autista (Opzionale) -->
+              <div class="card mb-3">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                  <span><i class="fas fa-user me-2"></i>Terzo Autista (Opzionale)</span>
+                  <button type="button" class="btn btn-sm btn-light" onclick="document.getElementById('terzoAutistaFields').classList.toggle('d-none')">
+                    <i class="fas fa-chevron-down"></i>
+                  </button>
+                </div>
+                <div class="card-body ${p.nomeAutista3 ? '' : 'd-none'}" id="terzoAutistaFields">
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label class="form-label fw-semibold">Nome Completo</label>
+                      <input type="text" class="form-control" id="edit-nomeAutista3" 
+                             value="${p.nomeAutista3 || ''}">
+                    </div>
+                    
+                    <div class="col-md-6">
+                      <label class="form-label fw-semibold">Codice Fiscale</label>
+                      <input type="text" class="form-control" id="edit-cfAutista3" 
+                             value="${p.codiceFiscaleAutista3 || ''}" maxlength="16">
+                    </div>
+                    
+                    <div class="col-md-6">
+                      <label class="form-label fw-semibold">Numero Patente</label>
+                      <input type="text" class="form-control" id="edit-patenteAutista3" 
+                             value="${p.numeroPatenteAutista3 || ''}">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </form>
+          </div>
+          
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+              <i class="fas fa-times me-2"></i>Annulla
+            </button>
+            <button type="button" class="btn btn-success" onclick="window.salvaModificaPrenotazione('${p.idPrenotazione || p.id}')">
+              <i class="fas fa-save me-2"></i>Salva Modifiche
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const bsModal = new bootstrap.Modal(modalModifica);
+    bsModal.show();
+    
+    // Chiudi modale dettaglio se aperto
+    const modalDettaglio = document.getElementById('dettaglioPrenotazioneModal');
+    if (modalDettaglio) {
+      const bsModalDettaglio = bootstrap.Modal.getInstance(modalDettaglio);
+      if (bsModalDettaglio) bsModalDettaglio.hide();
+    }
+  };
+
+  // FUNZIONE SALVA MODIFICHE - Invia dati modificati al backend
+  window.salvaModificaPrenotazione = async function(idPrenotazione) {
+    const form = document.getElementById('formModificaPrenotazione');
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      window.showToast('⚠️ Compila tutti i campi obbligatori', 'warning');
+      return;
+    }
+
+    // Raccogli dati dal form
+    const datiModificati = {
+      idPrenotazione: idPrenotazione,
+      
+      // Veicolo e periodo
+      targa: document.getElementById('edit-targa').value.trim(),
+      giornoInizio: document.getElementById('edit-dataInizio').value,
+      oraInizio: document.getElementById('edit-oraInizio').value,
+      giornoFine: document.getElementById('edit-dataFine').value,
+      oraFine: document.getElementById('edit-oraFine').value,
+      stato: document.getElementById('edit-stato').value,
+      destinazione: document.getElementById('edit-destinazione').value.trim(),
+      importoPreventivo: document.getElementById('edit-importo').value,
+      
+      // Primo autista
+      nomeAutista1: document.getElementById('edit-nomeAutista1').value.trim(),
+      codiceFiscaleAutista1: document.getElementById('edit-cfAutista1').value.trim().toUpperCase(),
+      dataNascitaAutista1: document.getElementById('edit-dataNascitaAutista1').value,
+      luogoNascitaAutista1: document.getElementById('edit-luogoNascitaAutista1').value.trim(),
+      numeroPatenteAutista1: document.getElementById('edit-patenteAutista1').value.trim(),
+      scadenzaPatenteAutista1: document.getElementById('edit-scadenzaPatenteAutista1').value,
+      cellulare: document.getElementById('edit-cellulare').value.trim(),
+      email: document.getElementById('edit-email').value.trim(),
+      comuneResidenzaAutista1: document.getElementById('edit-comuneResAutista1').value.trim(),
+      viaResidenzaAutista1: document.getElementById('edit-viaResAutista1').value.trim(),
+      civicoResidenzaAutista1: document.getElementById('edit-civicoResAutista1').value.trim(),
+      
+      // Secondo autista (se compilato)
+      nomeAutista2: document.getElementById('edit-nomeAutista2').value.trim(),
+      codiceFiscaleAutista2: document.getElementById('edit-cfAutista2').value.trim().toUpperCase(),
+      numeroPatenteAutista2: document.getElementById('edit-patenteAutista2').value.trim(),
+      
+      // Terzo autista (se compilato)
+      nomeAutista3: document.getElementById('edit-nomeAutista3').value.trim(),
+      codiceFiscaleAutista3: document.getElementById('edit-cfAutista3').value.trim().toUpperCase(),
+      numeroPatenteAutista3: document.getElementById('edit-patenteAutista3').value.trim()
+    };
+
+    try {
+      window.showLoader?.(true, 'Salvataggio modifiche in corso...');
+      
+      // Chiamata API backend
+      const response = await window.securePost?.('modificaPrenotazione', datiModificati);
+      
+      if (response?.success) {
+        window.showToast('✅ Prenotazione modificata con successo!', 'success');
+        
+        // Chiudi modale
+        const modal = document.getElementById('modificaPrenotazioneModal');
+        if (modal) {
+          const bsModal = bootstrap.Modal.getInstance(modal);
+          if (bsModal) bsModal.hide();
+        }
+        
+        // Ricarica prenotazioni
+        await caricaPrenotazioni();
+      } else {
+        throw new Error(response?.message || 'Errore durante il salvataggio');
+      }
+    } catch (error) {
+      console.error('[SALVA MODIFICA] Errore:', error);
+      window.showToast(`❌ Errore salvataggio: ${error.message}`, 'error');
+    } finally {
+      window.showLoader?.(false);
+    }
   };
 
   window.cambiaStatoPrenotazione = async function(idPrenotazione, nuovoStato) {
@@ -671,5 +1002,5 @@
   window.renderPrenotazioniCard = renderPrenotazioniCard;
   window.renderPrenotazioniTable = renderPrenotazioniTable;
 
-  console.log('[ADMIN-PRENOTAZIONI] v3.10 loaded - Card cliccabile + Modifica/Elimina con API reali! 🚀');
+  console.log('[ADMIN-PRENOTAZIONI] v3.11 loaded - Modale Modifica Completo Funzionante! 🎉✨');
 })();
