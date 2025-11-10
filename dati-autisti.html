@@ -182,32 +182,32 @@ function showMissingFieldsGuided(i) {
 }
 function onSubmit() {
   if(!showMissingFieldsGuided(1)) return;
-  //Basta validare l'autista1, gli altri sono opzionali!
-  // Salva tutto su sessionStorage per riepilogo.html
-  const datiAutisti = {
+  // Salva tutto su localStorage per riepilogo-prenotazione.html
+  const driversData = {
     autista1: getDriver(1),
     autista2: getDriver(2),
     autista3: getDriver(3)
   };
-  sessionStorage.setItem('datiAutisti', JSON.stringify(datiAutisti));
+  localStorage.setItem('imbriani_drivers', JSON.stringify(driversData));
   showToast('Dati validati correttamente! Proseguo...','success',3500);
   setTimeout(()=>{
-    window.location.href = 'riepilogo.html';
+    window.location.href = 'riepilogo-prenotazione.html';
   }, 800);
 }
 function getDriver(i) {
   const id = `${i}`;
   return {
+    nomeCompleto: document.getElementById('nome-'+id).value + ' ' + document.getElementById('cognome-'+id).value,
     nome: document.getElementById('nome-'+id).value,
     cognome: document.getElementById('cognome-'+id).value,
-    cf: document.getElementById('cf-'+id).value,
+    codiceFiscale: document.getElementById('cf-'+id).value,
     cell: document.getElementById('cell-'+id).value,
-    nascita: document.getElementById('nascita-'+id).value,
-    luogo: document.getElementById('luogo-'+id).value,
-    patente: document.getElementById('patente-'+id).value,
-    rilascio: document.getElementById('rilascio-'+id).value,
-    scadenza: document.getElementById('scadenza-'+id).value,
-    residenza: document.getElementById('residenza-'+id).value
+    dataNascita: document.getElementById('nascita-'+id).value,
+    luogoNascita: document.getElementById('luogo-'+id).value,
+    numeroPatente: document.getElementById('patente-'+id).value,
+    inizioValiditaPatente: document.getElementById('rilascio-'+id).value,
+    scadenzaPatente: document.getElementById('scadenza-'+id).value,
+    comuneResidenza: document.getElementById('residenza-'+id).value // adattamento rapido
   };
 }
 function handleOCRScan(i, tipo, e) {
@@ -248,22 +248,32 @@ function fileToBase64(file, cb) {
 document.addEventListener('DOMContentLoaded', ()=>{
   renderSummary();
   bindUI();
-  // --- Autofill automatico da user loggato ---
   let user = sessionStorage.getItem('userData');
   if (user) {
     user = JSON.parse(user);
+    function toISO(dateStr) {
+      if(!dateStr) return '';
+      const parts = dateStr.split(/[\/-]/);
+      if(parts.length === 3) {
+        // Accetta sia GG/MM/AAAA che AAAA-MM-GG
+        if(parts[2].length === 4) return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+        if(parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
+      }
+      return dateStr;
+    }
     prefillDriver(1, {
       nome: user.nome,
       cognome: user.nomeCompleto && user.nomeCompleto.split(' ').length > 1 ? user.nomeCompleto.split(' ')[1] : '',
       cf: user.codiceFiscale,
       cell: user.cellulare,
-      nascita: user.dataNascitaFormatted,
+      nascita: toISO(user.dataNascitaFormatted||user.dataNascita),
       luogo: user.luogoNascita,
       patente: user.numeroPatente,
-      rilascio: user.inizioValiditaPatenteFormatted,
-      scadenza: user.scadenzaPatenteFormatted,
-      residenza: (user.viaResidenza||'') + ' ' + (user.civicoResidenza||'') + ', ' + (user.comuneResidenza||'')
+      rilascio: toISO(user.inizioValiditaPatenteFormatted||user.inizioValiditaPatente),
+      scadenza: toISO(user.scadenzaPatenteFormatted||user.scadenzaPatente),
+      residenza: [user.viaResidenza, user.civicoResidenza, user.comuneResidenza].filter(Boolean).join(' ')
     });
+    if(window.showToast) showToast('Dati del profilo cliente importati!','success');
   }
 });
 </script>
