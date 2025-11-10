@@ -884,7 +884,7 @@
   };
 
   // FUNZIONE SALVA MODIFICHE - Invia dati modificati al backend
-  window.salvaModificaPrenotazione = async function(idPrenotazione) {
+ window.salvaModificaPrenotazione = async function(idPrenotazione) {
     const form = document.getElementById('formModificaPrenotazione');
     if (!form.checkValidity()) {
       form.reportValidity();
@@ -895,8 +895,6 @@
     // Raccogli dati dal form
     const datiModificati = {
       idPrenotazione: idPrenotazione,
-      
-      // Veicolo e periodo
       targa: document.getElementById('edit-targa').value.trim(),
       giornoInizio: document.getElementById('edit-dataInizio').value,
       oraInizio: document.getElementById('edit-oraInizio').value,
@@ -905,8 +903,6 @@
       stato: document.getElementById('edit-stato').value,
       destinazione: document.getElementById('edit-destinazione').value.trim(),
       importoPreventivo: document.getElementById('edit-importo').value,
-      
-      // Primo autista
       nomeAutista1: document.getElementById('edit-nomeAutista1').value.trim(),
       codiceFiscaleAutista1: document.getElementById('edit-cfAutista1').value.trim().toUpperCase(),
       dataNascitaAutista1: document.getElementById('edit-dataNascitaAutista1').value,
@@ -914,21 +910,52 @@
       numeroPatenteAutista1: document.getElementById('edit-patenteAutista1').value.trim(),
       scadenzaPatenteAutista1: document.getElementById('edit-scadenzaPatenteAutista1').value,
       cellulare: document.getElementById('edit-cellulare').value.trim(),
-      email: document.getElementById('edit-email').value.trim(),
+      email: document.getElementById('edit-email').value.trim(), // email NON obbligatoria
       comuneResidenzaAutista1: document.getElementById('edit-comuneResAutista1').value.trim(),
       viaResidenzaAutista1: document.getElementById('edit-viaResAutista1').value.trim(),
       civicoResidenzaAutista1: document.getElementById('edit-civicoResAutista1').value.trim(),
-      
-      // Secondo autista (se compilato)
       nomeAutista2: document.getElementById('edit-nomeAutista2').value.trim(),
       codiceFiscaleAutista2: document.getElementById('edit-cfAutista2').value.trim().toUpperCase(),
       numeroPatenteAutista2: document.getElementById('edit-patenteAutista2').value.trim(),
-      
-      // Terzo autista (se compilato)
       nomeAutista3: document.getElementById('edit-nomeAutista3').value.trim(),
       codiceFiscaleAutista3: document.getElementById('edit-cfAutista3').value.trim().toUpperCase(),
-      numeroPatenteAutista3: document.getElementById('edit-patenteAutista3').value.trim()
+      numeroPatenteAutista3: document.getElementById('edit-patenteAutista3').value.trim(),
     };
+    try {
+      window.showLoader?.(true, 'Salvataggio modifiche in corso...');
+      // Chiamata nuova API backend
+      const response = await window.securePost?.('aggiornaPrenotazioneCompleta', datiModificati);
+      if (response?.success) {
+        window.showToast('✅ Prenotazione modificata con successo!', 'success');
+        const modal = document.getElementById('modificaPrenotazioneModal');
+        if (modal) {
+          const bsModal = bootstrap.Modal.getInstance(modal);
+          if (bsModal) bsModal.hide();
+        }
+        await caricaPrenotazioni();
+      } else {
+        throw new Error(response?.message || 'Errore durante il salvataggio');
+      }
+    } catch (error) {
+      console.error('[SALVA MODIFICA] Errore:', error);
+      window.showToast(`❌ Errore salvataggio: ${error.message}`, 'error');
+    } finally {
+      window.showLoader?.(false);
+    }
+  }
+  // Rendi email non obbligatoria anche lato DOM
+  document.addEventListener('DOMContentLoaded', function() {
+    const observer = new MutationObserver(function(mutations) {
+      for (const m of mutations) {
+        for (const node of m.addedNodes) {
+          if (node.nodeType === 1 && node.querySelector('#edit-email')) {
+            node.querySelector('#edit-email').removeAttribute('required');
+          }
+        }
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
 
     try {
       window.showLoader?.(true, 'Salvataggio modifiche in corso...');
