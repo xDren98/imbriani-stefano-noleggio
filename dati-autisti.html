@@ -6,7 +6,6 @@
   <title>Dati Autisti - Imbriani Stefano Noleggio</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <style>
     body{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);min-height:100vh}
@@ -134,7 +133,6 @@
     <div class="text-end">
       <button id="prosegui-btn" class="btn btn-premium px-4 py-2"><i class="fas fa-arrow-right me-2"></i>Procedi al riepilogo</button>
     </div>
-    <!-- Toast per notifiche -->
     <div id="toast-container" class="position-fixed top-0 end-0 p-3" style="z-index:1055;"></div>
   </div>
 </main>
@@ -142,7 +140,6 @@
 <script src="config.js"></script>
 <script src="shared-utils.js"></script>
 <script>
-// --- JavaScript completato e validato ---
 const DRIVERS = [1,2,3];
 function bindUI() {
   document.getElementById('back-btn').onclick = ()=>history.back();
@@ -186,10 +183,32 @@ function showMissingFieldsGuided(i) {
 function onSubmit() {
   if(!showMissingFieldsGuided(1)) return;
   //Basta validare l'autista1, gli altri sono opzionali!
+  // Salva tutto su sessionStorage per riepilogo.html
+  const datiAutisti = {
+    autista1: getDriver(1),
+    autista2: getDriver(2),
+    autista3: getDriver(3)
+  };
+  sessionStorage.setItem('datiAutisti', JSON.stringify(datiAutisti));
   showToast('Dati validati correttamente! Proseguo...','success',3500);
   setTimeout(()=>{
     window.location.href = 'riepilogo.html';
   }, 800);
+}
+function getDriver(i) {
+  const id = `${i}`;
+  return {
+    nome: document.getElementById('nome-'+id).value,
+    cognome: document.getElementById('cognome-'+id).value,
+    cf: document.getElementById('cf-'+id).value,
+    cell: document.getElementById('cell-'+id).value,
+    nascita: document.getElementById('nascita-'+id).value,
+    luogo: document.getElementById('luogo-'+id).value,
+    patente: document.getElementById('patente-'+id).value,
+    rilascio: document.getElementById('rilascio-'+id).value,
+    scadenza: document.getElementById('scadenza-'+id).value,
+    residenza: document.getElementById('residenza-'+id).value
+  };
 }
 function handleOCRScan(i, tipo, e) {
   const input = e.target;
@@ -215,7 +234,6 @@ function handleOCRScan(i, tipo, e) {
   });
 }
 function mergeFieldsSafe(fields) {
-  // Ci assicuriamo che le chiavi tornino match con i campi form
   const mapping = { codiceFiscale:'cf', nome:'nome', cognome:'cognome', dataNascita:'nascita', luogoNascita:'luogo', numeroPatente:'patente', dataInizioPatente:'rilascio', scadenzaPatente:'scadenza', comuneResidenza:'residenza', viaResidenza:'', civicoResidenza:'' };
   let mapped = {};
   for(const key in mapping){ if(fields[key]) mapped[mapping[key]]=fields[key]; }
@@ -230,6 +248,23 @@ function fileToBase64(file, cb) {
 document.addEventListener('DOMContentLoaded', ()=>{
   renderSummary();
   bindUI();
+  // --- Autofill automatico da user loggato ---
+  let user = sessionStorage.getItem('userData');
+  if (user) {
+    user = JSON.parse(user);
+    prefillDriver(1, {
+      nome: user.nome,
+      cognome: user.nomeCompleto && user.nomeCompleto.split(' ').length > 1 ? user.nomeCompleto.split(' ')[1] : '',
+      cf: user.codiceFiscale,
+      cell: user.cellulare,
+      nascita: user.dataNascitaFormatted,
+      luogo: user.luogoNascita,
+      patente: user.numeroPatente,
+      rilascio: user.inizioValiditaPatenteFormatted,
+      scadenza: user.scadenzaPatenteFormatted,
+      residenza: (user.viaResidenza||'') + ' ' + (user.civicoResidenza||'') + ', ' + (user.comuneResidenza||'')
+    });
+  }
 });
 </script>
 </body>
