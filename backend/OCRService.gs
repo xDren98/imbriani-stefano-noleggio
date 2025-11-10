@@ -1,12 +1,13 @@
 /**
- * SERVIZIO OCR DOCUMENTI AUTISTI - Multi-documento Guidato
+ * SERVIZIO OCR DOCUMENTI AUTISTI - v8.9.6
+ * 
+ * FIX: Ordine corretto patente italiana (1=COGNOME, 2=NOME)
+ * Migliorati pattern estrazione e normalizzazione date
  * 
  * Supporta:
  * - Patente fronte (nome, date, numero, comune nascita)
  * - Carta Identità cartacea/CIE (residenza)
  * - Tessera Sanitaria (CF)
- * 
- * Versione: 2.0.0 - Parser universale multi-documento
  */
 
 function ocrDocument(post) {
@@ -152,7 +153,8 @@ function parseMultiDocument(text, tipoDoc) {
     scadenzaPatente: '',
     comuneResidenza: '',
     viaResidenza: '',
-    civicoResidenza: ''
+    civicoResidenza: '',
+    categorie: ''
   };
   
   Logger.log('[PARSE] Tipo documento: ' + tipoDoc);
@@ -181,68 +183,142 @@ function parseMultiDocument(text, tipoDoc) {
 }
 
 /**
- * Parser specifico PATENTE (formato europeo)
+ * Parser specifico PATENTE ITALIANA (formato europeo)
+ * FIX v8.9.6: Ordine corretto 1=COGNOME, 2=NOME
  */
 function parsePatente(text, result) {
   Logger.log('[PARSE PATENTE] Inizio...');
   
-  var lines = text.split('\n');
+  var lines = text.split('\n').map(function(l) { return l.trim(); });
   
-  // Formato europeo: 1. COGNOME, 2. NOME, 3. DATA/LUOGO
+  // ========================================
+  // 1. COGNOME (campo 1.)
+  // ========================================
+  var cognomeFound = false;
+  
+  // Tentativo 1: Regex su singola riga
   for (var i = 0; i < lines.length; i++) {
-    var line = lines[i].trim();
-    
-    // 1. COGNOME
-    if (line.match(/^1[\.\s]/)) {
-      var cognome = line.replace(/^1[\.\s]+/, '').replace(/COGNOME|SURNAME/i, '').trim();
-      if (cognome) result.cognome = cognome;
+    var match = lines[i].match(/^1[\.\s]+([A-ZÀ-Ù\s]+)$/i);
+    if (match && match[1].length > 1) {
+      result.cognome = match[1].trim();
+      cognomeFound = true;
+      Logger.log('[PATENTE] ✅ Cognome (campo 1): ' + result.cognome);
+      break;
     }
-    
-    // 2. NOME
-    if (line.match(/^2[\.\s]/)) {
-      var nome = line.replace(/^2[\.\s]+/, '').replace(/NOME|NAME/i, '').trim();
-      if (nome) result.nome = nome;
-    }
-    
-    // 3. DATA E LUOGO NASCITA
-    if (line.match(/^3[\.\s]/)) {
-      var nascita = line.replace(/^3[\.\s]+/, '').trim();
-      
-      // Data
-      var dateMatch = nascita.match(/(\d{2})[\/.:\-](\d{2})[\/.:\-](\d{4})/);
-      if (dateMatch) {
-        result.dataNascita = dateMatch[3] + '-' + dateMatch[2] + '-' + dateMatch[1];
-      }
-      
-      // Luogo (dopo la data)
-      var luogoMatch = nascita.match(/\d{4}\s+([A-Z][A-Z\s]+?)(?=\(|$)/);
-      if (luogoMatch) {
-        result.luogoNascita = luogoMatch[1].trim();
+  }
+  
+  // Tentativo 2: Cerca riga che inizia con "1." e prendi contenuto
+  if (!cognomeFound) {
+    for (var i = 0; i < lines.length; i++) {
+      if (lines[i].match(/^1[\.\s]/)) {
+        var cognome = lines[i].replace(/^1[\.\s]+/, '').replace(/COGNOME|SURNAME/gi, '').trim();
+        if (cognome.length > 1 && /^[A-ZÀ-Ù\s]+$/i.test(cognome)) {
+          result.cognome = cognome;
+          cognomeFound = true;
+          Logger.log('[PATENTE] ✅ Cognome (fallback): ' + result.cognome);
+          break;
+        }
       }
     }
   }
   
-  // Nome completo
+  // ========================================
+  // 2. NOME (campo 2.)
+  // ========================================
+  var nomeFound = false;
+  
+  // Tentativo 1: Regex su singola riga
+  for (var i = 0; i < lines.length; i++) {
+    var match = lines[i].match(/^2[\.\s]+([A-ZÀ-Ù\s]+)$/i);
+    if (match && match[1].length > 1) {
+      result.nome = match[1].trim();
+      nomeFound = true;
+      Logger.log('[PATENTE] ✅ Nome (campo 2): ' + result.nome);
+      break;
+    }
+  }
+  
+  // Tentativo 2: Cerca riga che inizia con "2." e prendi contenuto
+  if (!nomeFound) {
+    for (var i = 0; i < lines.length; i++) {
+      if (lines[i].match(/^2[\.\s]/)) {
+        var nome = lines[i].replace(/^2[\.\s]+/, '').replace(/NOME|NAME/gi, '').trim();
+        if (nome.length > 1 && /^[A-ZÀ-Ù\s]+$/i.test(nome)) {
+          result.nome = nome;
+          nomeFound = true;
+          Logger.log('[PATENTE] ✅ Nome (fallback): ' + result.nome);
+          break;
+        }
+      }
+    }
+  }
+  
+  // Nome completo: NOME + COGNOME
   if (result.nome && result.cognome) {
     result.nomeCompleto = result.nome + ' ' + result.cognome;
+    Logger.log('[PATENTE] ✅ Nome completo: ' + result.nomeCompleto);
   }
   
-  // Numero patente (9-10 caratteri alfanumerici)
-  var numPatenteMatch = text.match(/\b([A-Z0-9]{9,10})\b/);
-  if (numPatenteMatch && numPatenteMatch[1] !== result.codiceFiscale) {
-    result.numeroPatente = numPatenteMatch[1];
-    result.numeroDocumento = numPatenteMatch[1];
+  // ========================================
+  // 3. DATA E LUOGO NASCITA (campo 3.)
+  // ========================================
+  var regexData3 = /3[\.\s]+(\d{2}[\/.:\-]?\d{2}[\/.:\-]?\d{2,4})/i;
+  var matchData3 = text.match(regexData3);
+  if (matchData3) {
+    var dataRaw = matchData3[1];
+    result.dataNascita = normalizzaData(dataRaw);
+    Logger.log('[PATENTE] ✅ Data nascita: ' + result.dataNascita);
   }
   
-  // Date validità: 4a. e 4b.
-  var rilascio = text.match(/4a[\.\s]+(\d{2})[\/.:\-](\d{2})[\/.:\-](\d{4})/i);
-  if (rilascio) {
-    result.dataInizioPatente = rilascio[3] + '-' + rilascio[2] + '-' + rilascio[1];
+  // Luogo nascita: dopo la data nel campo 3
+  var regexLuogo = /3[\.\s]+\d{2}[\/.:\-]?\d{2}[\/.:\-]?\d{2,4}\s+([A-ZÀ-Ù\s\(\)]+?)(?=\s+4[ab]|\s+\d{2}[\/.:\-]|\n|$)/i;
+  var matchLuogo = text.match(regexLuogo);
+  if (matchLuogo) {
+    result.luogoNascita = matchLuogo[1].trim();
+    Logger.log('[PATENTE] ✅ Luogo nascita: ' + result.luogoNascita);
   }
   
-  var scadenza = text.match(/4b[\.\s]+(\d{2})[\/.:\-](\d{2})[\/.:\-](\d{4})/i);
-  if (scadenza) {
-    result.scadenzaPatente = scadenza[3] + '-' + scadenza[2] + '-' + scadenza[1];
+  // ========================================
+  // 4a. DATA RILASCIO (campo 4a.)
+  // ========================================
+  var regexRilascio = /4a[\.\s]+(\d{2}[\/.:\-]?\d{2}[\/.:\-]?\d{2,4})/i;
+  var matchRilascio = text.match(regexRilascio);
+  if (matchRilascio) {
+    var dataRaw = matchRilascio[1];
+    result.dataInizioPatente = normalizzaData(dataRaw);
+    Logger.log('[PATENTE] ✅ Data rilascio: ' + result.dataInizioPatente);
+  }
+  
+  // ========================================
+  // 4b. DATA SCADENZA (campo 4b.)
+  // ========================================
+  var regexScadenza = /4b[\.\s]+(\d{2}[\/.:\-]?\d{2}[\/.:\-]?\d{2,4})/i;
+  var matchScadenza = text.match(regexScadenza);
+  if (matchScadenza) {
+    var dataRaw = matchScadenza[1];
+    result.scadenzaPatente = normalizzaData(dataRaw);
+    Logger.log('[PATENTE] ✅ Data scadenza: ' + result.scadenzaPatente);
+  }
+  
+  // ========================================
+  // 5. NUMERO PATENTE (campo 5.)
+  // ========================================
+  var regexNumero = /5[\.\s]+([A-Z0-9]{8,15})/i;
+  var matchNumero = text.match(regexNumero);
+  if (matchNumero) {
+    result.numeroPatente = matchNumero[1].trim();
+    result.numeroDocumento = result.numeroPatente;
+    Logger.log('[PATENTE] ✅ Numero patente: ' + result.numeroPatente);
+  }
+  
+  // ========================================
+  // 9. CATEGORIE PATENTE (campo 9.)
+  // ========================================
+  var regexCategorie = /9[\.\s]+([A-Z\s]+?)(?=\n|$)/i;
+  var matchCategorie = text.match(regexCategorie);
+  if (matchCategorie) {
+    result.categorie = matchCategorie[1].replace(/\s+/g, '').trim();
+    Logger.log('[PATENTE] ✅ Categorie: ' + result.categorie);
   }
   
   Logger.log('[PARSE PATENTE] ✅ Completato');
@@ -322,6 +398,52 @@ function parseTesseraSanitaria(text, result) {
 }
 
 /**
+ * Normalizza data da vari formati a YYYY-MM-DD
+ * Supporta: DD/MM/YY, DD/MM/YYYY, DD-MM-YY, DD.MM.YY
+ * FIX: Gestione anni a 2 cifre (66 -> 1966, 25 -> 2025)
+ */
+function normalizzaData(dataStr) {
+  if (!dataStr) return '';
+  
+  try {
+    // Rimuovi spazi
+    dataStr = String(dataStr).trim();
+    
+    // Rimuovi separatori multipli
+    dataStr = dataStr.replace(/[\/.:\-]+/g, '/');
+    
+    // Split su /
+    var parts = dataStr.split('/');
+    if (parts.length !== 3) return dataStr;
+    
+    var giorno = parseInt(parts[0], 10);
+    var mese = parseInt(parts[1], 10);
+    var anno = parseInt(parts[2], 10);
+    
+    // Fix anno a 2 cifre
+    // Regola: 00-50 -> 2000-2050, 51-99 -> 1951-1999
+    if (anno < 100) {
+      anno = (anno > 50) ? (1900 + anno) : (2000 + anno);
+    }
+    
+    // Valida range
+    if (giorno < 1 || giorno > 31 || mese < 1 || mese > 12 || anno < 1900 || anno > 2100) {
+      Logger.log('[normalizzaData] Data fuori range: ' + dataStr);
+      return dataStr;
+    }
+    
+    // Formatta YYYY-MM-DD
+    var result = anno + '-' + String(mese).padStart(2, '0') + '-' + String(giorno).padStart(2, '0');
+    Logger.log('[normalizzaData] ' + dataStr + ' -> ' + result);
+    return result;
+    
+  } catch (e) {
+    Logger.log('[normalizzaData] Errore: ' + e.message);
+    return dataStr;
+  }
+}
+
+/**
  * Test endpoint OCR
  */
 function testOcrService() {
@@ -329,9 +451,14 @@ function testOcrService() {
   
   return createJsonResponse({
     success: true,
-    message: 'OCR Service Multi-Documento v2.0',
+    message: 'OCR Service v8.9.6 - Italian Driver License Fixed',
     apiKeyConfigured: apiKey ? true : false,
     supportedDocuments: ['patente', 'carta', 'tessera'],
-    endpoint: 'POST /exec?action=ocrDocument'
+    endpoint: 'POST /exec?action=ocrDocument',
+    fixes: [
+      'Correct name/surname order (1=COGNOME, 2=NOME)',
+      'Robust date normalization with 2-digit year support',
+      'Enhanced field extraction with fallback patterns'
+    ]
   });
 }
