@@ -1,10 +1,46 @@
+<!-- dati-autisti.html - OCR Multi-Documento Guidato v2.0 -->
+<!DOCTYPE html>
+<html lang="it" class="h-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dati Autisti - Imbriani Stefano Noleggio</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body{background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);min-height:100vh}
+    .driver-card{border:2px dashed #334155;background:rgba(51,65,85,.35);margin-bottom:2rem}
+    .driver-card.required{border-color:#f59e0b}
+    .glass-card{background:rgba(15,23,42,.8);border:1px solid rgba(148,163,184,.2);border-radius:12px;backdrop-filter:blur(10px)}
+    .form-control-modern{background:rgba(51,65,85,.5);border:1px solid #475569;color:#e2e8f0}
+    .form-control-modern:focus{background:rgba(51,65,85,.8);border-color:#0ea5e9;color:#f1f5f9}
+    .btn-premium{background:linear-gradient(45deg,#0ea5e9,#3b82f6);border:none;color:#fff;font-weight:600}
+    .btn-premium:hover{background:linear-gradient(45deg,#0284c7,#2563eb);color:#fff}
+    .residence-section{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);border-radius:8px;padding:16px;margin:12px 0}
+    .residence-title{color:#22c55e;font-weight:600;font-size:.9rem;margin-bottom:12px}
+    .text-purple-400{color:#c084fc!important}.bg-purple{background-color:#a855f7!important}
+    .ocr-guide-section{animation:fadeInUp .4s ease-out}
+    @keyframes fadeInUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .scan-status .badge{animation:bounceIn .5s ease-out}
+    @keyframes bounceIn{0%{opacity:0;transform:scale(.3)}50%{transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}
+  </style>
+</head>
+<body class="d-flex flex-column h-100">
+<!-- ...rest of the HTML structure as before... -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="config.js"></script>
+<script src="shared-utils.js"></script>
+<script>
+// ...Rest of the script as before...
 function mergeFieldsSafe(n, d) {
   function safeSet(id, value) {
     const el = document.getElementById(id);
     if (el && (!el.value || el.value.trim() === '') && value) {
       el.value = value;
       el.classList.add('bg-success','text-white');
-      el.setAttribute('title', '🟩 Campo compilato da documento!'); // Emoji feedback
+      el.setAttribute('title', '🟩 Campo compilato da documento!');
       setTimeout(()=>{
         el.classList.remove('bg-success','text-white');
         el.setAttribute('title','');
@@ -50,3 +86,7 @@ function showMissingFieldsGuided(n, m, ultimo) {
   a.style.display = 'block';
   setTimeout(() => a.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
 }
+// ...Rest of script and closing </script>, </body>, </html> ...
+</script>
+</body>
+</html>
