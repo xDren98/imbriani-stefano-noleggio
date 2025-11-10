@@ -62,7 +62,9 @@
           <div class="col-md-6"><label class="form-label">Numero Patente</label><input class="form-control form-control-modern" type="text" id="patente-1" required placeholder="..." autocomplete="off"></div>
           <div class="col-md-6"><label class="form-label">Data rilascio patente</label><input type="date" class="form-control form-control-modern" id="rilascio-1" required></div>
           <div class="col-md-6"><label class="form-label">Data scadenza patente</label><input type="date" class="form-control form-control-modern" id="scadenza-1" required></div>
-          <div class="col-md-8"><label class="form-label">Residenza</label><input class="form-control form-control-modern" id="residenza-1" placeholder="Via/Piazza, n°, Comune, (PR)"></div>
+          <div class="col-md-4"><label class="form-label">Comune di residenza</label><input class="form-control form-control-modern" id="comuneResidenza-1" placeholder="Comune (PR)" required></div>
+          <div class="col-md-5"><label class="form-label">Via di residenza</label><input class="form-control form-control-modern" id="viaResidenza-1" placeholder="Via/Piazza" required></div>
+          <div class="col-md-3"><label class="form-label">Civico</label><input class="form-control form-control-modern" id="civicoResidenza-1" placeholder="n°" required></div>
         </div>
       </form>
     </div>
@@ -92,7 +94,9 @@
           <div class="col-md-6"><label class="form-label">Numero Patente</label><input class="form-control form-control-modern" type="text" id="patente-2" placeholder="..." autocomplete="off"></div>
           <div class="col-md-6"><label class="form-label">Data rilascio patente</label><input type="date" class="form-control form-control-modern" id="rilascio-2"></div>
           <div class="col-md-6"><label class="form-label">Data scadenza patente</label><input type="date" class="form-control form-control-modern" id="scadenza-2"></div>
-          <div class="col-md-8"><label class="form-label">Residenza</label><input class="form-control form-control-modern" id="residenza-2" placeholder="Via/Piazza, n°, Comune, (PR)"></div>
+          <div class="col-md-4"><label class="form-label">Comune di residenza</label><input class="form-control form-control-modern" id="comuneResidenza-2" placeholder="Comune (PR)"></div>
+          <div class="col-md-5"><label class="form-label">Via di residenza</label><input class="form-control form-control-modern" id="viaResidenza-2" placeholder="Via/Piazza"></div>
+          <div class="col-md-3"><label class="form-label">Civico</label><input class="form-control form-control-modern" id="civicoResidenza-2" placeholder="n°"></div>
         </div>
       </form>
     </div>
@@ -122,7 +126,9 @@
           <div class="col-md-6"><label class="form-label">Numero Patente</label><input class="form-control form-control-modern" type="text" id="patente-3" placeholder="..." autocomplete="off"></div>
           <div class="col-md-6"><label class="form-label">Data rilascio patente</label><input type="date" class="form-control form-control-modern" id="rilascio-3"></div>
           <div class="col-md-6"><label class="form-label">Data scadenza patente</label><input type="date" class="form-control form-control-modern" id="scadenza-3"></div>
-          <div class="col-md-8"><label class="form-label">Residenza</label><input class="form-control form-control-modern" id="residenza-3" placeholder="Via/Piazza, n°, Comune, (PR)"></div>
+          <div class="col-md-4"><label class="form-label">Comune di residenza</label><input class="form-control form-control-modern" id="comuneResidenza-3" placeholder="Comune (PR)"></div>
+          <div class="col-md-5"><label class="form-label">Via di residenza</label><input class="form-control form-control-modern" id="viaResidenza-3" placeholder="Via/Piazza"></div>
+          <div class="col-md-3"><label class="form-label">Civico</label><input class="form-control form-control-modern" id="civicoResidenza-3" placeholder="n°"></div>
         </div>
       </form>
     </div>
@@ -159,15 +165,21 @@ function prefillDriver(i, data) {
   if(!data) return;
   if(document.getElementById(`nomeCompleto-${i}`)&&data.nomeCompleto)
     document.getElementById(`nomeCompleto-${i}`).value = data.nomeCompleto;
+  if(document.getElementById(`comuneResidenza-${i}`)&&data.comuneResidenza)
+    document.getElementById(`comuneResidenza-${i}`).value = data.comuneResidenza;
+  if(document.getElementById(`viaResidenza-${i}`)&&data.viaResidenza)
+    document.getElementById(`viaResidenza-${i}`).value = data.viaResidenza;
+  if(document.getElementById(`civicoResidenza-${i}`)&&data.civicoResidenza)
+    document.getElementById(`civicoResidenza-${i}`).value = data.civicoResidenza;
   for(const key in data) {
-    if(key!=='nomeCompleto'&&document.getElementById(`${key}-${i}`) && data[key])
+    if(!['nomeCompleto','comuneResidenza','viaResidenza','civicoResidenza'].includes(key)&&document.getElementById(`${key}-${i}`) && data[key])
       document.getElementById(`${key}-${i}`).value = data[key];
   }
 }
 function analyzeFieldsAutista(i) {
   const id = `${i}`;
   let missing = [];
-  ['nomeCompleto','cf','cell','nascita','luogo','patente','rilascio','scadenza','residenza']
+  ['nomeCompleto','cf','cell','nascita','luogo','patente','rilascio','scadenza','comuneResidenza','viaResidenza','civicoResidenza']
     .forEach(f=>{if(!document.getElementById(f+'-'+id).value) missing.push(f);});
   return missing;
 }
@@ -204,7 +216,9 @@ function getDriver(i) {
     numeroPatente: document.getElementById('patente-'+id).value,
     inizioValiditaPatente: document.getElementById('rilascio-'+id).value,
     scadenzaPatente: document.getElementById('scadenza-'+id).value,
-    comuneResidenza: document.getElementById('residenza-'+id).value
+    comuneResidenza: document.getElementById('comuneResidenza-'+id).value,
+    viaResidenza: document.getElementById('viaResidenza-'+id).value,
+    civicoResidenza: document.getElementById('civicoResidenza-'+id).value
   };
 }
 function handleOCRScan(i, tipo, e) {
@@ -231,7 +245,7 @@ function handleOCRScan(i, tipo, e) {
   });
 }
 function mergeFieldsSafe(fields) {
-  const mapping = { nomeCompleto:'nomeCompleto', codiceFiscale:'cf', cell:'cell', dataNascita:'nascita', luogoNascita:'luogo', numeroPatente:'patente', dataInizioPatente:'rilascio', scadenzaPatente:'scadenza', comuneResidenza:'residenza', viaResidenza:'', civicoResidenza:'' };
+  const mapping = { nomeCompleto:'nomeCompleto', codiceFiscale:'cf', cell:'cell', dataNascita:'nascita', luogoNascita:'luogo', numeroPatente:'patente', dataInizioPatente:'rilascio', scadenzaPatente:'scadenza', comuneResidenza:'comuneResidenza', viaResidenza:'viaResidenza', civicoResidenza:'civicoResidenza' };
   let mapped = {};
   for(const key in mapping){ if(fields[key]) mapped[mapping[key]]=fields[key]; }
   return mapped;
@@ -266,7 +280,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
       patente: user.numeroPatente,
       rilascio: toISO(user.inizioValiditaPatenteFormatted||user.inizioValiditaPatente),
       scadenza: toISO(user.scadenzaPatenteFormatted||user.scadenzaPatente),
-      residenza: [user.viaResidenza, user.civicoResidenza, user.comuneResidenza].filter(Boolean).join(' ')
+      comuneResidenza: user.comuneResidenza||'',
+      viaResidenza: user.viaResidenza||'',
+      civicoResidenza: user.civicoResidenza||''
     });
     if(window.showToast) showToast('Dati del profilo cliente importati!','success');
   }
