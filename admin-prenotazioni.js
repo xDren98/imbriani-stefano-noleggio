@@ -1,3 +1,4 @@
+
 // admin-prenotazioni.js v3.10 - Card cliccabile + Modifica/Elimina con API reali
 (function(){
   const STATI_TABELLA = ['Tutte', 'In attesa', 'Programmata', 'In corso', 'Completata'];
@@ -267,17 +268,17 @@
                     <i class="fas fa-map-marker-alt me-1"></i>${p.destinazione}</div>` : ''}
                 <div class="d-flex justify-content-between align-items-center mt-2 gap-2 flex-wrap" onclick="event.stopPropagation()">
                   <span class="small text-primary"><b>${p.idPrenotazione || p.id}</b></span>
-                  <div class="btn-group btn-group-sm">
-                    ${p.stato === 'In attesa' ? `
-                    <button class="btn btn-outline-success" title="Conferma" 
+                  ${p.stato === 'In attesa' ? `
+                    <button class="btn btn-outline-success btn-sm me-1" title="Conferma" 
                             onclick="window.cambiaStatoPrenotazione('${p.idPrenotazione || p.id}','Confermata');event.stopPropagation();">
                       <i class="fas fa-check"></i>
                     </button>
-                    <button class="btn btn-outline-danger" title="Rifiuta" 
+                    <button class="btn btn-outline-danger btn-sm me-1" title="Rifiuta" 
                             onclick="window.cambiaStatoPrenotazione('${p.idPrenotazione || p.id}','Rifiutata');event.stopPropagation();">
                       <i class="fas fa-times"></i>
                     </button>
-                    ` : ''}
+                  ` : ''}
+                  <div class="btn-group btn-group-sm">
                     <button class="btn btn-outline-warning" title="Modifica" 
                             onclick="window.modificaPrenotazione('${p.idPrenotazione || p.id}'); event.stopPropagation();">
                       <i class="fas fa-edit"></i>
@@ -374,17 +375,7 @@
                       </td>
                       <td class="text-end" onclick="event.stopPropagation()">
                         <div class="btn-group btn-group-sm">
-                    ${p.stato === 'In attesa' ? `
-                    <button class="btn btn-outline-success" title="Conferma" 
-                            onclick="window.cambiaStatoPrenotazione('${p.idPrenotazione || p.id}','Confermata');event.stopPropagation();">
-                      <i class="fas fa-check"></i>
-                    </button>
-                    <button class="btn btn-outline-danger" title="Rifiuta" 
-                            onclick="window.cambiaStatoPrenotazione('${p.idPrenotazione || p.id}','Rifiutata');event.stopPropagation();">
-                      <i class="fas fa-times"></i>
-                    </button>
-                    ` : ''}
-                    <button class="btn btn-outline-warning" title="Modifica" 
+                          <button class="btn btn-outline-warning" title="Modifica" 
                                   onclick="window.modificaPrenotazione('${p.idPrenotazione || p.id}')">
                             <i class="fas fa-edit"></i>
                           </button>
@@ -572,18 +563,7 @@
             ` : ''}
           </div>
           <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
-          ${p.stato === 'In attesa' ? `
-          <button type="button" class="btn btn-success" 
-                  onclick="window.cambiaStatoPrenotazione('${p.idPrenotazione || p.id}','Confermata')">
-            <i class="fas fa-check me-2"></i>Conferma
-          </button>
-          <button type="button" class="btn btn-danger" 
-                  onclick="window.cambiaStatoPrenotazione('${p.idPrenotazione || p.id}','Rifiutata')">
-            <i class="fas fa-times me-2"></i>Rifiuta
-          </button>
-          ` : ''}
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
             <button type="button" class="btn btn-warning" onclick="window.modificaPrenotazione('${p.idPrenotazione || p.id}')">
               <i class="fas fa-edit me-2"></i>Modifica
             </button>
