@@ -63,12 +63,6 @@
           <input type="email" id="emailUpdate" class="form-control" placeholder="nome@esempio.it" />
           <div class="form-text text-warning">Opzionale ma consigliata: riceverai conferma, eventuale preventivo e aggiornamenti stato.</div>
         </div>
-        <div class="col-md-4 d-flex align-items-end">
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="privacyConsent">
-            <label class="form-check-label text-white-50" for="privacyConsent">Confermo di aver verificato tutti i dati</label>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -136,7 +130,7 @@
             <div><span class="label">Numero Patente</span> <span class="value">'+v(d.numeroPatente)+'</span></div>\
             <div><span class="label">Inizio Validità</span> <span class="value">'+v(d.inizioValiditaPatente)+'</span></div>\
             <div><span class="label">Scadenza</span> <span class="value">'+v(d.scadenzaPatente)+'</span></div>\
-            <div><span class="label">Residenza</span> <span class="value">'+[v(d.comuneResidenza), v(d.viaResidenza), v(d.civicoResidenza)].filter(Boolean).join(', ')+'</span></div>\
+            <div><span class="label">Residenza</span> <span class="value">'+[v(d.viaResidenza), v(d.civicoResidenza), v(d.comuneResidenza)].filter(Boolean).join(', ')+'</span></div>\
           </div>\
         </div>\
       </div>';
@@ -158,9 +152,7 @@
 
     var btn=document.getElementById('confirm-btn'); var spn=document.getElementById('confirm-spinner');
     btn.addEventListener('click', async function(){
-      if (!document.getElementById('privacyConsent').checked){ if (window.showToast) showToast('Conferma di aver verificato tutti i dati', 'warning'); return; }
       var email=document.getElementById('emailUpdate').value.trim();
-
       btn.disabled=true; spn.classList.remove('d-none');
       try{
         var payload={
@@ -179,7 +171,6 @@
         };
         var res = await fetch(CONFIG.API_URL,{ method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+CONFIG.TOKEN}, body:JSON.stringify(payload) }).then(function(r){return r.json();});
         if (!res.success) throw new Error(res.message||'Errore creazione prenotazione');
-
         if (email) try{ localStorage.setItem('imbriani_user_email', email); }catch(_){ }
         if (window.showToast) showToast('Prenotazione inviata! Riceverai aggiornamenti via email se indicata.', 'success');
         // cleanup locale
