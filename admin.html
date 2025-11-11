@@ -14,6 +14,37 @@
   <link rel="stylesheet" href="admin-styles.css?v=2000">
 </head>
 <body class="h-100">
+  <!-- Gate di login admin (OTP Telegram) -->
+  <div id="admin-login-gate" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-75" style="z-index:1060; display:none;">
+    <div class="card shadow" style="max-width: 420px; width: 92%;">
+      <div class="card-body">
+        <h5 class="card-title mb-2">Accesso Admin</h5>
+        <p class="text-muted mb-3">Seleziona il tuo nome e inserisci l'OTP ricevuto su Telegram.</p>
+        <div class="mb-3">
+          <label class="form-label">Nome admin</label>
+          <select id="admin-name" class="form-select">
+            <option value="Antonio">Antonio</option>
+            <option value="Beatrice">Beatrice</option>
+            <option value="Stefano">Stefano</option>
+          </select>
+        </div>
+        <div class="d-flex gap-2 mb-3">
+          <button id="admin-request-otp" class="btn btn-outline-primary flex-grow-1" type="button">
+            <i class="fas fa-paper-plane me-1"></i> Invia OTP su Telegram
+          </button>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Codice OTP</label>
+          <input id="admin-otp" type="text" inputmode="numeric" autocomplete="one-time-code" class="form-control" placeholder="6 cifre" />
+        </div>
+        <div class="d-grid gap-2">
+          <button id="admin-login-btn" class="btn btn-primary" type="button">
+            <i class="fas fa-unlock-keyhole me-1"></i> Accedi
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
   <!-- SIDEBAR aggiornata -->
   <nav class="admin-sidebar" id="sidebar">
     <div class="sidebar-header">
@@ -65,6 +96,51 @@
   <script src="admin-prenotazioni.js?v=9013"></script>
 
   <script>
+    function showAdminGate(show){
+      const gate = document.getElementById('admin-login-gate');
+      if (!gate) return;
+      gate.style.display = show ? 'flex' : 'none';
+    }
+
+    async function requestAdminOTP(){
+      const name = document.getElementById('admin-name')?.value || 'Antonio';
+      try{
+        const res = await (window.securePost ? securePost('requestAdminOTP', { name }) : Promise.resolve({ success:false }));
+        if (res && res.success){ 
+          window.showToast?.('OTP inviato su Telegram', 'info');
+          // Ambiente senza Telegram: server può ritornare debugOtp
+          if (res.debugOtp){
+            const otpEl = document.getElementById('admin-otp');
+            if (otpEl){ otpEl.value = String(res.debugOtp); }
+            window.showToast?.(`OTP di test: ${res.debugOtp}`, 'warning');
+          }
+        }
+        else { window.showToast?.('Errore invio OTP', 'error'); }
+      } catch(err){ console.warn('requestAdminOTP error', err); window.showToast?.('Errore invio OTP', 'error'); }
+    }
+
+    async function handleAdminLogin(){
+      const name = document.getElementById('admin-name')?.value || '';
+      const otp = document.getElementById('admin-otp')?.value || '';
+      const btn = document.getElementById('admin-login-btn');
+      if (!name || !otp){ window.showToast?.('Inserisci nome ed OTP', 'warning'); return; }
+      btn.disabled = true; const original = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Accesso...';
+      try{
+        const res = await (window.securePost ? securePost('adminLogin', { name, otp }) : Promise.resolve({ success:false }));
+        if (res && res.success && res.token){
+          const session = { name: res.name||name, token: res.token, role: res.role||'admin', exp: res.exp, timestamp: Date.now() };
+          try { localStorage.setItem('imbriani_admin_session', JSON.stringify(session)); } catch(_){}
+          try { localStorage.setItem('imbriani_session', JSON.stringify(session)); } catch(_){}
+          window.showToast?.('Accesso admin riuscito', 'success');
+          showAdminGate(false);
+          if (window.loadAdminSection) { loadAdminSection('dashboard'); }
+        } else {
+          window.showToast?.('OTP non valido o scaduto', 'error');
+        }
+      } catch(err){ console.error('adminLogin error', err); window.showToast?.('Errore accesso', 'error'); }
+      finally { btn.disabled = false; btn.innerHTML = original; }
+    }
+
     // Sidebar toggle mobile/desktop
     document.getElementById('sidebar-toggle')?.addEventListener('click', () => {
       const sidebar = document.getElementById('sidebar');
@@ -94,8 +170,12 @@
           'settings': 'Impostazioni'
         };
         document.getElementById('page-title').textContent = titles[link.dataset.section] || 'Dashboard';
-        if (window.loadAdminSection) {
+        const hasSession = !!localStorage.getItem('imbriani_admin_session');
+        if (window.loadAdminSection && hasSession) {
           loadAdminSection(link.dataset.section);
+        } else {
+          window.showToast?.('Effettua il login admin per accedere', 'warning');
+          showAdminGate(true);
         }
         if (window.innerWidth < 992) {
           document.getElementById('sidebar').classList.remove('show');
@@ -104,6 +184,11 @@
     });
 
     window.addEventListener('DOMContentLoaded', () => {
+      // Gate di login admin: richiedi sessione valida
+      const hasAdminSession = !!localStorage.getItem('imbriani_admin_session');
+      showAdminGate(!hasAdminSession);
+      document.getElementById('admin-request-otp')?.addEventListener('click', requestAdminOTP);
+      document.getElementById('admin-login-btn')?.addEventListener('click', handleAdminLogin);
       // Ripristina stato sidebar su desktop
       try {
         const persisted = localStorage.getItem('adminSidebarCollapsed') === '1';
@@ -112,15 +197,19 @@
           document.getElementById('mainContent').classList.add('collapsed');
         }
       } catch(e) {}
-      if (window.loadAdminSection) {
+      if (window.loadAdminSection && hasAdminSession) {
         loadAdminSection('dashboard');
       }
     });
 
     document.getElementById('refresh-all')?.addEventListener('click', () => {
       const activeSection = document.querySelector('.sidebar-nav .nav-link.active')?.dataset.section || 'dashboard';
-      if (window.loadAdminSection) {
+      const hasSession = !!localStorage.getItem('imbriani_admin_session');
+      if (window.loadAdminSection && hasSession) {
         loadAdminSection(activeSection);
+      } else {
+        window.showToast?.('Sessione admin mancante. Accedi per continuare.', 'warning');
+        showAdminGate(true);
       }
     });
   </script>

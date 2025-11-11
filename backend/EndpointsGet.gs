@@ -33,7 +33,7 @@ function handleGet(e) {
     
     // Validazione token per endpoint protetti
     var token = getAuthHeader(e);
-    if (!validateToken(token, action)) {
+    if (!validateToken(token, action, e && e.parameter)) {
       dbg(`[handleGet] Autenticazione fallita per azione: ${action}`);
       return createJsonResponse({
         success: false,

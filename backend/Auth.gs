@@ -11,19 +11,43 @@
  * @param {string} action - Azione richiesta (per logging)
  * @return {boolean} True se token valido
  */
-function validateToken(token, action = 'unknown') {
-  if (!token) {
-    Logger.log(`[AUTH] Token mancante per azione: ${action}`);
+function validateToken(token, action = 'unknown', params) {
+  try {
+    if (!token) {
+      Logger.log(`[AUTH] Token mancante per azione: ${action}`);
+      appendAuditLog({ event: 'auth', action: action, ok: false, userId: null, role: null, ip: (params && params.cfip) || null, ua: (params && params.ua) || null, details: 'TOKEN_MISSING' });
+      return false;
+    }
+    var normalized = String(token).trim();
+    var allowedTokens = (CONFIG && CONFIG.TOKENS) ? CONFIG.TOKENS : [CONFIG.TOKEN];
+    if (allowedTokens.indexOf(normalized) !== -1) {
+      if (CONFIG.SECURITY && CONFIG.SECURITY.REQUIRE_OTP_FOR_ADMIN && isSensitiveAction(action)) {
+        var otp = (params && (params.otp || params.OTP)) || null;
+        if (!validateAdminOTP(otp)) {
+          appendAuditLog({ event: 'auth', action: action, ok: false, userId: 'admin', role: 'admin', ip: (params && params.cfip) || null, ua: (params && params.ua) || null, details: 'ADMIN_OTP_REQUIRED_OR_INVALID' });
+          return false;
+        }
+      }
+      appendAuditLog({ event: 'auth', action: action, ok: true, userId: 'admin', role: 'admin', ip: (params && params.cfip) || null, ua: (params && params.ua) || null, details: 'ADMIN_TOKEN' });
+      return true;
+    }
+    var session = validateSession(normalized, params);
+    if (session && session.valid) {
+      if (!isRoleAllowed(action, session.role)) {
+        appendAuditLog({ event: 'auth', action: action, ok: false, userId: session.userId, role: session.role, ip: (params && params.cfip) || null, ua: (params && params.ua) || null, details: 'RBAC_DENY' });
+        return false;
+      }
+      appendAuditLog({ event: 'auth', action: action, ok: true, userId: session.userId, role: session.role, ip: (params && params.cfip) || null, ua: (params && params.ua) || null, details: 'SESSION_OK' });
+      return true;
+    }
+    Logger.log(`[AUTH] Token/session non valida per azione: ${action}. Token: ${normalized.substring(0, 10)}...`);
+    appendAuditLog({ event: 'auth', action: action, ok: false, userId: null, role: null, ip: (params && params.cfip) || null, ua: (params && params.ua) || null, details: 'TOKEN_OR_SESSION_INVALID' });
+    return false;
+  } catch(err) {
+    Logger.log(`[AUTH] Errore in validateToken: ${err.message}`);
+    appendAuditLog({ event: 'auth', action: action, ok: false, userId: null, role: null, ip: (params && params.cfip) || null, ua: (params && params.ua) || null, details: 'ERROR_' + err.message });
     return false;
   }
-  
-  if (token === CONFIG.TOKEN) {
-    Logger.log(`[AUTH] Token valido per azione: ${action}`);
-    return true;
-  }
-  
-  Logger.log(`[AUTH] Token non valido per azione: ${action}. Token ricevuto: ${token.substring(0, 10)}...`);
-  return false;
 }
 
 /**
@@ -105,13 +129,140 @@ function createSessionToken(userId) {
  * @param {string} sessionToken - Token di sessione
  * @return {Object|null} Dati sessione o null
  */
-function validateSession(sessionToken) {
-  // Placeholder per futura implementazione con PropertiesService o Database
-  // Per ora usa il token statico per compatibilità
-  if (sessionToken === CONFIG.TOKEN) {
-    return { valid: true, userId: 'admin' };
+function registerSession(s){
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var key = 'session_' + String(s.token);
+    var payload = {
+      userId: String(s.userId),
+      role: String(s.role || 'guest'),
+      ip: s.ip || null,
+      ua: s.ua || null,
+      createdAt: Date.now(),
+      expiresAt: Number(s.expiresAt),
+      revoked: false
+    };
+    props.setProperty(key, JSON.stringify(payload));
+    appendAuditLog({ event: 'session_create', action: 'login', ok: true, userId: payload.userId, role: payload.role, ip: payload.ip, ua: payload.ua, details: 'expires:' + payload.expiresAt });
+  } catch(err) {
+    Logger.log('[SESSION] Errore registerSession: ' + err.message);
   }
-  return null;
+}
+
+function getSession(sessionToken){
+  try {
+    var raw = PropertiesService.getScriptProperties().getProperty('session_' + String(sessionToken));
+    return raw ? JSON.parse(raw) : null;
+  } catch(_){ return null; }
+}
+
+function revokeSession(sessionToken, reason){
+  try {
+    var s = getSession(sessionToken);
+    if (!s) return false;
+    s.revoked = true;
+    PropertiesService.getScriptProperties().setProperty('session_' + String(sessionToken), JSON.stringify(s));
+    appendAuditLog({ event: 'session_revoke', action: 'revoke', ok: true, userId: s.userId, role: s.role, ip: s.ip, ua: s.ua, details: String(reason||'revoked') });
+    return true;
+  } catch(_){ return false; }
+}
+
+function validateSession(sessionToken, params) {
+  try {
+    var s = getSession(sessionToken);
+    if (!s) return null;
+    var now = Date.now();
+    if (s.revoked) return null;
+    if (!s.expiresAt || now > Number(s.expiresAt)) { return null; }
+    var reqIp = params && params.cfip ? String(params.cfip) : null;
+    var reqUa = params && params.ua ? String(params.ua) : null;
+    if (s.ip && reqIp && String(s.ip) !== reqIp) {
+      appendAuditLog({ event: 'session_validation', action: 'ip_mismatch', ok: false, userId: s.userId, role: s.role, ip: reqIp, ua: reqUa, details: 'expected:' + s.ip });
+      return null;
+    }
+    if (s.ua && reqUa && String(s.ua) !== reqUa) {
+      appendAuditLog({ event: 'session_validation', action: 'ua_mismatch', ok: false, userId: s.userId, role: s.role, ip: reqIp, ua: reqUa, details: 'expected:' + s.ua });
+      return null;
+    }
+    return { valid: true, userId: s.userId, role: s.role || 'guest' };
+  } catch(err) {
+    Logger.log('[SESSION] Errore validateSession: ' + err.message);
+    return null;
+  }
+}
+
+function isRoleAllowed(action, role){
+  try {
+    role = String(role||'guest');
+    if (role === 'admin') return true;
+    var opActions = ['getPrenotazioni','aggiornaStato','aggiornaPrenotazione','aggiornaPrenotazioneCompleta','confermaPrenotazione','aggiornaCliente','creaCliente','sincronizzaClienti','setManutenzione','setVeicolo'];
+    var guestActions = ['getVeicoli','ocrDocument','getCliente','creaPrenotazione','generaTokenAutisti','aggiornaAutistiPubblico'];
+    if (role === 'operatore') return opActions.indexOf(action) !== -1 || guestActions.indexOf(action) !== -1;
+    return guestActions.indexOf(action) !== -1;
+  } catch(_){ return false; }
+}
+
+function isSensitiveAction(action){
+  var sensitive = ['eliminaPrenotazione','aggiornaPrenotazione','aggiornaPrenotazioneCompleta','setManutenzione','setVeicolo','eliminaVeicolo','confermaPrenotazione','sincronizzaClienti'];
+  return sensitive.indexOf(String(action||'').trim()) !== -1;
+}
+
+function appendAuditLog(entry){
+  try {
+    var ss = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+    var sh = ss.getSheetByName('AUDIT_LOG');
+    if (!sh) sh = ss.insertSheet('AUDIT_LOG');
+    var row = [
+      new Date(),
+      String(entry.event||''),
+      String(entry.action||''),
+      String(entry.userId||''),
+      String(entry.role||''),
+      String(entry.ip||''),
+      String(entry.ua||''),
+      entry.ok === true ? 'OK' : 'FAIL',
+      String(entry.details||'')
+    ];
+    sh.appendRow(row);
+  } catch(err) {
+    Logger.log('[AUDIT] Errore appendAuditLog: ' + err.message);
+  }
+}
+
+function issueAdminOTP(){
+  try {
+    var code = String(Math.floor(100000 + Math.random()*900000));
+    var exp = Date.now() + (CONFIG.SECURITY ? CONFIG.SECURITY.OTP_TTL_MINUTES*60000 : 5*60000);
+    var payload = JSON.stringify({ code: code, expiresAt: exp });
+    PropertiesService.getScriptProperties().setProperty('ADMIN_OTP', payload);
+    if (CONFIG.TELEGRAM && CONFIG.TELEGRAM.BOT_TOKEN && CONFIG.TELEGRAM.CHAT_ID) {
+      try {
+        var url = 'https://api.telegram.org/bot' + CONFIG.TELEGRAM.BOT_TOKEN + '/sendMessage';
+        var msg = 'OTP Admin: ' + code + ' (valido ' + (CONFIG.SECURITY ? CONFIG.SECURITY.OTP_TTL_MINUTES : 5) + ' min)';
+        UrlFetchApp.fetch(url, { method: 'post', payload: { chat_id: CONFIG.TELEGRAM.CHAT_ID, text: msg } });
+        appendAuditLog({ event: 'admin_otp_issue', action: 'requestAdminOTP', ok: true, userId: 'admin', role: 'admin', details: 'telegram' });
+        var res = { success: true, delivery: 'telegram' };
+        if (CONFIG.SECURITY && CONFIG.SECURITY.DEBUG_OTP) { res.debugOtp = code; }
+        return res;
+      } catch(err){ Logger.log('[OTP] Invio Telegram fallito: ' + err.message); }
+    }
+    appendAuditLog({ event: 'admin_otp_issue', action: 'requestAdminOTP', ok: true, userId: 'admin', role: 'admin', details: 'log' });
+    return { success: true, delivery: 'log', debugOtp: code };
+  } catch(err) {
+    Logger.log('[OTP] Errore issueAdminOTP: ' + err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+function validateAdminOTP(code){
+  try {
+    var raw = PropertiesService.getScriptProperties().getProperty('ADMIN_OTP');
+    if (!raw) return false;
+    var payload = JSON.parse(raw);
+    if (!payload || !payload.code || !payload.expiresAt) return false;
+    if (Date.now() > Number(payload.expiresAt)) return false;
+    return String(payload.code) === String(code||'');
+  } catch(_){ return false; }
 }
 
 /**
@@ -490,11 +641,20 @@ function handleLogin(request) {
     logLoginAttempt(cf, true, null);
     resetFailedAttempts(cf);
 
+    var ttlMin = (CONFIG.SECURITY && CONFIG.SECURITY.SESSION_TTL_MINUTES) ? CONFIG.SECURITY.SESSION_TTL_MINUTES : 120;
+    var expMs = Date.now() + (ttlMin*60000);
+    var ipBind = (request && request.parameter && (request.parameter.cfip || null)) || null;
+    var uaBind = (request && request.parameter && (request.parameter.ua || null)) || null;
+    var sessionToken = createSessionToken(cf);
+    registerSession({ token: sessionToken, userId: cf, role: 'guest', ip: ipBind, ua: uaBind, expiresAt: expMs });
+
     return ContentService.createTextOutput(
       JSON.stringify({ 
         success: true, 
         user: userData,
-        token: createSessionToken(cf)
+        token: sessionToken,
+        role: 'guest',
+        exp: new Date(expMs).toISOString()
       })
     ).setMimeType(ContentService.MimeType.JSON);
 
@@ -509,6 +669,56 @@ function handleLogin(request) {
     return ContentService.createTextOutput(
       JSON.stringify({ success: false, error: 'Errore durante il login', errorCode: 'GENERIC_ERROR' })
     ).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
+ * Gestisce il login admin tramite OTP Telegram
+ * @param {Object} request - Richiesta HTTP
+ * @returns {TextOutput} Risposta JSON
+ */
+function handleAdminLogin(request){
+  try {
+    var post = {};
+    try {
+      post = (request && request.postData && request.postData.contents)
+        ? JSON.parse(request.postData.contents)
+        : {};
+    } catch(parseErr){ Logger.log('[ADMIN_LOGIN] JSON parse error: ' + parseErr.message); post = {}; }
+
+    var name = String((post.name || (request && request.parameter && request.parameter.name) || '')).trim();
+    var otp = String((post.otp || (request && request.parameter && request.parameter.otp) || '')).trim();
+    if (!name || !otp){
+      return ContentService.createTextOutput(JSON.stringify({ success:false, error:'Dati mancanti', errorCode:'MISSING_DATA' })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // Consenti solo i tre admin richiesti
+    var allowed = ['Antonio','Beatrice','Stefano'];
+    var normName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+    if (allowed.indexOf(normName) === -1){
+      appendAuditLog({ event:'admin_login', action:'adminLogin', ok:false, userId:normName, role:'admin', details:'NAME_NOT_ALLOWED' });
+      return ContentService.createTextOutput(JSON.stringify({ success:false, error:'Admin non autorizzato', errorCode:'NAME_NOT_ALLOWED' })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // Valida OTP
+    if (!validateAdminOTP(otp)){
+      appendAuditLog({ event:'admin_login', action:'adminLogin', ok:false, userId:normName, role:'admin', details:'OTP_INVALID' });
+      return ContentService.createTextOutput(JSON.stringify({ success:false, error:'OTP non valido o scaduto', errorCode:'OTP_INVALID' })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // Emissione sessione admin
+    var sessionToken = createSessionToken(normName.toLowerCase());
+    var ttlMin = (CONFIG.SECURITY && CONFIG.SECURITY.SESSION_TTL_MINUTES) ? CONFIG.SECURITY.SESSION_TTL_MINUTES : 60;
+    var expMs = Date.now() + (ttlMin*60000);
+    var ipBind = (request && request.parameter && (request.parameter.cfip || request.parameter['cf-connecting-ip'])) || null;
+    var uaBind = (request && request.parameter && (request.parameter.ua || request.parameter['User-Agent'])) || null;
+    registerSession({ token: sessionToken, userId: normName, role: 'admin', ip: ipBind, ua: uaBind, expiresAt: expMs });
+    appendAuditLog({ event:'admin_login', action:'adminLogin', ok:true, userId:normName, role:'admin', ip: ipBind, ua: uaBind, details:'SESSION_ISSUED' });
+
+    return ContentService.createTextOutput(JSON.stringify({ success:true, token: sessionToken, role:'admin', name: normName, exp: new Date(expMs).toISOString() })).setMimeType(ContentService.MimeType.JSON);
+  } catch(err){
+    Logger.log('[ADMIN_LOGIN] Errore: ' + err.message);
+    return ContentService.createTextOutput(JSON.stringify({ success:false, error:'Errore durante admin login', errorCode:'GENERIC_ERROR' })).setMimeType(ContentService.MimeType.JSON);
   }
 }
 

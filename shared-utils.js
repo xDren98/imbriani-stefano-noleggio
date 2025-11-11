@@ -12,6 +12,25 @@
     catch(_){ return DEFAULTS[key]; }
   }
 
+  // Sorgente token attivo: preferisci sessione (admin o cliente) rispetto al token statico
+  function getActiveToken(){
+    try {
+      // Admin session
+      const rawAdmin = localStorage.getItem('imbriani_admin_session');
+      if (rawAdmin) {
+        const s = JSON.parse(rawAdmin);
+        if (s && s.token) return String(s.token);
+      }
+      // Cliente sessione
+      const rawSess = localStorage.getItem('imbriani_session');
+      if (rawSess) {
+        const s2 = JSON.parse(rawSess);
+        if (s2 && s2.token) return String(s2.token);
+      }
+    } catch(_){ /* ignore */ }
+    return cfg('AUTH_TOKEN');
+  }
+
   // Escape HTML (globale)
   function escapeHtml(s){
     return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
@@ -35,8 +54,19 @@
 
   function toJSONSafe(res){
     const ct = (res.headers.get('content-type')||'').toLowerCase();
-    if (ct.includes('application/json')) return res.json();
-    return res.text().then(t=>{ try { return JSON.parse(t) } catch(e){ return { success:false, message:'Risposta non JSON', raw:t, status:res.status }}});
+    const status = res.status;
+    if (ct.includes('application/json')) {
+      // Prova a fare il parse JSON normalmente; se fallisce, tenta parse manuale dal testo
+      return res.json().catch(async () => {
+        const t = await res.text();
+        try { return JSON.parse(t); }
+        catch(_) { return { success:false, message:'Risposta non JSON', raw: t, status }; }
+      });
+    }
+    return res.text().then(t => {
+      try { return JSON.parse(t); }
+      catch(_) { return { success:false, message:'Risposta non JSON', raw: t, status }; }
+    });
   }
 
   function showError(msg){
@@ -288,7 +318,12 @@
       }
     });
 
-    const token = cfg('AUTH_TOKEN');
+    const token = getActiveToken();
+    // Include anche il token come query param per compatibilità con Apps Script
+    // (oltre all'Authorization header passato via proxy)
+    if (token) {
+      try { url.searchParams.set('token', String(token)); } catch(_) {}
+    }
     console.log('[secureGet]', action, 'params:', params);
 
     // Il token non viene inserito nella query; il Worker inoltra l'Authorization.
@@ -300,15 +335,27 @@
         mode: 'cors',
         cache: 'no-cache',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
         }
       });
 
       const data = await toJSONSafe(res);
-
-      if (!res.ok || data.success === false) {
-        showError((data && data.message) ? data.message : ('Errore API: ' + res.status));
+      
+      // Se la risposta non è ok oppure non è JSON, prova fallback diretto
+      const isNonJson = data && String(data.message||'').toLowerCase().includes('risposta non json');
+      if (!res.ok || isNonJson) {
+        console.warn('[secureGet] Risposta non ok o non JSON, avvio fallback diretto…', { status: res.status, ct: res.headers.get('content-type') });
+        try {
+          const fb = await secureGetDirectFallback(action, params);
+          if (fb && fb.success !== false) return fb;
+          const msg = (data && (data.message || data.error)) ? (data.message || data.error) : ('Errore API: ' + res.status);
+          showError(msg);
+        } catch (fallbackErr) {
+          showError('Errore di rete: ' + fallbackErr.message);
+        }
+      } else if (data && data.success === false) {
+        const msg = (data.message || data.error) || ('Errore API: ' + res.status);
+        showError(msg);
       }
 
       return data;
@@ -328,7 +375,7 @@
   // ✅ Fallback diretto a Google Apps Script con JSONP
   async function secureGetDirectFallback(action, params = {}) {
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8vOsfdliS4e5odoRMkvCwaWY7SowSkgtW0zTuvqDIu4R99sUEixlLSW7Y9MyvNWk/exec';
-    const token = cfg('AUTH_TOKEN');
+    const token = getActiveToken();
     
     // Costruisci URL con parametri
     const url = new URL(APPS_SCRIPT_URL);
@@ -389,7 +436,7 @@
   // ✅ FIX: Aggiungi funzione securePost con fallback diretto
   async function securePost(action, payload = {}) {
     const url = cfg('API_URL');
-    const token = cfg('AUTH_TOKEN');
+    const token = getActiveToken();
     
     console.log('[securePost]', action, 'payload:', payload);
 
@@ -419,7 +466,8 @@
       const data = await toJSONSafe(res);
       
       if (!res.ok || data.success === false) {
-        showError((data && data.message) ? data.message : ('Errore API: ' + res.status));
+        const msg = (data && (data.message || data.error)) ? (data.message || data.error) : ('Errore API: ' + res.status);
+        showError(msg);
       }
       
       return data;
@@ -439,7 +487,7 @@
   // ✅ Fallback diretto a Google Apps Script con form POST
   async function securePostDirectFallback(action, data = {}) {
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8vOsfdliS4e5odoRMkvCwaWY7SowSkgtW0zTuvqDIu4R99sUEixlLSW7Y9MyvNWk/exec';
-    const token = cfg('AUTH_TOKEN');
+    const token = getActiveToken();
     
     const formData = new FormData();
     formData.append('action', action);
@@ -505,7 +553,7 @@
   async function call(pathOrBody, opts={}){
     const url = cfg('API_URL');
     const body = typeof pathOrBody === 'string' ? (opts.body||{}) : (pathOrBody||{});
-    const token = cfg('AUTH_TOKEN');
+    const token = getActiveToken();
 
     // DUAL TOKEN SUPPORT: includi token sia in header che nel body per massima compatibilità
     const payload = {
@@ -529,7 +577,8 @@
       });
       const data = await toJSONSafe(res);
       if (!res.ok || data.success === false){
-        showError((data && data.message) ? data.message : ('Errore API: ' + res.status));
+        const msg = (data && (data.message || data.error)) ? (data.message || data.error) : ('Errore API: ' + res.status);
+        showError(msg);
       }
       return data;
     }catch(err){

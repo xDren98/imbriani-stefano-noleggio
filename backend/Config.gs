@@ -27,6 +27,16 @@ const CONFIG = {
   VERSION: '8.9.6',
   SPREADSHEET_ID: getScriptProp('SPREADSHEET_ID', '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns'),
   TOKEN: getScriptProp('TOKEN', 'imbriani_secret_2025'),
+  // Elenco token consentiti per rotazione; supporta CSV o JSON in Script Properties (chiave: TOKENS)
+  TOKENS: (function(){
+    var raw = getScriptProp('TOKENS', null);
+    if (!raw || String(raw).trim() === '') return [getScriptProp('TOKEN', 'imbriani_secret_2025')];
+    try {
+      var parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed.map(String);
+    } catch (_){ /* fallback CSV */ }
+    return String(raw).split(',').map(function(t){ return String(t).trim(); }).filter(function(t){ return t.length>0; });
+  })(),
   
   SHEETS: {
     PRENOTAZIONI: 'PRENOTAZIONI',
@@ -148,5 +158,13 @@ const CONFIG = {
   },
   
   // Flag globale per attivare/disattivare logging dettagliato lato backend
-  DEBUG_LOGS: false
+  DEBUG_LOGS: false,
+
+  // Sicurezza sessioni e 2FA
+  SECURITY: {
+    SESSION_TTL_MINUTES: Number(getScriptProp('SESSION_TTL_MINUTES', 120)), // durata sessione client
+    REQUIRE_OTP_FOR_ADMIN: String(getScriptProp('REQUIRE_OTP_FOR_ADMIN', 'true')) === 'true',
+    OTP_TTL_MINUTES: Number(getScriptProp('OTP_TTL_MINUTES', 5)), // validità OTP admin
+    DEBUG_OTP: String(getScriptProp('DEBUG_OTP', 'false')) === 'true' // mostra OTP in risposta per test
+  }
 };
