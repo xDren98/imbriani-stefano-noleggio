@@ -3,13 +3,15 @@
  * Cache strategy, offline support, push notifications handler
  */
 
-const CACHE_NAME = 'imbriani-pwa-v1';
+const CACHE_NAME = 'imbriani-pwa-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './styles.css',
   'pwa/manifest.json',
-  'pwa/push-notifications.js'
+  'pwa/push-notifications.js',
+  './veicoli.html',
+  './richiesta-preventivo.html'
 ];
 
 // Install event - cache assets
@@ -44,33 +46,42 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  const acceptHeader = req.headers.get('accept') || '';
+
+  // Network-first per le pagine HTML per evitare contenuti obsoleti
+  if (req.mode === 'navigate' || acceptHeader.includes('text/html')) {
+    event.respondWith(
+      fetch(req)
+        .then((networkResp) => {
+          // Cache copia per fallback offline
+          const respClone = networkResp.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, respClone));
+          return networkResp;
+        })
+        .catch(() => {
+          // Fallback: pagina dalla cache o index
+          return caches.match(req).then((cached) => cached || caches.match('./index.html'));
+        })
+    );
+    return;
+  }
+
+  // Cache-first per asset statici
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-        // Clone request for fetch
-        return fetch(event.request.clone())
-          .then((response) => {
-            // Check if valid response
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-            // Clone response to cache
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-            return response;
-          })
-          .catch(() => {
-            // Offline fallback
-            return caches.match('./index.html');
-          });
-      })
+    caches.match(req).then((cached) => {
+      if (cached) return cached;
+      return fetch(req)
+        .then((networkResp) => {
+          if (!networkResp || networkResp.status !== 200 || networkResp.type !== 'basic') {
+            return networkResp;
+          }
+          const respClone = networkResp.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, respClone));
+          return networkResp;
+        })
+        .catch(() => caches.match('./index.html'));
+    })
   );
 });
 

@@ -230,8 +230,8 @@ function censisciPDFEsistenti() {
       }
       
       var nomiVarianti = normalizzaNome(nomeClienteOriginale);
-      var dataRitiro = formatDateForFilename(new Date(giornoInizio));
-      var dataArrivo = formatDateForFilename(new Date(giornoFine));
+      var dataRitiro = formatDateForFilename(parseItalianOrISO(giornoInizio));
+      var dataArrivo = formatDateForFilename(parseItalianOrISO(giornoFine));
       
       var varianti = [
         nomiVarianti.senzaSpazi + '_' + dataRitiro + '_' + dataArrivo + '.pdf',

@@ -302,3 +302,150 @@ function upsertClienteInCreaPrenotazione(cliente, isPrimary) {
     }
   }
 }
+
+/**
+ * Crea un nuovo cliente nel foglio CLIENTI
+ * @param {Object} post - Dati cliente con codiceFiscale obbligatorio (16 caratteri)
+ * @return {ContentService} Risposta JSON
+ */
+function creaCliente(post) {
+  try {
+    var cf = (post.codiceFiscale || '').trim();
+    if (!cf || cf.length !== 16) {
+      return createJsonResponse({
+        success: false,
+        message: 'Codice fiscale non valido'
+      }, 400);
+    }
+    var ss = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+    var sh = ss.getSheetByName(CONFIG.SHEETS.CLIENTI);
+    if (!sh) {
+      return createJsonResponse({ success: false, message: 'Foglio CLIENTI non trovato' }, 500);
+    }
+    var vals = sh.getDataRange().getValues();
+    for (var i = 1; i < vals.length; i++) {
+      if (String(vals[i][CONFIG.CLIENTI_COLS.CODICE_FISCALE - 1]).trim() === cf) {
+        return createJsonResponse({
+          success: false,
+          message: 'Cliente già esistente',
+          codiceFiscale: cf
+        }, 409);
+      }
+    }
+
+    var row = new Array(Object.keys(CONFIG.CLIENTI_COLS).length);
+    for (var k = 0; k < row.length; k++) row[k] = '';
+
+    row[CONFIG.CLIENTI_COLS.NOME - 1] = post.nomeCompleto || post.nome || '';
+    row[CONFIG.CLIENTI_COLS.DATA_NASCITA - 1] = post.dataNascita || '';
+    row[CONFIG.CLIENTI_COLS.LUOGO_NASCITA - 1] = post.luogoNascita || '';
+    row[CONFIG.CLIENTI_COLS.CODICE_FISCALE - 1] = cf;
+    row[CONFIG.CLIENTI_COLS.COMUNE_RESIDENZA - 1] = post.comuneResidenza || '';
+    row[CONFIG.CLIENTI_COLS.VIA_RESIDENZA - 1] = post.viaResidenza || '';
+    row[CONFIG.CLIENTI_COLS.CIVICO_RESIDENZA - 1] = post.civicoResidenza || '';
+    row[CONFIG.CLIENTI_COLS.NUMERO_PATENTE - 1] = post.numeroPatente || '';
+    row[CONFIG.CLIENTI_COLS.DATA_INIZIO_PATENTE - 1] = post.inizioValiditaPatente || post.dataInizioPatente || '';
+    row[CONFIG.CLIENTI_COLS.SCADENZA_PATENTE - 1] = post.scadenzaPatente || '';
+    row[CONFIG.CLIENTI_COLS.CELLULARE - 1] = post.cellulare || '';
+    row[CONFIG.CLIENTI_COLS.EMAIL - 1] = post.email || '';
+
+    sh.appendRow(row);
+
+    return createJsonResponse({
+      success: true,
+      message: 'Cliente creato',
+      codiceFiscale: cf
+    });
+  } catch(err) {
+    return createJsonResponse({
+      success: false,
+      message: 'Errore creazione cliente: ' + err.message
+    }, 500);
+  }
+}
+
+/**
+ * Recupera i dettagli completi di un cliente dal foglio CLIENTI dato il CF.
+ * @param {Object} post - { codiceFiscale }
+ * @return {ContentService} Risposta JSON con data
+ */
+function getCliente(post) {
+  try {
+    var cf = (post && (post.codiceFiscale || post.cf || post.CODICE_FISCALE)) || '';
+    cf = String(cf).trim().toUpperCase();
+    if (!cf || cf.length < 6) {
+      return createJsonResponse({ success: false, message: 'Codice fiscale mancante o non valido' }, 400);
+    }
+
+    var ss = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+    var sheet = ss.getSheetByName(CONFIG.SHEETS.CLIENTI);
+    if (!sheet) {
+      return createJsonResponse({ success: false, message: 'Foglio CLIENTI non trovato' }, 500);
+    }
+
+    var values = sheet.getDataRange().getValues();
+    if (!values || values.length < 2) {
+      return createJsonResponse({ success: false, message: 'Nessun dato disponibile in CLIENTI' }, 404);
+    }
+
+    var C = CONFIG.CLIENTI_COLS;
+    var idxRow = -1;
+    for (var i = 1; i < values.length; i++) {
+      var cfVal = String(values[i][C.CODICE_FISCALE - 1] || '').trim().toUpperCase();
+      if (cfVal && cfVal === cf) { idxRow = i; break; }
+    }
+
+    if (idxRow === -1) {
+      return createJsonResponse({ success: false, message: 'Cliente non trovato per CF: ' + cf }, 404);
+    }
+
+    var row = values[idxRow];
+    function val(colKey) { return (C[colKey] ? row[C[colKey] - 1] : '') || ''; }
+    function fmtDate(v) { try { return DateUtils.formatDateToItalian(v); } catch(e) { return ''; } }
+
+    var nomeCell = String(val('NOME') || '').trim();
+    var telefonoCell = String(val('CELLULARE') || val('TELEFONO') || '').trim();
+
+    var dataNascitaRaw = val('DATA_NASCITA');
+    var inizioPatenteRaw = val('DATA_INIZIO_PATENTE');
+    var scadenzaPatenteRaw = val('SCADENZA_PATENTE');
+
+    // Prova a leggere eventuale colonna opzionale 'INDIRIZZO' se presente come header
+    var indirizzoFull = '';
+    try {
+      var headers = values[0];
+      var idxIndirizzo = -1;
+      for (var h = 0; h < headers.length; h++) {
+        var name = String(headers[h]).trim().toUpperCase();
+        if (name === 'INDIRIZZO') { idxIndirizzo = h; break; }
+      }
+      if (idxIndirizzo >= 0) indirizzoFull = String(row[idxIndirizzo] || '').trim();
+    } catch(_){ }
+
+    var resp = {
+      codiceFiscale: cf,
+      nome: nomeCell || '',
+      cognome: '',
+      nomeCompleto: nomeCell || '',
+      email: String(val('EMAIL') || '').trim(),
+      cellulare: telefonoCell || '',
+      telefono: telefonoCell || '',
+      indirizzo: indirizzoFull,
+      comuneResidenza: String(val('COMUNE_RESIDENZA') || '').trim(),
+      viaResidenza: String(val('VIA_RESIDENZA') || '').trim(),
+      civicoResidenza: String(val('CIVICO_RESIDENZA') || '').trim(),
+      dataNascita: dataNascitaRaw || '',
+      dataNascitaFormatted: fmtDate(dataNascitaRaw),
+      luogoNascita: String(val('LUOGO_NASCITA') || '').trim(),
+      numeroPatente: String(val('NUMERO_PATENTE') || '').trim(),
+      inizioValiditaPatente: inizioPatenteRaw || '',
+      inizioValiditaPatenteFormatted: fmtDate(inizioPatenteRaw),
+      scadenzaPatente: scadenzaPatenteRaw || '',
+      scadenzaPatenteFormatted: fmtDate(scadenzaPatenteRaw)
+    };
+
+    return createJsonResponse({ success: true, data: resp });
+  } catch(err) {
+    return createJsonResponse({ success: false, message: 'Errore getCliente: ' + err.message }, 500);
+  }
+}

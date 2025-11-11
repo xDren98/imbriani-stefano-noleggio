@@ -12,6 +12,27 @@
     catch(_){ return DEFAULTS[key]; }
   }
 
+  // Escape HTML (globale)
+  function escapeHtml(s){
+    return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
+  }
+
+  // Parsing robusto per stringhe di data comuni
+  // Accetta: Date, 'dd/mm/yyyy', 'yyyy-mm-dd', ISO con tempo. Ritorna Date o null
+  function parseDateAny(val){
+    if(!val) return null;
+    if(val instanceof Date && !isNaN(val.getTime())) return val;
+    if(typeof val === 'string'){
+      const s = val.trim();
+      const mIT = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if(mIT){ const d = new Date(parseInt(mIT[3],10), parseInt(mIT[2],10)-1, parseInt(mIT[1],10)); return isNaN(d.getTime())?null:d; }
+      const mISO = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if(mISO){ const d = new Date(parseInt(mISO[1],10), parseInt(mISO[2],10)-1, parseInt(mISO[3],10)); return isNaN(d.getTime())?null:d; }
+      const d2 = new Date(s); return isNaN(d2.getTime())?null:d2;
+    }
+    return null;
+  }
+
   function toJSONSafe(res){
     const ct = (res.headers.get('content-type')||'').toLowerCase();
     if (ct.includes('application/json')) return res.json();
@@ -54,13 +75,15 @@
       <div class="d-flex">
         <div class="toast-body d-flex align-items-center">
           <i class="${icons[type] || icons.info} me-2"></i>
-          ${message}
+          <span class="toast-message"></span>
         </div>
         <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
       </div>
     `;
     
     container.appendChild(toast);
+    const msgNode = toast.querySelector('.toast-message');
+    if (msgNode) msgNode.textContent = String(message || '');
     
     // Inizializza il toast con Bootstrap
     const bsToast = new bootstrap.Toast(toast, { delay: duration });
@@ -94,22 +117,166 @@
    */
   function formatDateIT(date) {
     if (!date) return '-';
-    
     try {
-      const d = typeof date === 'string' ? new Date(date) : date;
+      // Gestione esplicita stringhe in formato italiano gg/mm/aaaa
+      if (typeof date === 'string') {
+        const s = date.trim();
+        // Caso: yyyy-mm-dd (senza orario) -> interpreta come data locale evitando timezone
+        const mISO = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (mISO) {
+          const y = parseInt(mISO[1], 10);
+          const m = parseInt(mISO[2], 10) - 1;
+          const d = parseInt(mISO[3], 10);
+          const dt = new Date(y, m, d);
+          if (!isNaN(dt.getTime())) {
+            return dt.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          }
+        }
+        const m = s.match(/^([0-3]?\d)\/([0-1]?\d)\/(\d{4})$/);
+        if (m) {
+          const dNum = parseInt(m[1], 10);
+          const mNum = parseInt(m[2], 10) - 1;
+          const yNum = parseInt(m[3], 10);
+          const d = new Date(yNum, mNum, dNum);
+          if (!isNaN(d.getTime())) {
+            return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          }
+        }
+        // Gestione ISO (yyyy-mm-dd o ISO con tempo)
+        const iso = s;
+        const dIso = new Date(iso);
+        if (!isNaN(dIso.getTime())) {
+          return dIso.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
+        return '-';
+      }
+      // Oggetto Date
+      const d = date;
       if (isNaN(d.getTime())) return '-';
-      
-      return d.toLocaleDateString('it-IT', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      });
+      return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
     } catch {
       return '-';
     }
   }
 
-  // ✅ FIX: Aggiungi funzione secureGet con Authorization header
+  // 📅 Datepicker italiano (flatpickr) con valore ISO e visualizzazione d/m/Y
+  function loadScriptOnce(src, id){
+    return new Promise((resolve, reject) => {
+      if (document.getElementById(id)) return resolve();
+      const s = document.createElement('script');
+      s.src = src; s.id = id; s.onload = resolve; s.onerror = reject; document.head.appendChild(s);
+    });
+  }
+  function loadStyleOnce(href, id){
+    if (document.getElementById(id)) return;
+    const l = document.createElement('link');
+    l.rel = 'stylesheet'; l.href = href; l.id = id; document.head.appendChild(l);
+  }
+
+  async function initDatePickersItalian(){
+    try{
+      // Carica CSS e JS di flatpickr solo una volta
+      loadStyleOnce('https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css','flatpickr-css');
+      await loadScriptOnce('https://cdn.jsdelivr.net/npm/flatpickr','flatpickr-js');
+      await loadScriptOnce('https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/it.js','flatpickr-it');
+
+      const inputs = Array.from(document.querySelectorAll('input[type="date"]'));
+      inputs.forEach(el => {
+        // Mantieni attributi min/max
+        const opts = {
+          altInput: true,
+          dateFormat: 'Y-m-d',
+          altFormat: 'd/m/Y',
+          locale: 'it',
+          allowInput: true,
+          clickOpens: true,
+          altInputClass: 'form-control form-control-modern'
+        };
+        if (el.min) opts.minDate = el.min;
+        if (el.max) opts.maxDate = el.max;
+        window.flatpickr(el, opts);
+
+        // Forza apertura nativa se disponibile
+        el.addEventListener('click', () => { if (el.showPicker) try{ el.showPicker(); }catch(_){} });
+        el.placeholder = 'gg/mm/aaaa';
+      });
+    }catch(e){
+      console.warn('[datepicker] Fallito caricamento, uso nativo se disponibile:', e.message);
+      // fallback: cerca di aprire il picker nativo al click
+      Array.from(document.querySelectorAll('input[type="date"]')).forEach(el => {
+        el.addEventListener('click', () => { if (el.showPicker) try{ el.showPicker(); }catch(_){} });
+        el.placeholder = 'gg/mm/aaaa';
+      });
+    }
+  }
+
+  /**
+   * 🔐 Controlla se la sessione è valida
+   * @returns {boolean} true se la sessione è valida
+   */
+  function isSessionValid() {
+    try {
+      const userData = localStorage.getItem('imbriani_user');
+      const sessionData = localStorage.getItem('imbriani_session');
+      
+      if (!userData || !sessionData) {
+        console.log('[SESSION] Dati sessione mancanti');
+        return false;
+      }
+      
+      const session = JSON.parse(sessionData);
+      const sessionTimeout = 24 * 60 * 60 * 1000; // 24 ore
+      const now = Date.now();
+      const sessionAge = now - (session.timestamp || 0);
+      
+      if (sessionAge > sessionTimeout) {
+        console.log('[SESSION] Sessione scaduta (24 ore)');
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('[SESSION] Errore validazione sessione:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 🚪 Gestisce la scadenza della sessione
+   */
+  function handleSessionExpired() {
+    localStorage.removeItem('imbriani_user');
+    localStorage.removeItem('imbriani_session');
+    sessionStorage.removeItem('userData');
+    
+    if (window.showToast) {
+      showToast('Sessione scaduta. Effettua di nuovo il login.', 'warning');
+      setTimeout(() => {
+        window.location.href = 'index.html';
+      }, 1500);
+    } else {
+      alert('Sessione scaduta. Effettua di nuovo il login.');
+      window.location.href = 'index.html';
+    }
+  }
+
+  /**
+   * 🔄 Aggiorna il timestamp della sessione
+   */
+  function updateSessionTimestamp() {
+    try {
+      const sessionData = localStorage.getItem('imbriani_session');
+      if (sessionData) {
+        const session = JSON.parse(sessionData);
+        session.timestamp = Date.now();
+        localStorage.setItem('imbriani_session', JSON.stringify(session));
+      }
+    } catch (error) {
+      console.error('[SESSION] Errore aggiornamento timestamp:', error);
+    }
+  }
+
+  // ✅ FIX: Aggiungi funzione secureGet con fallback diretto a Google Apps Script
   async function secureGet(action, params = {}) {
     const url = new URL(cfg('API_URL'));
     url.searchParams.set('action', action);
@@ -124,13 +291,19 @@
     const token = cfg('AUTH_TOKEN');
     console.log('[secureGet]', action, 'params:', params);
 
+    // IMPORTANT: Il proxy Cloudflare non inoltra l'Authorization header verso Apps Script.
+    // Per compatibilità, includiamo SEMPRE il token anche in query string.
+    url.searchParams.set('token', token);
+    url.searchParams.set('AUTH_TOKEN', token);
+
     try {
+      // Prova prima con il proxy
       const res = await fetch(url.toString(), {
         method: 'GET',
         mode: 'cors',
         cache: 'no-cache',
         headers: {
-          'Authorization': `Bearer ${token}`,  // ✅ Token nell'header per GET
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -143,12 +316,80 @@
       
       return data;
     } catch (err) {
-      showError('Errore di rete: ' + err.message);
-      return { success: false, message: err.message };
+      console.warn('[secureGet] Errore proxy, provo fallback diretto...', err.message);
+      
+      // Fallback diretto a Google Apps Script con JSONP
+      try {
+        return await secureGetDirectFallback(action, params);
+      } catch (fallbackErr) {
+        showError('Errore di rete: ' + err.message + ' - Fallback fallito: ' + fallbackErr.message);
+        return { success: false, message: err.message + ' - Fallback: ' + fallbackErr.message };
+      }
     }
   }
 
-  // ✅ FIX: Aggiungi funzione securePost con Authorization header
+  // ✅ Fallback diretto a Google Apps Script con JSONP
+  async function secureGetDirectFallback(action, params = {}) {
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8vOsfdliS4e5odoRMkvCwaWY7SowSkgtW0zTuvqDIu4R99sUEixlLSW7Y9MyvNWk/exec';
+    const token = cfg('AUTH_TOKEN');
+    
+    // Costruisci URL con parametri
+    const url = new URL(APPS_SCRIPT_URL);
+    url.searchParams.set('action', action);
+    url.searchParams.set('token', token);
+    
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.set(key, String(value));
+      }
+    });
+
+    // Usa JSONP per aggirare CORS
+    return new Promise((resolve, reject) => {
+      const callbackName = 'jsonp_callback_' + Math.round(100000 * Math.random());
+      url.searchParams.set('callback', callbackName);
+
+      window[callbackName] = function(data) {
+        delete window[callbackName];
+        document.body.removeChild(script);
+        
+        if (data && data.success === false) {
+          showError(data.message || 'Errore API');
+        }
+        resolve(data);
+      };
+
+      const script = document.createElement('script');
+      script.onerror = function() {
+        delete window[callbackName];
+        document.body.removeChild(script);
+        // Invece di rigettare, restituisci un errore gestito
+        resolve({ 
+          success: false, 
+          message: 'Errore di connessione al backend (fallback fallito)',
+          fallbackError: true 
+        });
+      };
+      
+      script.src = url.toString();
+      document.body.appendChild(script);
+      
+      // Timeout di sicurezza
+      setTimeout(() => {
+        if (window[callbackName]) {
+          delete window[callbackName];
+          document.body.removeChild(script);
+          resolve({ 
+            success: false, 
+            message: 'Timeout richiesta (fallback)',
+            timeout: true 
+          });
+        }
+      }, 10000);
+    });
+  }
+
+  // ✅ FIX: Aggiungi funzione securePost con fallback diretto
   async function securePost(action, payload = {}) {
     const url = cfg('API_URL');
     const token = cfg('AUTH_TOKEN');
@@ -163,14 +404,18 @@
     };
 
     try {
+      const isAppsScript = typeof url === 'string' && url.includes('script.google.com');
+      const headers = isAppsScript
+        // Evita preflight CORS verso Apps Script
+        ? { 'Content-Type': 'text/plain' }
+        // Usa header per il proxy
+        : { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+
       const res = await fetch(url, {
         method: 'POST',
         mode: 'cors',
         cache: 'no-cache',
-        headers: {
-          'Authorization': `Bearer ${token}`,  // ✅ Token nell'header per proxy
-          'Content-Type': 'application/json'
-        },
+        headers,
         body: JSON.stringify(body)
       });
 
@@ -182,9 +427,81 @@
       
       return data;
     } catch (err) {
-      showError('Errore di rete: ' + err.message);
-      return { success: false, message: err.message };
+      console.warn('[securePost] Errore proxy, provo fallback diretto...', err.message);
+      
+      // Fallback diretto con form post per aggirare CORS
+      try {
+        return await securePostDirectFallback(action, payload);
+      } catch (fallbackErr) {
+        showError('Errore di rete: ' + err.message + ' - Fallback fallito: ' + fallbackErr.message);
+        return { success: false, message: err.message + ' - Fallback: ' + fallbackErr.message };
+      }
     }
+  }
+
+  // ✅ Fallback diretto a Google Apps Script con form POST
+  async function securePostDirectFallback(action, data = {}) {
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8vOsfdliS4e5odoRMkvCwaWY7SowSkgtW0zTuvqDIu4R99sUEixlLSW7Y9MyvNWk/exec';
+    const token = cfg('AUTH_TOKEN');
+    
+    const formData = new FormData();
+    formData.append('action', action);
+    formData.append('token', token);
+    
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        formData.append(key, String(value));
+      }
+    });
+
+    return new Promise((resolve) => {
+      const iframe = document.createElement('iframe');
+      iframe.name = 'post_fallback_' + Date.now();
+      iframe.style.display = 'none';
+      
+      // Timeout di sicurezza
+      const timeout = setTimeout(() => {
+        document.body.removeChild(iframe);
+        resolve({ 
+          success: false, 
+          message: 'Timeout richiesta (fallback POST)',
+          timeout: true 
+        });
+      }, 10000);
+
+      window.addEventListener('message', function handler(event) {
+        if (event.origin !== 'https://script.google.com') return;
+        
+        clearTimeout(timeout);
+        window.removeEventListener('message', handler);
+        document.body.removeChild(iframe);
+        
+        if (event.data && event.data.success === false) {
+          showError(event.data.message || 'Errore API');
+        }
+        resolve(event.data);
+      });
+
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = APPS_SCRIPT_URL;
+      form.target = iframe.name;
+      
+      // Copia i dati dal FormData al form
+      for (let [key, value] of formData.entries()) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+      }
+
+      document.body.appendChild(iframe);
+      document.body.appendChild(form);
+      
+      form.submit();
+      document.body.removeChild(form);
+    });
   }
 
   // Legacy POST function (mantiene compatibilità con vecchio codice)
@@ -200,13 +517,17 @@
     };
 
     try{
+      const isAppsScript = typeof url === 'string' && url.includes('script.google.com');
+      const headers = isAppsScript
+        // Evita preflight CORS verso Apps Script
+        ? { 'Content-Type': 'text/plain' }
+        // Usa header per il proxy
+        : { 'Content-Type':'application/json', 'Authorization':'Bearer ' + token };
+
       const res = await fetch(url, {
         method: 'POST',
         mode: 'cors', cache: 'no-cache',
-        headers: { 
-          'Content-Type':'application/json', 
-          'Authorization':'Bearer ' + token  // Token nell'header per il proxy
-        },
+        headers,
         body: JSON.stringify(payload)
       });
       const data = await toJSONSafe(res);
@@ -215,8 +536,15 @@
       }
       return data;
     }catch(err){
-      showError('Errore di rete: ' + err.message);
-      return { success:false, message:err.message };
+      console.warn('[call] Errore proxy, provo fallback diretto...', err.message);
+      
+      // Fallback diretto con form data
+      try {
+        return await securePostDirectFallback(body.action || 'unknown', body);
+      } catch (fallbackErr) {
+        showError('Errore di rete: ' + err.message + ' - Fallback fallito: ' + fallbackErr.message);
+        return { success:false, message:err.message + ' - Fallback: ' + fallbackErr.message };
+      }
     }
   }
 
@@ -224,10 +552,14 @@
   window.api.call = call;
   window.api.secureGet = secureGet;
   window.api.securePost = securePost;
+  window.initDatePickersItalian = initDatePickersItalian;
   window.secureGet = secureGet;  // ✅ Export anche come funzione globale
   window.securePost = securePost;  // ✅ Export anche come funzione globale
   window.showToast = showToast;
   window.formatDateIT = formatDateIT;  // 🇮🇹 Export funzione formattazione date italiane
+  window.escapeHtml = escapeHtml;      // 🔐 Export global escape
+  window.parseDateAny = parseDateAny;  // 📅 Export parser date
+  document.addEventListener('DOMContentLoaded', initDatePickersItalian);
   
   console.log('[SHARED-UTILS] v8.9 loaded - formatDateIT added for Italian dates (gg/mm/aaaa)');
 })();

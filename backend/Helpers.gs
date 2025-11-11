@@ -116,3 +116,13 @@ function versionInfo() {
     time: new Date().toISOString()
   };
 }
+
+/**
+ * Logging condizionale: scrive nei log solo se DEBUG_LOGS è true
+ * @param {string} msg
+ */
+function dbg(msg){
+  try {
+    if (CONFIG && CONFIG.DEBUG_LOGS) Logger.log(msg);
+  } catch (_) {}
+}

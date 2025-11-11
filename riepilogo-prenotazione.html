@@ -95,16 +95,19 @@
     bindUI();
   });
 
-  function fmtDate(d){ try{ return new Date(d).toLocaleDateString('it-IT'); }catch(_){ return d||''; } }
+  function fmtDate(d){
+    try{ return window.formatDateIT ? window.formatDateIT(d) : new Date(d).toLocaleDateString('it-IT'); }
+    catch(_){ return d||''; }
+  }
 
   function renderBookingSummary(){
     var el=document.getElementById('booking-summary');
     el.innerHTML = '\
       <div class="row">\
         <div class="col-md-6">\
-          <div><span class="label">Veicolo</span> <span class="value">'+(selectedVehicle.Targa||'')+' - '+(selectedVehicle.Marca||'')+' '+(selectedVehicle.Modello||'')+'</span></div>\
-          <div><span class="label">Posti</span> <span class="value">'+(selectedVehicle.Posti||'')+(selectedVehicle.PassoLungo?' • Passo Lungo':'')+'</span></div>\
-          <div><span class="label">Destinazione</span> <span class="value">'+(selectedDates.destinazione||'-')+'</span></div>\
+          <div><span class="label">Veicolo</span> <span class="value">'+((window.escapeHtml?escapeHtml(selectedVehicle.Targa||''):(selectedVehicle.Targa||'')))+' - '+((window.escapeHtml?escapeHtml(selectedVehicle.Marca||''):(selectedVehicle.Marca||'')))+' '+((window.escapeHtml?escapeHtml(selectedVehicle.Modello||''):(selectedVehicle.Modello||'')))+'</span></div>\
+          <div><span class="label">Posti</span> <span class="value">'+((window.escapeHtml?escapeHtml(String(selectedVehicle.Posti||'')):(selectedVehicle.Posti||'')))+(selectedVehicle.PassoLungo?' • Passo Lungo':'')+'</span></div>\
+          <div><span class="label">Destinazione</span> <span class="value">'+((window.escapeHtml?escapeHtml(selectedDates.destinazione||'-'):(selectedDates.destinazione||'-')))+'</span></div>\
         </div>\
         <div class="col-md-6">\
           <div><span class="label">Ritiro</span> <span class="value">'+fmtDate(selectedDates.dataInizio)+' '+(selectedDates.oraRitiro||'')+'</span></div>\
@@ -115,7 +118,15 @@
 
   function driverBlock(title, d){
     if (!d) return '';
-    function v(x){return x||'-'}
+    function v(x){
+      const val = (x===undefined||x===null||x==='')?'-':String(x);
+      return window.escapeHtml ? escapeHtml(val) : val;
+    }
+    const fmt = (x) => {
+      if (!x) return '-';
+      try { return (window.formatDateIT ? window.formatDateIT(x) : new Date(x).toLocaleDateString('it-IT')); }
+      catch(_) { return x; }
+    };
     return '\
       <div class="mb-3">\
         <div class="text-info fw-semibold mb-2">'+title+'</div>\
@@ -123,13 +134,14 @@
           <div class="col-md-6">\
             <div><span class="label">Nome completo</span> <span class="value">'+v(d.nomeCompleto)+'</span></div>\
             <div><span class="label">Codice Fiscale</span> <span class="value">'+v(d.codiceFiscale)+'</span></div>\
-            <div><span class="label">Data Nascita</span> <span class="value">'+v(d.dataNascita)+'</span></div>\
+            <div><span class="label">Data Nascita</span> <span class="value">'+fmt(d.dataNascita)+'</span></div>\
             <div><span class="label">Luogo Nascita</span> <span class="value">'+v(d.luogoNascita)+'</span></div>\
+            <div><span class="label">Cellulare</span> <span class="value">'+v(d.cell || d.cellulare)+'</span></div>\
           </div>\
           <div class="col-md-6">\
             <div><span class="label">Numero Patente</span> <span class="value">'+v(d.numeroPatente)+'</span></div>\
-            <div><span class="label">Inizio Validità</span> <span class="value">'+v(d.inizioValiditaPatente)+'</span></div>\
-            <div><span class="label">Scadenza</span> <span class="value">'+v(d.scadenzaPatente)+'</span></div>\
+            <div><span class="label">Inizio Validità</span> <span class="value">'+fmt(d.inizioValiditaPatente || d.dataInizioPatente)+'</span></div>\
+            <div><span class="label">Scadenza</span> <span class="value">'+fmt(d.scadenzaPatente)+'</span></div>\
             <div><span class="label">Residenza</span> <span class="value">'+[v(d.viaResidenza), v(d.civicoResidenza), v(d.comuneResidenza)].filter(Boolean).join(', ')+'</span></div>\
           </div>\
         </div>\
@@ -156,21 +168,24 @@
       btn.disabled=true; spn.classList.remove('d-none');
       try{
         var payload={
-          action:'creaPrenotazione',
           targa:selectedVehicle.Targa,
           giornoInizio:selectedDates.dataInizio,
           giornoFine:selectedDates.dataFine,
           oraInizio:selectedDates.oraRitiro,
           oraFine:selectedDates.oraRiconsegna,
           destinazione:selectedDates.destinazione||'',
-          autista1: drivers.autista1,
-          autista2: drivers.autista2&&drivers.autista2.codiceFiscale? drivers.autista2: null,
-          autista3: drivers.autista3&&drivers.autista3.codiceFiscale? drivers.autista3: null,
+          // Includi alias 'cellulare' per compatibilità backend
+          autista1: Object.assign({}, drivers.autista1, { cellulare: (drivers.autista1 && (drivers.autista1.cell || drivers.autista1.cellulare)) || '' }),
+          autista2: (drivers.autista2 && drivers.autista2.codiceFiscale) ? Object.assign({}, drivers.autista2, { cellulare: (drivers.autista2 && (drivers.autista2.cell || drivers.autista2.cellulare)) || '' }) : null,
+          autista3: (drivers.autista3 && drivers.autista3.codiceFiscale) ? Object.assign({}, drivers.autista3, { cellulare: (drivers.autista3 && (drivers.autista3.cell || drivers.autista3.cellulare)) || '' }) : null,
           email: email || null,
           upsertClienti:true
         };
-        var res = await fetch(CONFIG.API_URL,{ method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+CONFIG.TOKEN}, body:JSON.stringify(payload) }).then(function(r){return r.json();});
-        if (!res.success) throw new Error(res.message||'Errore creazione prenotazione');
+
+        // Usa il wrapper sicuro: include il token nel body e gestisce fallback
+        var res = await (window.securePost ? window.securePost('creaPrenotazione', payload) : Promise.resolve({success:false,message:'securePost non disponibile'}));
+        if (!res || !res.success) throw new Error(res && res.message ? res.message : 'Errore creazione prenotazione');
+
         if (email) try{ localStorage.setItem('imbriani_user_email', email); }catch(_){ }
         if (window.showToast) showToast('Prenotazione inviata! Riceverai aggiornamenti via email se indicata.', 'success');
         // cleanup locale

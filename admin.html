@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=8012">
   <link rel="stylesheet" href="admin-styles.css?v=2000">
 </head>
 <body class="h-100">
@@ -22,6 +23,7 @@
     <div class="sidebar-nav">
       <a class="nav-link active" data-section="dashboard" href="#"><i class="fas fa-chart-line me-2"></i>Dashboard</a>
       <a class="nav-link" data-section="prenotazioni" href="#"><i class="fas fa-calendar-alt me-2"></i>Prenotazioni</a>
+      <a class="nav-link" data-section="legacy" href="#"><i class="fas fa-hourglass-half me-2"></i>Legacy</a>
       <a class="nav-link" data-section="clienti" href="#"><i class="fas fa-users me-2"></i>Clienti</a>
       <a class="nav-link" data-section="flotta" href="#"><i class="fas fa-car me-2"></i>Flotta</a>
       <div class="nav-divider"></div>
@@ -34,7 +36,7 @@
   <main class="main-content" id="mainContent">
     <header class="px-4 py-3 sticky-top d-flex justify-content-between align-items-center">
       <div class="d-flex align-items-center">
-        <button class="btn btn-link text-secondary d-lg-none me-2" id="sidebar-toggle"><i class="fas fa-bars"></i></button>
+        <button class="btn btn-link text-secondary me-2" id="sidebar-toggle" aria-label="Mostra/Nascondi sidebar"><i class="fas fa-bars"></i></button>
         <h1 class="h5 mb-0 fw-bold" id="page-title">Dashboard</h1>
       </div>
       <div class="d-flex align-items-center gap-2">
@@ -59,12 +61,21 @@
   <script src="config.js"></script>
   <script src="shared-utils.js"></script>
   <script src="admin-scripts.js"></script>
-  <script src="admin-prenotazioni.js"></script>
+  <!-- Cache-busting per aggiornare rapidamente gli script dell'admin -->
+  <script src="admin-prenotazioni.js?v=9013"></script>
 
   <script>
-    // Sidebar toggle mobile
+    // Sidebar toggle mobile/desktop
     document.getElementById('sidebar-toggle')?.addEventListener('click', () => {
-      document.getElementById('sidebar').classList.toggle('show');
+      const sidebar = document.getElementById('sidebar');
+      const main = document.getElementById('mainContent');
+      if (window.innerWidth < 992) {
+        sidebar.classList.toggle('show');
+      } else {
+        const collapsed = sidebar.classList.toggle('collapsed');
+        main.classList.toggle('collapsed', collapsed);
+        try { localStorage.setItem('adminSidebarCollapsed', collapsed ? '1' : '0'); } catch(e) {}
+      }
     });
 
     // Navigation
@@ -76,6 +87,7 @@
         const titles = {
           'dashboard': 'Dashboard',
           'prenotazioni': 'Gestione Prenotazioni',
+          'legacy': 'Prenotazioni Legacy',
           'clienti': 'Gestione Clienti',
           'flotta': 'Gestione Flotta',
           'statistiche': 'Statistiche',
@@ -92,6 +104,14 @@
     });
 
     window.addEventListener('DOMContentLoaded', () => {
+      // Ripristina stato sidebar su desktop
+      try {
+        const persisted = localStorage.getItem('adminSidebarCollapsed') === '1';
+        if (persisted && window.innerWidth >= 992) {
+          document.getElementById('sidebar').classList.add('collapsed');
+          document.getElementById('mainContent').classList.add('collapsed');
+        }
+      } catch(e) {}
       if (window.loadAdminSection) {
         loadAdminSection('dashboard');
       }

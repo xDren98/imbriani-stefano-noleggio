@@ -122,7 +122,7 @@ function checkReminderEmails() {
       var email = row[CONFIG.PRENOTAZIONI_COLS.EMAIL - 1];
       
       if (stato === 'Confermata' && email && dataInizio) {
-        var di = new Date(dataInizio);
+        var di = (dataInizio instanceof Date) ? dataInizio : parseItalianOrISO(dataInizio);
         var diStr = di.getFullYear() + '-' + String(di.getMonth() + 1).padStart(2, '0') + '-' + String(di.getDate()).padStart(2, '0');
         
         if (diStr === treGiorniStr) {

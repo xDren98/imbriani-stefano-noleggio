@@ -127,5 +127,8 @@ const CONFIG = {
       'EC787NM': { marca: 'Fiat', modello: 'Ducato' },
       'EZ841FA': { marca: 'Renault', modello: 'Trafic' }
     }
-  }
+  },
+  
+  // Flag globale per attivare/disattivare logging dettagliato lato backend
+  DEBUG_LOGS: false
 };

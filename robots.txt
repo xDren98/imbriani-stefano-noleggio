@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Sitemap per Google
+Sitemap: https://xdren98.github.io/imbriani-stefano-noleggio/sitemap.xml

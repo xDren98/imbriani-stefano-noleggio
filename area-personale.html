@@ -191,17 +191,100 @@
     let editProfileModal = null;
 
     document.addEventListener('DOMContentLoaded', async () => {
-      const userData = localStorage.getItem('imbriani_user');
-      if (!userData) { if (window.showToast) showToast('Sessione scaduta. Effettua di nuovo il login.', 'warning'); setTimeout(()=>location.href='index.html',1500); return; }
-      currentUser = JSON.parse(userData);
-      document.getElementById('user-name').textContent = currentUser.nome || 'Cliente';
-
-      await loadUserData();
-      bindUI();
+      try {
+        const userData = localStorage.getItem('imbriani_user');
+        const sessionData = localStorage.getItem('imbriani_session');
+        
+        // Validazione sessione completa
+        if (!userData || !sessionData) {
+          handleSessionExpired('Dati sessione mancanti');
+          return;
+        }
+        
+        currentUser = JSON.parse(userData);
+        const session = JSON.parse(sessionData);
+        
+        // Controllo timeout sessione (24 ore)
+        const sessionTimeout = 24 * 60 * 60 * 1000; // 24 ore in millisecondi
+        const now = Date.now();
+        const sessionAge = now - (session.timestamp || 0);
+        
+        if (sessionAge > sessionTimeout) {
+          handleSessionExpired('Sessione scaduta (24 ore)');
+          return;
+        }
+        
+        // Controllo validità dati utente
+        if (!currentUser.codiceFiscale || !currentUser.nome) {
+          handleSessionExpired('Dati utente non validi');
+          return;
+        }
+        
+        // Sessione valida - aggiorna timestamp
+        session.timestamp = now;
+        localStorage.setItem('imbriani_session', JSON.stringify(session));
+        
+        document.getElementById('user-name').textContent = currentUser.nome || 'Cliente';
+        // Arricchisce i dati utente dal backend (foglio CLIENTI)
+        await enrichUserFromBackend();
+        await loadUserData();
+        bindUI();
+        
+      } catch (error) {
+        console.error('[SESSION] Errore durante il caricamento:', error);
+        handleSessionExpired('Errore durante il caricamento della sessione');
+      }
     });
+    
+    function handleSessionExpired(reason) {
+      console.log(`[SESSION] Sessione scaduta: ${reason}`);
+      localStorage.removeItem('imbriani_user');
+      localStorage.removeItem('imbriani_session');
+      if (window.showToast) {
+        showToast('Sessione scaduta. Effettua di nuovo il login.', 'warning');
+        setTimeout(() => location.href = 'index.html', 1500);
+      } else {
+        alert('Sessione scaduta. Effettua di nuovo il login.');
+        location.href = 'index.html';
+      }
+    }
 
     function bindUI(){
-      document.getElementById('logout-btn')?.addEventListener('click', (e)=>{ e.preventDefault(); localStorage.removeItem('imbriani_user'); localStorage.removeItem('imbriani_session'); if (window.showToast) showToast('Logout effettuato', 'info'); setTimeout(()=>location.href='index.html',600); });
+      document.getElementById('logout-btn')?.addEventListener('click', async (e) => { 
+        e.preventDefault(); 
+        
+        // Conferma logout
+        const confirmed = await new Promise(resolve => {
+          if (window.showToast) {
+            // Usa una conferma visiva con toast
+            showToast('Logout in corso...', 'info');
+            resolve(true);
+          } else {
+            resolve(confirm('Sei sicuro di voler effettuare il logout?'));
+          }
+        });
+        
+        if (!confirmed) return;
+        
+        try {
+          // Pulizia completa della sessione
+          localStorage.removeItem('imbriani_user');
+          localStorage.removeItem('imbriani_session');
+          sessionStorage.removeItem('userData');
+          
+          if (window.showToast) {
+            showToast('Logout effettuato con successo', 'success');
+            setTimeout(() => location.href = 'index.html', 800);
+          } else {
+            alert('Logout effettuato');
+            location.href = 'index.html';
+          }
+        } catch (error) {
+          console.error('[LOGOUT] Errore durante il logout:', error);
+          // Forza il redirect anche in caso di errore
+          location.href = 'index.html';
+        }
+      });
       document.getElementById('nuova-prenotazione')?.addEventListener('click', ()=> location.href='veicoli.html');
       document.getElementById('refresh-bookings')?.addEventListener('click', loadBookings);
 
@@ -217,23 +300,128 @@
 
     async function loadUserData(){ await Promise.all([loadProfile(), loadBookings(), loadStats()]); }
 
-    function safe(v){ return (v===undefined||v===null||v==='') ? 'N/A' : v }
+    // Recupera dati completi dal backend e unisce con currentUser
+    async function enrichUserFromBackend(){
+      try{
+        const res = await api.call({ action: 'getCliente', codiceFiscale: currentUser.codiceFiscale });
+        if (res && res.success && res.data){
+          const incoming = res.data;
+          const merged = { ...currentUser };
+          // Campi anagrafici e contatto
+          merged.nome = incoming.nome || merged.nome;
+          merged.cognome = incoming.cognome || merged.cognome;
+          merged.nomeCompleto = incoming.nomeCompleto || merged.nomeCompleto;
+          merged.email = incoming.email || merged.email;
+          merged.cellulare = incoming.cellulare || incoming.telefono || merged.cellulare;
+          merged.telefono = incoming.telefono || merged.telefono;
+          // Residenza e indirizzo
+          merged.indirizzo = incoming.indirizzo || merged.indirizzo;
+          merged.comuneResidenza = incoming.comuneResidenza || merged.comuneResidenza;
+          merged.viaResidenza = incoming.viaResidenza || merged.viaResidenza;
+          merged.civicoResidenza = incoming.civicoResidenza || merged.civicoResidenza;
+          // Nascita
+          merged.dataNascita = incoming.dataNascita || merged.dataNascita;
+          merged.dataNascitaFormatted = incoming.dataNascitaFormatted || merged.dataNascitaFormatted;
+          merged.luogoNascita = incoming.luogoNascita || merged.luogoNascita;
+          // Patente
+          merged.numeroPatente = incoming.numeroPatente || merged.numeroPatente;
+          merged.inizioValiditaPatente = incoming.inizioValiditaPatente || merged.inizioValiditaPatente || merged.dataInizioPatente;
+          merged.inizioValiditaPatenteFormatted = incoming.inizioValiditaPatenteFormatted || merged.inizioValiditaPatenteFormatted;
+          merged.scadenzaPatente = incoming.scadenzaPatente || merged.scadenzaPatente;
+          merged.scadenzaPatenteFormatted = incoming.scadenzaPatenteFormatted || merged.scadenzaPatenteFormatted;
+
+          currentUser = merged;
+          localStorage.setItem('imbriani_user', JSON.stringify(currentUser));
+          sessionStorage.setItem('userData', JSON.stringify(currentUser));
+        }
+      }catch(err){
+        console.warn('[PROFILE] Arricchimento dati fallito:', err.message);
+      }
+    }
+
+    function safe(v){
+      const s = (v===undefined||v===null||v==='') ? 'N/A' : String(v);
+      return window.escapeHtml ? escapeHtml(s) : s;
+    }
+
+    // 🇮🇹 Helper per formattare date in formato italiano in tutta la pagina
+    function fmtDateIT(d) {
+      if (!d) return 'N/A';
+      try {
+        const out = (window.formatDateIT ? window.formatDateIT(d) : new Date(d).toLocaleDateString('it-IT'));
+        return out || 'N/A';
+      } catch { return 'N/A'; }
+    }
+
+    // Parsing robusto per stringhe dd/mm/yyyy o ISO yyyy-mm-dd
+    function parseDateAny(value){
+      if (!value) return null;
+      if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+      const s = String(value);
+      if (s.indexOf('/') > -1) {
+        const m = s.match(/^([0-3]?\d)\/([0-1]?\d)\/(\d{4})$/);
+        if (m) {
+          const d = parseInt(m[1],10), mo = parseInt(m[2],10)-1, y = parseInt(m[3],10);
+          const dt = new Date(y, mo, d);
+          return isNaN(dt.getTime()) ? null : dt;
+        }
+      }
+      const dt2 = new Date(s);
+      return isNaN(dt2.getTime()) ? null : dt2;
+    }
 
     async function loadProfile(){
       const profileEl = document.getElementById('user-profile');
-      const scadenzaPatente = currentUser.scadenzaPatente ? new Date(currentUser.scadenzaPatente) : null;
-      const inizioValidita = currentUser.inizioValiditaPatente ? new Date(currentUser.inizioValiditaPatente) : null;
+      function parseItalianDate(str){
+        if (!str || typeof str !== 'string') return null;
+        const m = str.match(/^([0-3]?\d)\/([0-1]?\d)\/(\d{4})$/);
+        if (!m) return null;
+        const d = parseInt(m[1], 10), mo = parseInt(m[2], 10) - 1, y = parseInt(m[3], 10);
+        const dt = new Date(y, mo, d);
+        return isNaN(dt.getTime()) ? null : dt;
+      }
+      function tryParseDate(raw, formatted){
+        let d = null;
+        if (raw) {
+          d = (window.parseDateAny ? parseDateAny(raw) : new Date(raw));
+          if (!d || isNaN(d.getTime())) d = null;
+        }
+        if (!d && formatted) d = parseItalianDate(formatted);
+        return d;
+      }
+      function splitAddress(addr){
+        if (!addr || typeof addr !== 'string') return { via:'', civico:'' };
+        const parts = addr.split(',').map(s => s.trim());
+        // Cerca pattern tipo "Via/Piazza ... n° ..."
+        const viaMatch = addr.match(/\b(via|viale|piazza|corso|strada|vicolo)\b[^,\d]*/i);
+        let via = viaMatch ? viaMatch[0] : (parts[1] || '').trim();
+        const civicoMatch = addr.match(/\b(\d+[A-Za-z]?)\b/);
+        const civico = civicoMatch ? civicoMatch[1] : '';
+        return { via: (via||'').trim(), civico: (civico||'').trim() };
+      }
+      const scadenzaPatente = tryParseDate(currentUser.scadenzaPatente, currentUser.scadenzaPatenteFormatted);
+      const inizioValidita = tryParseDate(currentUser.inizioValiditaPatente || currentUser.dataInizioPatente, currentUser.inizioValiditaPatenteFormatted);
       const giorni = scadenzaPatente ? Math.ceil((scadenzaPatente - new Date())/(1000*60*60*24)) : null;
-      const indirizzoFull = `${safe(currentUser.viaResidenza)} ${safe(currentUser.civicoResidenza)}`.trim();
+      let indirizzoFull = `${safe(currentUser.viaResidenza)} ${safe(currentUser.civicoResidenza)}`.trim();
+      if (indirizzoFull === 'N/A N/A' || indirizzoFull === 'N/A') {
+        const addr = currentUser.indirizzo || '';
+        const s = splitAddress(addr);
+        indirizzoFull = (s.via || s.civico) ? `${s.via} ${s.civico}`.trim() : safe(addr);
+      }
+      const comune = safe(currentUser.comuneResidenza);
+      const luogoNascita = safe(currentUser.luogoNascita);
+      const numeroPatente = safe(currentUser.numeroPatente);
+      const inizioValiditaStr = inizioValidita ? fmtDateIT(inizioValidita) : fmtDateIT(currentUser.inizioValiditaPatenteFormatted || currentUser.inizioValiditaPatente || currentUser.dataInizioPatente);
+      const scadenzaPatenteStr = scadenzaPatente ? fmtDateIT(scadenzaPatente) : fmtDateIT(currentUser.scadenzaPatenteFormatted || currentUser.scadenzaPatente);
       profileEl.innerHTML = `
         <div class="mb-2"><strong class="text-white">Nome:</strong> <span class="text-white-75">${safe(currentUser.nome)}</span></div>
         <div class="mb-2"><strong class="text-white">Codice Fiscale:</strong> <span class="text-white-75">${safe(currentUser.codiceFiscale)}</span></div>
-        <div class="mb-2"><strong class="text-white">Comune:</strong> <span class="text-white-75">${safe(currentUser.comuneResidenza)}</span></div>
-        <div class="mb-2"><strong class="text-white">Indirizzo:</strong> <span class="text-white-75">${indirizzoFull !== 'N/A N/A' ? indirizzoFull : 'N/A'}</span></div>
-        <div class="mb-2"><strong class="text-white">Luogo di nascita:</strong> <span class="text-white-75">${safe(currentUser.luogoNascita)}</span></div>
-        <div class="mb-2"><strong class="text-white">Patente:</strong> <span class="text-white-75">${safe(currentUser.numeroPatente)}</span></div>
-        <div class="mb-2"><strong class="text-white">Inizio validità:</strong> <span class="text-white-75">${inizioValidita ? inizioValidita.toLocaleDateString('it-IT') : 'N/A'}</span></div>
-        <div class="mb-3"><strong class="text-white">Scadenza:</strong> <span class="text-white-75">${scadenzaPatente ? scadenzaPatente.toLocaleDateString('it-IT') : 'N/A'}</span> ${giorni && giorni < 60 ? `<span class="badge bg-warning ms-1">${giorni}g</span>` : ''}</div>
+        <div class="mb-2"><strong class="text-white">Comune:</strong> <span class="text-white-75">${comune}</span></div>
+        <div class="mb-2"><strong class="text-white">Indirizzo:</strong> <span class="text-white-75">${indirizzoFull}</span></div>
+        <div class="mb-2"><strong class="text-white">Luogo di nascita:</strong> <span class="text-white-75">${luogoNascita}</span></div>
+        <div class="mb-2"><strong class="text-white">Patente:</strong> <span class="text-white-75">${numeroPatente}</span></div>
+        <div class="mb-2"><strong class="text-white">Inizio validità:</strong> <span class="text-white-75">${inizioValiditaStr}</span></div>
+        <div class="mb-3"><strong class="text-white">Scadenza:</strong> <span class="text-white-75">${scadenzaPatenteStr}</span> ${giorni && giorni < 60 ? `<span class="badge bg-warning ms-1">${giorni}g</span>` : ''}</div>
         <div class="mb-2"><strong class="text-white">Telefono:</strong> <span class="text-white-75">${safe(currentUser.cellulare)}</span></div>
         <div class="mb-3 d-flex align-items-center justify-content-between">
           <div><strong class="text-white">Email:</strong> <span class="text-white-75">${safe(currentUser.email) || 'N/A'}</span></div>
@@ -249,8 +437,11 @@
       document.getElementById('ep_viaResidenza').value = currentUser.viaResidenza || '';
       document.getElementById('ep_civicoResidenza').value = currentUser.civicoResidenza || '';
       document.getElementById('ep_numeroPatente').value = currentUser.numeroPatente || '';
-      document.getElementById('ep_inizioValiditaPatente').value = currentUser.inizioValiditaPatente ? new Date(currentUser.inizioValiditaPatente).toISOString().slice(0,10) : '';
-      document.getElementById('ep_scadenzaPatente').value = currentUser.scadenzaPatente ? new Date(currentUser.scadenzaPatente).toISOString().slice(0,10) : '';
+      const editInizio = tryParseDate(currentUser.inizioValiditaPatente || currentUser.dataInizioPatente, currentUser.inizioValiditaPatenteFormatted);
+      const editScadenza = tryParseDate(currentUser.scadenzaPatente, currentUser.scadenzaPatenteFormatted);
+      function formatYMDLocal(d){ const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,'0'); const day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
+      document.getElementById('ep_inizioValiditaPatente').value = editInizio ? formatYMDLocal(editInizio) : '';
+      document.getElementById('ep_scadenzaPatente').value = editScadenza ? formatYMDLocal(editScadenza) : '';
       document.getElementById('ep_cellulare').value = currentUser.cellulare || '';
       document.getElementById('ep_email').value = currentUser.email || '';
       editProfileModal.show();
@@ -303,10 +494,10 @@
         listEl.innerHTML = bookings.slice(0,5).map(booking => {
           const status = booking.stato || 'In attesa';
           const statusClass = { 'In attesa':'status-attesa','Confermata':'status-confermata','Completata':'status-completata','Rifiutata':'status-rifiutata' }[status] || 'status-attesa';
-          const targa = booking.targa || 'Targa N/A';
-          const dataInizio = booking.giornoInizio ? new Date(booking.giornoInizio).toLocaleDateString('it-IT') : 'N/A';
-          const dataFine = booking.giornoFine ? new Date(booking.giornoFine).toLocaleDateString('it-IT') : 'N/A';
-          const destinazione = booking.destinazione || 'Destinazione N/A';
+          const targa = window.escapeHtml ? escapeHtml(booking.targa || 'Targa N/A') : (booking.targa || 'Targa N/A');
+          const dataInizio = booking.giornoInizio ? fmtDateIT(booking.giornoInizio) : 'N/A';
+          const dataFine = booking.giornoFine ? fmtDateIT(booking.giornoFine) : 'N/A';
+          const destinazione = window.escapeHtml ? escapeHtml(booking.destinazione || 'Destinazione N/A') : (booking.destinazione || 'Destinazione N/A');
           const importo = booking.importo ? `${booking.importo}€` : '';
           return `<div class="border-bottom border-secondary pb-3 mb-3"><div class="d-flex justify-content-between align-items-start mb-1"><h6 class="text-white fw-semibold mb-0">${targa}</h6><span class="booking-status ${statusClass}">${status}</span></div><div class="small text-white-50 mb-1"><i class="fas fa-calendar me-1"></i>${dataInizio} → ${dataFine}</div><div class="small text-white-75 mb-2"><i class="fas fa-map-marker-alt me-1"></i>${destinazione}</div>${importo ? `<div class="small text-success text-end">${importo}</div>` : ''}</div>`; }).join('');
         if (bookings.length > 5){ listEl.innerHTML += `<div class="text-center mt-3"><button class="btn btn-outline-light btn-sm">Vedi tutte (${bookings.length})</button></div>`; }
@@ -321,7 +512,14 @@
         const totali = bookings.length;
         document.getElementById('stat-prenotazioni-attive').textContent = attive;
         document.getElementById('stat-prenotazioni-totali').textContent = totali;
-        if (currentUser.scadenzaPatente){ const scadenza = new Date(currentUser.scadenzaPatente); const giorni = Math.ceil((scadenza - new Date())/(1000*60*60*24)); document.getElementById('stat-prossima-scadenza').textContent = giorni > 0 ? `${giorni}gg` : 'Scaduta'; if (giorni < 60) document.getElementById('stat-prossima-scadenza').className = 'h4 text-danger mb-1'; }
+        if (currentUser.scadenzaPatente || currentUser.scadenzaPatenteFormatted){
+          const scadenza = parseDateAny(currentUser.scadenzaPatente || currentUser.scadenzaPatenteFormatted);
+          if (scadenza){
+            const giorni = Math.ceil((scadenza - new Date())/(1000*60*60*24));
+            document.getElementById('stat-prossima-scadenza').textContent = giorni > 0 ? `${giorni}gg` : 'Scaduta';
+            if (giorni < 60) document.getElementById('stat-prossima-scadenza').className = 'h4 text-danger mb-1';
+          }
+        }
       }catch(error){ console.error('Errore caricamento statistiche:', error); }
     }
   </script>

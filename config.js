@@ -1,6 +1,7 @@
-// config.js v8.3.5 - LOCAL/PROD con proxy Cloudflare per CORS risolti + numeri contatto
+// CONFIGURAZIONE FRONTEND - Imbriani Stefano Noleggio v8.9
 (function(){
-  const ENV = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'LOCAL' : 'PROD';
+  const isLocalHost = ['localhost','127.0.0.1'].includes(location.hostname);
+  const ENV = isLocalHost ? 'LOCAL' : 'PROD';
 
   const ENDPOINTS = {
     PROXY: 'https://imbriani-proxy.dreenhd.workers.dev',
@@ -9,13 +10,13 @@
 
   const CONFIG = {
     ENV,
-    VERSION: '8.3.5',
-    // Usa SEMPRE il proxy (sia LOCAL che PROD) per garantire header CORS e Authorization coerenti
-    API_URL: ENDPOINTS.PROXY,
-    TOKEN: 'imbriani_secret_2025', // Rinominato da AUTH_TOKEN per coerenza
+    VERSION: '8.9',
+    // Usa sempre il proxy per evitare preflight CORS verso Apps Script
+  API_URL: ENDPOINTS.PROXY,
+  TOKEN: 'imbriani_secret_2025',
+  // Mantieni compatibilità con shared-utils (usa AUTH_TOKEN)
+  AUTH_TOKEN: 'imbriani_secret_2025',
     SHEETS_ID: '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns',
-    
-    // Numeri di contatto aziendali
     PHONE_NUMBER: '+393286589618',
     WHATSAPP_NUMBER: '+393286589618'
   };

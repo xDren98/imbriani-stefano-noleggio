@@ -39,19 +39,56 @@
           btn.innerHTML = originalText;
           
           if(!res || res.success === false){
-            if (res && res.requiresRegistration) {
-              if (window.showToast) showToast('CF non registrato. Contatta per registrarti.', 'warning');
-              else alert('CF non registrato. Contatta per registrarti.');
-            } else {
-              const msg = (res && res.message) ? res.message : 'Login fallito';
-              if (window.showToast) showToast(msg, 'error');
-              else alert(msg);
+            // Gestione errori specifici
+            const errorCode = res?.errorCode;
+            let message = res?.message || 'Login fallito';
+            
+            switch(errorCode) {
+              case 'MISSING_DATA':
+                message = 'Dati di login incompleti';
+                break;
+              case 'INVALID_CF_FORMAT':
+                message = 'Formato codice fiscale non valido';
+                break;
+              case 'USER_NOT_FOUND':
+                const remainingAttempts = res?.remainingAttempts || 0;
+                if (remainingAttempts <= 2 && remainingAttempts > 0) {
+                  message = `Codice fiscale non registrato - ${remainingAttempts} tentativi rimasti`;
+                } else {
+                  message = 'Codice fiscale non registrato. Contattaci per registrarti.';
+                }
+                break;
+              case 'RATE_LIMIT_EXCEEDED':
+                const blockedUntil = res?.blockedUntil ? new Date(res.blockedUntil) : null;
+                const timeRemaining = blockedUntil ? Math.ceil((blockedUntil - new Date()) / 60000) : 30;
+                message = `Troppi tentativi falliti. Riprova tra ${timeRemaining} minuti.`;
+                break;
+              case 'DB_ERROR':
+                message = 'Errore nel sistema. Riprova più tardi.';
+                break;
+              case 'GENERIC_ERROR':
+                message = 'Errore durante il login. Riprova.';
+                break;
+              default:
+                if (res?.requiresRegistration) {
+                  message = 'Codice fiscale non registrato. Contattaci per registrarti.';
+                }
             }
+            
+            if (window.showToast) showToast(message, 'error');
+            else alert(message);
             return;
           }
           
           // Login riuscito - salva sessione e redirect
           const userData = res.user;
+          if (!userData || !userData.codiceFiscale) {
+            console.error('[LOGIN] Dati utente mancanti o invalidi:', userData);
+            if (window.showToast) showToast('Errore: dati utente mancanti', 'error');
+            else alert('Errore: dati utente mancanti');
+            return;
+          }
+          
           localStorage.setItem('imbriani_user', JSON.stringify(userData));
           localStorage.setItem('imbriani_session', JSON.stringify({
             timestamp: Date.now(),
@@ -114,8 +151,13 @@
           return;
         }
         
-        const ritiro = new Date(dataRitiro);
-        const consegna = new Date(dataConsegna);
+        const ritiro = (window.parseDateAny ? parseDateAny(dataRitiro) : new Date(dataRitiro));
+        const consegna = (window.parseDateAny ? parseDateAny(dataConsegna) : new Date(dataConsegna));
+        if (!ritiro || !consegna || isNaN(ritiro.getTime()) || isNaN(consegna.getTime())){
+          if (window.showToast) showToast('❌ Date non valide. Controlla i campi inseriti.', 'error');
+          else alert('Date non valide. Controlla i campi inseriti.');
+          return;
+        }
         const oggi = new Date();
         oggi.setHours(0, 0, 0, 0);
         
@@ -226,3 +268,4 @@
 })();
 
 // ...resto invariato, funzioni suggerimenti date...
+

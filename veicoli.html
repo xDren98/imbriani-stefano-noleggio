@@ -6,6 +6,19 @@
   <title>Selezione Veicoli — Imbriani Stefano Noleggio</title>
   <meta name="description" content="Selezione veicoli disponibili - Imbriani Stefano Noleggio">
   <meta name="theme-color" content="#0066FF">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://xdren98.github.io/imbriani-stefano-noleggio/veicoli.html">
+  <!-- Open Graph -->
+  <meta property="og:title" content="Veicoli disponibili – Imbriani Stefano Noleggio">
+  <meta property="og:description" content="Verifica disponibilità dei pulmini 9 posti e seleziona il veicolo.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://xdren98.github.io/imbriani-stefano-noleggio/veicoli.html">
+  <meta property="og:image" content="https://xdren98.github.io/imbriani-stefano-noleggio/pwa/icons/android-icon-192x192.png">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Veicoli disponibili – Imbriani Stefano Noleggio">
+  <meta name="twitter:description" content="Trova subito il primo slot disponibile e scegli il veicolo.">
+  <meta name="twitter:image" content="https://xdren98.github.io/imbriani-stefano-noleggio/pwa/icons/android-icon-192x192.png">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚐</text></svg>">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
@@ -110,6 +123,16 @@
             </button>
           </div>
           <div class="text-muted mb-3" id="search-summary"></div>
+          <!-- Banner: Prima fascia utile -->
+          <div id="first-available-banner" class="alert alert-info d-none py-2 px-3 mb-3">
+            <div class="d-flex align-items-center gap-2">
+              <i class="fas fa-bolt"></i>
+              <div class="banner-content small">
+                <span class="banner-text">Calcolo prima fascia utile...</span>
+                <span class="spinner-border spinner-border-sm ms-2" id="first-slot-spinner"></span>
+              </div>
+            </div>
+          </div>
           <div id="vehicles-list">
             <div class="text-center text-muted py-4">
               <div class="spinner-border spinner-border-sm me-2"></div>
@@ -121,6 +144,10 @@
             <h5>Nessun veicolo disponibile</h5>
             <p>Per le date e gli orari selezionati non ci sono veicoli liberi.</p>
             <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('modify-dates').click()">Modifica date</button>
+            <div id="nearest-suggestions" class="mt-4 d-none">
+              <h6 class="fw-bold text-white mb-2"><i class="fas fa-clock me-2"></i>Disponibilità vicine alle date richieste</h6>
+              <div id="nearest-suggestions-list" class="row g-3"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -167,6 +194,9 @@
         isGuestUser = false;
         document.getElementById('logout-btn').classList.remove('d-none');
         document.getElementById('header-subtitle').textContent = `Ciao ${currentUser.nome}, scegli il tuo veicolo`;
+        // Uniformiamo la CTA al prossimo step: sempre "Richiedi preventivo"
+        const nextStepEl = document.getElementById('next-step-text');
+        if (nextStepEl) nextStepEl.innerHTML = '<i class="fas fa-phone me-1"></i>Richiedi preventivo';
       } else {
         isGuestUser = true;
         document.getElementById('user-type-badge').classList.remove('d-none');
@@ -177,24 +207,43 @@
       const dal = urlParams.get('dal');
       const al = urlParams.get('al');
       const guestData = localStorage.getItem('imbriani_guest_booking');
-      
-      if (dal && al) {
+
+      // Applica auto-ricerca SOLO per flusso guest (anche se manca guest=1, basta rilevare guest in locale)
+      if (isGuestUser && dal && al) {
         document.getElementById('data_inizio').value = dal;
         document.getElementById('data_fine').value = al;
-        
+
         if (guestData) {
           const guest = JSON.parse(guestData);
           if (guest.oraRitiro) document.getElementById('ora_ritiro').value = guest.oraRitiro;
           if (guest.oraRiconsegna) document.getElementById('ora_riconsegna').value = guest.oraRiconsegna;
         }
-        
+
         document.getElementById('date-form-section').classList.add('d-none');
         document.getElementById('results-section').classList.remove('d-none');
-        
+
         setTimeout(() => {
           const form = document.getElementById('availability-form');
           if (form) form.dispatchEvent(new Event('submit'));
         }, 300);
+      } else if (isGuestUser && guestData) {
+        // Fallback: se la query non ha dal/al, usa i dati salvati
+        try {
+          const guest = JSON.parse(guestData);
+          if (guest.dataInizio) document.getElementById('data_inizio').value = guest.dataInizio;
+          if (guest.dataFine) document.getElementById('data_fine').value = guest.dataFine;
+          // Imposta orari di fallback se mancanti
+          document.getElementById('ora_ritiro').value = guest.oraRitiro || '08:00';
+          document.getElementById('ora_riconsegna').value = guest.oraRiconsegna || '12:00';
+
+          document.getElementById('date-form-section').classList.add('d-none');
+          document.getElementById('results-section').classList.remove('d-none');
+
+          setTimeout(() => {
+            const form = document.getElementById('availability-form');
+            if (form) form.dispatchEvent(new Event('submit'));
+          }, 300);
+        } catch(_) { /* ignora fallback se dati non parsabili */ }
       }
 
       setupUI();
@@ -260,17 +309,18 @@
           window.location.href = 'richiesta-preventivo.html?guest=1';
         }, 1000);
       } else {
+        // Clienti loggati: dopo la selezione del veicolo si passa comunque alla richiesta preventivo
         localStorage.setItem('imbriani_user', JSON.stringify(currentUser));
-        
-        if (window.showToast) showToast('📄 Vai al completamento prenotazione...', 'info');
+        if (window.showToast) showToast('📞 Reindirizzamento a richiesta preventivo...', 'info');
         setTimeout(() => {
-          window.location.href = 'dati-autisti.html';
+          // Aggiungo cache-busting per evitare versioni cache
+          window.location.href = 'richiesta-preventivo.html?v=2';
         }, 1000);
       }
     }
 
     async function handleSearchVehicles(e) {
-      e.preventDefault();
+      if (e && typeof e.preventDefault === 'function') e.preventDefault();
       const dataInizio = document.getElementById('data_inizio').value;
       const dataFine = document.getElementById('data_fine').value;
       const oraRitiro = document.getElementById('ora_ritiro').value;
@@ -280,7 +330,13 @@
         if (window.showToast) showToast('Compila tutti i campi richiesti', 'error');
         return;
       }
-      if (new Date(dataFine) < new Date(dataInizio)) {
+      const di = (window.parseDateAny ? parseDateAny(dataInizio) : new Date(dataInizio));
+      const df = (window.parseDateAny ? parseDateAny(dataFine) : new Date(dataFine));
+      if (!di || !df || isNaN(di.getTime()) || isNaN(df.getTime())){
+        if (window.showToast) showToast('Date non valide. Controlla i campi inseriti', 'error');
+        return;
+      }
+      if (df < di) {
         if (window.showToast) showToast('La fine deve essere successiva all\'inizio', 'error');
         return;
       }
@@ -322,18 +378,72 @@
         const allVehicles = vehiclesResponse.data || [];
         console.log('🚗 Veicoli totali:', allVehicles.length);
         availableVehicles = [];
+        // memorizza l'elenco veicoli per uso suggerimenti
+        window.allVehicles = allVehicles;
 
-        // 🚀 Parallellizza tutte le chiamate checkDisponibilita
-        const checkPromises = allVehicles.map(v => {
-          const checkUrl = `${CONFIG.API_URL}?action=checkDisponibilita&targa=${encodeURIComponent(v.Targa)}&dataInizio=${encodeURIComponent(selectedDates.dataInizio)}&dataFine=${encodeURIComponent(selectedDates.dataFine)}&oraInizio=${encodeURIComponent(selectedDates.oraRitiro)}&oraFine=${encodeURIComponent(selectedDates.oraRiconsegna)}&token=${encodeURIComponent(CONFIG.TOKEN)}`;
-          return fetch(checkUrl)
-            .then(r => r.json())
-            .then(checkResp => ({ v, checkResp }))
-            .catch(err => { console.error(`Errore check ${v.Targa}:`, err); return null; });
-        });
+        // Avvio immediato calcolo “Prima fascia utile” in parallelo
+        try {
+          const banner = document.getElementById('first-available-banner');
+          const spinner = document.getElementById('first-slot-spinner');
+          const textEl = banner ? banner.querySelector('.banner-text') : null;
+          if (banner) {
+            banner.classList.remove('d-none');
+            if (spinner) spinner.classList.remove('d-none');
+            if (textEl) textEl.textContent = 'Calcolo prima fascia utile...';
+          }
+          const diISO = selectedDates.dataInizio;
+          const dfISO = selectedDates.dataFine;
+          const params = {
+            dataInizio: diISO,
+            dataFine: dfISO,
+            oraInizio: selectedDates.oraRitiro,
+            oraFine: selectedDates.oraRiconsegna,
+            // passa l’elenco targhe per ridurre il set al parco corrente
+            targhe: (allVehicles || []).map(v => v.Targa).join(',')
+          };
+          // Usa secureGet: aggiunge token in query e gestisce fallback
+          window.secureGet('firstAvailableSlot', params).then(res => {
+            if (!banner) return;
+            const spinner2 = document.getElementById('first-slot-spinner');
+            const text2 = banner.querySelector('.banner-text');
+            if (spinner2) spinner2.classList.add('d-none');
+            if (res && res.success && res.found && res.slot) {
+              const dataIT = window.formatDateIT ? formatDateIT(res.slot.data) : String(res.slot.data);
+              const ora = String(res.slot.ora || '');
+              const targa = String(res.slot.targa || '');
+              banner.classList.remove('alert-info');
+              banner.classList.add('alert-primary');
+              if (text2) text2.innerHTML = `<strong>Prima fascia utile:</strong> ${dataIT} ${ora} • <span class="text-nowrap">${targa}</span>`;
+            } else if (text2) {
+              banner.classList.remove('alert-info');
+              banner.classList.add('alert-warning');
+              text2.textContent = 'Nessuna fascia utile trovata nei prossimi giorni';
+            }
+          }).catch(err => {
+            console.warn('firstAvailableSlot error', err);
+            if (banner) {
+              banner.classList.remove('alert-info');
+              banner.classList.add('alert-warning');
+              const text3 = banner.querySelector('.banner-text');
+              const spinner3 = document.getElementById('first-slot-spinner');
+              if (spinner3) spinner3.classList.add('d-none');
+              if (text3) text3.textContent = 'Impossibile calcolare la prima fascia utile';
+            }
+          });
+        } catch (e) {
+          console.warn('Banner prima fascia utile non disponibile', e);
+        }
 
-        const results = (await Promise.all(checkPromises)).filter(res => res && res.checkResp && res.checkResp.success);
-        availableVehicles = results.filter(res => res.checkResp.disponibile).map(res => res.v);
+        // 🚀 Bulk check disponibilità in una sola chiamata
+        const diISO = selectedDates.dataInizio;
+        const dfISO = selectedDates.dataFine;
+        const targheCSV = allVehicles.map(v => v.Targa).join(',');
+        const bulkUrl = `${CONFIG.API_URL}?action=bulkCheckDisponibilita&targhe=${encodeURIComponent(targheCSV)}&dataInizio=${encodeURIComponent(diISO)}&dataFine=${encodeURIComponent(dfISO)}&oraInizio=${encodeURIComponent(selectedDates.oraRitiro)}&oraFine=${encodeURIComponent(selectedDates.oraRiconsegna)}&token=${encodeURIComponent(CONFIG.TOKEN)}`;
+        const bulkResp = await fetch(bulkUrl).then(r => r.json()).catch(err => { console.error('Errore bulk check:', err); return { success:false, results:[] }; });
+        const results = (bulkResp && bulkResp.success && Array.isArray(bulkResp.results)) ? bulkResp.results : [];
+        // memorizza risultati per suggerimenti (compatibilità struttura precedente)
+        window.lastCheckResults = results.map(r => ({ v: allVehicles.find(v => String(v.Targa) === String(r.targa)), checkResp: { success:true, disponibile:r.disponibile } }));
+        availableVehicles = results.filter(r => r.disponibile).map(r => allVehicles.find(v => String(v.Targa) === String(r.targa))).filter(Boolean);
         console.log('✅ Veicoli disponibili:', availableVehicles.length);
         displayVehicleResults();
       }catch(err){
@@ -352,43 +462,202 @@
       resultsSection.classList.remove('d-none');
 
       const formatDate = (d) => window.formatDateIT ? window.formatDateIT(d) : new Date(d).toLocaleDateString('it-IT');
-      const userTypeText = isGuestUser ? 'Guest' : (currentUser ? currentUser.nome : 'Cliente');
+      const esc = (s) => window.escapeHtml ? escapeHtml(String(s)) : String(s);
+      const userTypeText = isGuestUser ? 'Guest' : (currentUser ? esc(currentUser.nome) : 'Cliente');
       searchSummary.innerHTML = `<i class=\"fas fa-info-circle me-1\"></i> ${userTypeText} - Ricerca: ${formatDate(selectedDates.dataInizio)} ${selectedDates.oraRitiro} → ${formatDate(selectedDates.dataFine)} ${selectedDates.oraRiconsegna}`;
 
-      if (availableVehicles.length === 0){ vehiclesList.classList.add('d-none'); noVehicles.classList.remove('d-none'); return; }
+      if (availableVehicles.length === 0){ 
+        vehiclesList.classList.add('d-none'); 
+        noVehicles.classList.remove('d-none'); 
+        // mostra suggerimenti vicini se disponibili
+        renderNearestSuggestions();
+        return; 
+      }
 
       noVehicles.classList.add('d-none'); vehiclesList.classList.remove('d-none');
       vehiclesList.innerHTML = `<div class=\"row g-4\">${availableVehicles.map(vehicle => `
         <div class=\"col-lg-4 col-md-6\">
           <div class=\"glass-card vehicle-card p-4 h-100 cursor-pointer\" data-targa=\"${vehicle.Targa}\">
             <div class=\"d-flex align-items-center justify-content-between mb-3\">
-              <h6 class=\"fw-bold text-white mb-0\">${vehicle.Targa}</h6>
+              <h6 class=\"fw-bold text-white mb-0\">${esc(vehicle.Targa)}</h6>
               ${vehicle.PassoLungo ? '<span class=\"badge badge-passo-lungo\">Passo Lungo</span>' : ''}
             </div>
-            <div class=\"mb-2\"><span class=\"text-white fw-semibold\">${vehicle.Marca} ${vehicle.Modello}</span></div>
+            <div class=\"mb-2\"><span class=\"text-white fw-semibold\">${esc(vehicle.Marca)} ${esc(vehicle.Modello)}</span></div>
             <div class=\"mb-3\">
               <span class=\"badge bg-success\"><i class=\"fas fa-users me-1\"></i>${vehicle.Posti} posti</span>
               <span class=\"badge bg-info ms-1\"><i class=\"fas fa-check-circle me-1\"></i>Disponibile</span>
             </div>
-            ${vehicle.Note ? `<div class=\"small text-white-50 mb-3\">${vehicle.Note}</div>` : ''}
+            ${vehicle.Note ? `<div class=\"small text-white-50 mb-3\">${esc(vehicle.Note)}</div>` : ''}
             <button type=\"button\" class=\"btn btn-premium w-100\" onclick=\"selectVehicle('${vehicle.Targa}')\"><i class=\"fas fa-hand-pointer me-2\"></i>Seleziona questo veicolo</button>
           </div>
         </div>`).join('')}</div>`;
     }
 
-    function selectVehicle(targa){
-      selectedVehicle = availableVehicles.find(v => v.Targa === targa);
-      if (!selectedVehicle) return;
-      const selectedInfo = document.getElementById('selected-vehicle-info');
-      const formatDate = (d) => window.formatDateIT ? window.formatDateIT(d) : new Date(d).toLocaleDateString('it-IT');
-      selectedInfo.innerHTML = `
+    // Suggerimenti di disponibilità vicine
+    const FRONTEND_FASCE_ORARIE = ["08:00","10:00","12:00","14:00","16:00","18:00","20:00","22:00"];
+    function toISODate(d){
+      try{
+        if (typeof d === 'string') return d;
+        const y = d.getFullYear();
+        const m = String(d.getMonth()+1).padStart(2,'0');
+        const day = String(d.getDate()).padStart(2,'0');
+        return `${y}-${m}-${day}`;
+      }catch(_){ return ''; }
+    }
+    function makeDate(dateStr, timeStr){ return new Date(`${dateStr}T${timeStr}:00`); }
+    function addDaysISO(dateStr, days){ const d = new Date(`${dateStr}T00:00:00`); d.setDate(d.getDate()+days); return toISODate(d); }
+    function getDurationMinutes(){ const s = makeDate(selectedDates.dataInizio, selectedDates.oraRitiro); const e = makeDate(selectedDates.dataFine, selectedDates.oraRiconsegna); return Math.max(0, Math.round((e - s)/60000)); }
+    function computeEndFromStart(startISO, startTime, durationMin){ const start = makeDate(startISO, startTime); const end = new Date(start.getTime() + durationMin*60000); const hh = String(end.getHours()).padStart(2,'0'); const mm = String(end.getMinutes()).padStart(2,'0'); const t = `${hh}:${mm}`; let endTime = t; let endISO = toISODate(end);
+      // Se l'orario non è in fascia, arrotonda alla fascia più vicina valida
+      if (!FRONTEND_FASCE_ORARIE.includes(endTime)){
+        // Trova indice successivo o, se sfora, vai al giorno successivo 08:00
+        const candidate = FRONTEND_FASCE_ORARIE.find(f => f >= endTime);
+        if (candidate) endTime = candidate; else { endISO = addDaysISO(endISO, 1); endTime = '08:00'; }
+      }
+      return { endISO, endTime };
+    }
+
+    // Utilità: esegue funzioni asincrone con concorrenza limitata
+    async function runWithConcurrency(tasks, limit){
+      const results = [];
+      let i = 0;
+      const executing = new Set();
+      async function enqueue(){
+        if (i >= tasks.length) return;
+        const task = tasks[i++];
+        const p = Promise.resolve().then(task).then(res => { results.push(res); executing.delete(p); });
+        executing.add(p);
+        if (executing.size >= limit){ await Promise.race(Array.from(executing)); }
+        return enqueue();
+      }
+      await enqueue();
+      await Promise.all(Array.from(executing));
+      return results;
+    }
+
+    let suggestionsAbortController = null;
+    async function computeNearestSuggestions(maxSuggestions = 3){
+      try{
+        const allVehicles = window.allVehicles || [];
+        if (!allVehicles.length) return [];
+        const durationMin = getDurationMinutes();
+        const startIdx = Math.max(0, FRONTEND_FASCE_ORARIE.indexOf(selectedDates.oraRitiro));
+        const suggestions = [];
+
+        // Aborta eventuale calcolo precedente
+        if (suggestionsAbortController) try{ suggestionsAbortController.abort(); }catch(_){}
+        suggestionsAbortController = new AbortController();
+        const { signal } = suggestionsAbortController;
+
+        // Prepara lista slot (stesso giorno dalle fasce >= start, poi SOLO il giorno successivo)
+        const candidateSlots = [];
+        for (let dayOffset = 0; dayOffset <= 1; dayOffset++){
+          const baseISO = addDaysISO(selectedDates.dataInizio, dayOffset);
+          const fromIdx = dayOffset === 0 ? startIdx : 0;
+          for (let idx = fromIdx; idx < FRONTEND_FASCE_ORARIE.length; idx++){
+            const startTime = FRONTEND_FASCE_ORARIE[idx];
+            const { endISO, endTime } = computeEndFromStart(baseISO, startTime, durationMin);
+            candidateSlots.push({ baseISO, startTime, endISO, endTime });
+          }
+        }
+
+        // Per ogni slot, esegui UNA SOLA chiamata bulk con tutte le targhe
+        const seenTarghe = new Set();
+        for (const slot of candidateSlots){
+          if (suggestions.length >= maxSuggestions) break;
+          const targheCSV = allVehicles.map(v => v.Targa).join(',');
+          const bulkUrl = `${CONFIG.API_URL}?action=bulkCheckDisponibilita&targhe=${encodeURIComponent(targheCSV)}&dataInizio=${encodeURIComponent(slot.baseISO)}&dataFine=${encodeURIComponent(slot.endISO)}&oraInizio=${encodeURIComponent(slot.startTime)}&oraFine=${encodeURIComponent(slot.endTime)}&token=${encodeURIComponent(CONFIG.TOKEN)}`;
+          try{
+            const resp = await fetch(bulkUrl, { signal }).then(r=>r.json());
+            if (resp && resp.success && Array.isArray(resp.results)){
+              for (const r of resp.results){
+                if (suggestions.length >= maxSuggestions) break;
+                if (r.disponibile){
+                  const v = allVehicles.find(x => String(x.Targa) === String(r.targa));
+                  if (!v) continue;
+                  const key = String(v.Targa||'');
+                  if (seenTarghe.has(key)) continue;
+                  seenTarghe.add(key);
+                  suggestions.push({
+                    targa: v.Targa,
+                    posti: v.Posti,
+                    marca: v.Marca,
+                    modello: v.Modello,
+                    startISO: slot.baseISO,
+                    startTime: slot.startTime,
+                    endISO: slot.endISO,
+                    endTime: slot.endTime
+                  });
+                }
+              }
+            }
+          }catch(e){ /* ignoriamo abort/errore */ }
+        }
+        return suggestions.slice(0, maxSuggestions);
+      }catch(e){ console.error('Errore computeNearestSuggestions', e); return []; }
+    }
+
+    async function renderNearestSuggestions(){
+      const box = document.getElementById('nearest-suggestions');
+      const list = document.getElementById('nearest-suggestions-list');
+      if (!box || !list) return;
+      list.innerHTML = `<div class="text-center text-muted py-3"><div class="spinner-border spinner-border-sm me-2"></div>Calcolo disponibilità vicine...</div>`;
+      box.classList.remove('d-none');
+      const suggestions = await computeNearestSuggestions(3);
+      if (!suggestions.length){
+        list.innerHTML = `<div class="text-center text-muted">Nessun suggerimento vicino trovato. Prova a modificare le date.</div>`;
+        return;
+      }
+      window.latestSuggestions = suggestions;
+      const esc = (s) => window.escapeHtml ? escapeHtml(String(s)) : String(s);
+      list.innerHTML = suggestions.map((sug, i) => `
+        <div class="col-md-6">
+          <div class="glass-card p-3 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="text-white fw-semibold">${esc(sug.targa)} — ${esc(sug.marca||'')} ${esc(sug.modello||'')} ${i === 0 ? '<span class="badge bg-primary ms-2"><i class="fas fa-check me-1"></i>Prima fascia utile</span>' : ''}</div>
+              <span class="badge bg-success"><i class="fas fa-users me-1"></i>${esc(sug.posti)} posti</span>
+            </div>
+            <div class="text-white-50 small mb-2">
+              <i class="fas fa-calendar-day me-1"></i>
+              ${window.formatDateIT ? formatDateIT(sug.startISO) : sug.startISO} ${sug.startTime}
+              <span class="mx-1">→</span>
+              ${window.formatDateIT ? formatDateIT(sug.endISO) : sug.endISO} ${sug.endTime}
+            </div>
+            <button type="button" class="btn btn-outline-light btn-sm" onclick="applySuggestion(${i})">
+              <i class="fas fa-magic me-1"></i>Usa queste date
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function applySuggestion(idx){
+      try{
+        const sug = (window.latestSuggestions||[])[idx];
+        if (!sug) return;
+        // aggiorna form con le date/ore suggerite e rilancia la ricerca
+        document.getElementById('data_inizio').value = sug.startISO;
+        document.getElementById('ora_ritiro').value = sug.startTime;
+        document.getElementById('data_fine').value = sug.endISO;
+        document.getElementById('ora_riconsegna').value = sug.endTime;
+        handleSearchVehicles();
+      }catch(e){ console.error('applySuggestion error', e); }
+    }
+
+function selectVehicle(targa){
+  selectedVehicle = availableVehicles.find(v => v.Targa === targa);
+  if (!selectedVehicle) return;
+  const selectedInfo = document.getElementById('selected-vehicle-info');
+  const formatDate = (d) => window.formatDateIT ? window.formatDateIT(d) : new Date(d).toLocaleDateString('it-IT');
+  const esc = (s) => window.escapeHtml ? escapeHtml(String(s)) : String(s);
+  selectedInfo.innerHTML = `
         <div class=\"row align-items-center\">
           <div class=\"col-md-8\">
             <div class=\"d-flex align-items-center gap-3\">
               <div class=\"bg-success p-3 rounded-3\"><i class=\"fas fa-car text-white\" style=\"font-size:1.5rem\"></i></div>
               <div>
-                <h6 class=\"text-white fw-bold mb-1\">${selectedVehicle.Targa}</h6>
-                <div class=\"text-white-75\">${selectedVehicle.Marca} ${selectedVehicle.Modello}</div>
+                <h6 class=\"text-white fw-bold mb-1\">${esc(selectedVehicle.Targa)}</h6>
+                <div class=\"text-white-75\">${esc(selectedVehicle.Marca)} ${esc(selectedVehicle.Modello)}</div>
                 <div class=\"small text-success\"><i class=\"fas fa-users me-1\"></i>${selectedVehicle.Posti} posti ${selectedVehicle.PassoLungo ? ' • Passo Lungo' : ''}</div>
               </div>
             </div>

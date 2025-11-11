@@ -11,6 +11,28 @@
     'Rifiutata': { bg: 'danger', icon: 'times-circle', text: 'white' }
   };
 
+  // Classe CSS per badge stato uniforme “pill”
+  function badgeClassForStatus(stato) {
+    switch (stato) {
+      case 'In attesa': return 'badge-attesa';
+      case 'Programmata': return 'badge-programmata';
+      case 'In corso': return 'badge-in-corso';
+      case 'Completata': return 'badge-completata';
+      case 'Confermata': return 'badge-confermata';
+      case 'Rifiutata': return 'badge-rifiutata';
+      default: return 'badge-attesa';
+    }
+  }
+
+  // Iniziali per avatar (es: "Andrea Fioschini" -> "AF")
+  function getInitials(name) {
+    if (!name || typeof name !== 'string') return '–';
+    const parts = name.trim().split(/\s+/);
+    const first = parts[0]?.[0] || '';
+    const last = parts.length > 1 ? parts[parts.length - 1]?.[0] || '' : '';
+    return (first + last).toUpperCase();
+  }
+
   let allPrenotazioni = [];
   let filteredPrenotazioni = [];
   let currentFilters = { stato: 'tutti', ricerca: '' };
@@ -48,6 +70,7 @@
     }, 3000);
   };
 
+  // Esporta anche l'alias legacy per compatibilità con admin-scripts
   window.loadPrenotazioniSection = async function() {
     const root = document.getElementById('admin-root');
     if (!root) return;
@@ -73,7 +96,7 @@
              <button class="switch-view-btn" id="btn-view-list">
                <i class="fas fa-list"></i> Elenco
              </button>
-             <button class="btn btn-success ms-3" onclick="window.showNewBookingModal?.()">
+             <button class="btn btn-glass btn-glass-success ms-3" onclick="window.showNewBookingModal?.()">
                <i class="fas fa-plus me-2"></i>Nuova Prenotazione
              </button>
            </div>
@@ -82,31 +105,14 @@
 
       <div class="mb-3" id="quick-stats"></div>
 
-      <!-- Filtri -->
+      <!-- Filtri (solo ricerca) -->
       <div class="card mb-3" style="border-radius:14px;">
         <div class="card-body">
           <div class="row g-3 align-items-end">
-            <div class="col-md-3">
-              <label class="form-label fw-semibold">Filtra per Stato</label>
-              <select id="filter-stato" class="form-select">
-                <option value="tutti">Tutti gli stati</option>
-                <option value="In attesa">In attesa</option>
-                <option value="Programmata">Programmata</option>
-                <option value="In corso">In corso</option>
-                <option value="Completata">Completata</option>
-                <option value="Confermata">Confermata</option>
-                <option value="Rifiutata">Rifiutata</option>
-              </select>
-            </div>
             <div class="col-md-6">
               <label class="form-label fw-semibold">Ricerca</label>
               <input type="text" id="filter-ricerca" class="form-control" 
                      placeholder="Cerca per ID, CF, Nome, Targa...">
-            </div>
-            <div class="col-md-3">
-              <button class="btn btn-primary w-100" onclick="window.applicaFiltriPrenotazioni()">
-                <i class="fas fa-filter me-2"></i>Applica Filtri
-              </button>
             </div>
           </div>
         </div>
@@ -115,6 +121,7 @@
       <div id="cards-or-table-prenotazioni" class="mb-4"></div>
     `;
 
+    // Stato rimosso dalla UI: mantenuto via quick stats
     document.getElementById('filter-stato')?.addEventListener('change', aggiornaFiltri);
     document.getElementById('filter-ricerca')?.addEventListener('input', debounce(aggiornaFiltri, 300));
     document.getElementById('btn-view-grid').onclick = () => switchView('card');
@@ -122,6 +129,9 @@
     
     await caricaPrenotazioni();
   };
+
+  // Alias legacy usato in alcune versioni di admin-scripts
+  window.caricaSezionePrenotazioni = window.loadPrenotazioniSection;
 
   async function caricaPrenotazioni() {
     try {
@@ -183,7 +193,8 @@
 
   window.quickStatFilter = function(stato) {
     currentFilters.stato = stato === 'Tutte' ? 'tutti' : stato;
-    document.getElementById('filter-stato').value = stato === 'Tutte' ? 'tutti' : stato;
+    const fs = document.getElementById('filter-stato');
+    if (fs) fs.value = stato === 'Tutte' ? 'tutti' : stato;
     window.applicaFiltriPrenotazioni();
     renderQuickStats();
   };
@@ -217,15 +228,19 @@
               : 'Non ci sono prenotazioni al momento'}
           </div>
           ${currentFilters.stato !== 'tutti' || currentFilters.ricerca 
-            ? '<button class="btn btn-primary" onclick="window.quickStatFilter(\'Tutte\')">Mostra Tutte</button>' 
-            : '<button class="btn btn-success" onclick="window.showNewBookingModal?.()"><i class="fas fa-plus me-2"></i>Crea Prenotazione</button>'}
+            ? '<button class="btn btn-glass btn-glass-primary" onclick="window.quickStatFilter(\'Tutte\')">Mostra Tutte</button>' 
+            : '<button class="btn btn-glass btn-glass-success" onclick="window.showNewBookingModal?.()"><i class="fas fa-plus me-2"></i>Crea Prenotazione</button>'}
         </div>
       `;
       return;
     }
     
     const sorted = [...filteredPrenotazioni].sort((a, b) => {
-      return new Date(b.giornoInizio) - new Date(a.giornoInizio);
+      const db = (window.parseDateAny ? parseDateAny(b.giornoInizio) : new Date(b.giornoInizio));
+      const da = (window.parseDateAny ? parseDateAny(a.giornoInizio) : new Date(a.giornoInizio));
+      const tb = db && !isNaN(db.getTime()) ? db.getTime() : 0;
+      const ta = da && !isNaN(da.getTime()) ? da.getTime() : 0;
+      return tb - ta;
     });
     
     container.innerHTML = `<div class="row g-3">` +
@@ -245,52 +260,57 @@
                  onclick="window.mostraDettaglioPrenotazione('${p.idPrenotazione || p.id}')">
               <div class="card-body">
                 <div class="d-flex align-items-center mb-2 gap-3">
-                  <span class="badge bg-${statoConfig.bg} fs-6 py-2 px-3">
+                  <span class="badge badge-status ${badgeClassForStatus(p.stato)}">
                     <i class="fas fa-${statoConfig.icon} me-1"></i>${p.stato}
                   </span>
-                  <span class="badge bg-secondary fs-6">${p.targa || '-'}</span>
-                  <span class="ms-auto text-muted small">
-                    <i class="fa-regular fa-calendar me-1"></i>${dataInizio} → ${dataFine}
+                  <span class="ms-auto chip chip-muted">
+                    <i class="fa-regular fa-calendar"></i>${dataInizio} → ${dataFine}
                   </span>
                 </div>
+
+                <div class="d-flex align-items-center mb-1 gap-3">
+                  <div class="avatar-initials" aria-hidden="true">${getInitials(p.nomeAutista1)}</div>
+                  <div class="card-prenotazione-nome">${window.escapeHtml ? escapeHtml(p.nomeAutista1 || '-') : (p.nomeAutista1 || '-')}</div>
+                </div>
                 
-                <div class="card-prenotazione-nome mb-1">${p.nomeAutista1 || '-'}</div>
+                <div class="mb-2 d-flex align-items-center gap-2 flex-wrap">
+                  <span class="chip chip-secondary"><i class="fas fa-car-side"></i>${window.escapeHtml ? escapeHtml(p.targa || '-') : (p.targa || '-')}</span>
+                  ${p.destinazione ? `<span class="chip chip-info"><i class="fas fa-map-marker-alt"></i>${window.escapeHtml ? escapeHtml(p.destinazione) : p.destinazione}</span>` : ''}
+                </div>
                 <div class="mb-1 text-muted fw-normal small">
-                  <i class="fas fa-phone me-1"></i>${p.cellulare || '-'}</div>
+                  <i class="fas fa-phone me-1"></i>${window.escapeHtml ? escapeHtml(p.cellulare || '-') : (p.cellulare || '-')}</div>
                 <div class="mb-1 text-muted fw-normal small">
-                  <i class="fas fa-envelope me-1"></i>${p.email || '-'}</div>
+                  <i class="fas fa-envelope me-1"></i>${window.escapeHtml ? escapeHtml(p.email || '-') : (p.email || '-')}</div>
                 <div class="mb-1 text-info fw-semibold small">
                   <i class="fas fa-clock me-1"></i>
                   <strong>Dal:</strong> ${dataInizio} ${oraInizio} <strong>- Al:</strong> ${dataFine} ${oraFine}
                 </div>
-                ${p.destinazione ? `<div class="mb-1 text-warning fw-normal small">
-                    <i class="fas fa-map-marker-alt me-1"></i>${p.destinazione}</div>` : ''}
                 <div class="d-flex justify-content-between align-items-center mt-2 gap-2 flex-wrap" onclick="event.stopPropagation()">
                   <span class="small text-primary"><b>${p.idPrenotazione || p.id}</b></span>
                   ${p.stato === 'In attesa' ? `
-                    <button class="btn btn-outline-success btn-sm me-1" title="Conferma" 
+                    <button class="pill-action pill-success me-1" title="Conferma" 
                             onclick="window.cambiaStatoPrenotazione('${p.idPrenotazione || p.id}','Confermata');event.stopPropagation();">
-                      <i class="fas fa-check"></i>
+                      <i class="fas fa-check"></i>Conferma
                     </button>
-                    <button class="btn btn-outline-danger btn-sm me-1" title="Rifiuta" 
+                    <button class="pill-action pill-danger me-1" title="Rifiuta" 
                             onclick="window.cambiaStatoPrenotazione('${p.idPrenotazione || p.id}','Rifiutata');event.stopPropagation();">
-                      <i class="fas fa-times"></i>
+                      <i class="fas fa-times"></i>Rifiuta
                     </button>
                   ` : ''}
                   <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-warning" title="Modifica" 
+                    <button class="btn action-btn action-warning" title="Modifica" 
                             onclick="window.modificaPrenotazione('${p.idPrenotazione || p.id}'); event.stopPropagation();">
                       <i class="fas fa-edit"></i>
                     </button>
-                    <button class="btn btn-outline-danger" title="Elimina" 
+                    <button class="btn action-btn action-danger" title="Elimina" 
                             onclick="window.eliminaPrenotazione('${p.idPrenotazione || p.id}'); event.stopPropagation();">
                       <i class="fas fa-trash"></i>
                     </button>
                     ${p.pdfUrl ? `<a href="${p.pdfUrl}" target="_blank" 
-                         class="btn btn-outline-secondary" title="PDF"
+                         class="btn action-btn action-secondary" title="PDF"
                          onclick="event.stopPropagation();">
-                        <i class="fas fa-file-pdf"></i>
-                      </a>` : ''}
+                         <i class="fas fa-file-pdf"></i>
+                       </a>` : ''}
                   </div>
                 </div>
               </div>
@@ -317,15 +337,19 @@
               : 'Non ci sono prenotazioni al momento'}
           </div>
           ${currentFilters.stato !== 'tutti' || currentFilters.ricerca 
-            ? '<button class="btn btn-primary" onclick="window.quickStatFilter(\'Tutte\')">Mostra Tutte</button>' 
-            : '<button class="btn btn-success" onclick="window.showNewBookingModal?.()"><i class="fas fa-plus me-2"></i>Crea Prenotazione</button>'}
+            ? '<button class="btn btn-glass btn-glass-primary" onclick="window.quickStatFilter(\'Tutte\')">Mostra Tutte</button>' 
+            : '<button class="btn btn-glass btn-glass-success" onclick="window.showNewBookingModal?.()"><i class="fas fa-plus me-2"></i>Crea Prenotazione</button>'}
         </div>
       `;
       return;
     }
     
     const sorted = [...filteredPrenotazioni].sort((a, b) => {
-      return new Date(b.giornoInizio) - new Date(a.giornoInizio);
+      const db = (window.parseDateAny ? parseDateAny(b.giornoInizio) : new Date(b.giornoInizio));
+      const da = (window.parseDateAny ? parseDateAny(a.giornoInizio) : new Date(a.giornoInizio));
+      const tb = db && !isNaN(db.getTime()) ? db.getTime() : 0;
+      const ta = da && !isNaN(da.getTime()) ? da.getTime() : 0;
+      return tb - ta;
     });
     
     container.innerHTML = `
@@ -368,22 +392,22 @@
                       <td>${oraInizio && oraFine ? oraInizio + ' → ' + oraFine : '-'}</td>
                       <td>${p.destinazione || '-'}</td>
                       <td>
-                        <span class="badge bg-${statoConfig.bg}">
+                        <span class="badge badge-status ${badgeClassForStatus(p.stato)}">
                           <i class="fas fa-${statoConfig.icon} me-1"></i>${p.stato}
                         </span>
                       </td>
                       <td class="text-end" onclick="event.stopPropagation()">
                         <div class="btn-group btn-group-sm">
-                          <button class="btn btn-outline-warning" title="Modifica" 
+                          <button class="btn action-btn action-warning" title="Modifica" 
                                   onclick="window.modificaPrenotazione('${p.idPrenotazione || p.id}')">
                             <i class="fas fa-edit"></i>
                           </button>
-                          <button class="btn btn-outline-danger" title="Elimina" 
+                          <button class="btn action-btn action-danger" title="Elimina" 
                                   onclick="window.eliminaPrenotazione('${p.idPrenotazione || p.id}')">
                             <i class="fas fa-trash"></i>
                           </button>
                           ${p.pdfUrl ? `<a href="${p.pdfUrl}" target="_blank" 
-                               class="btn btn-outline-secondary" title="PDF">
+                               class="btn action-btn action-secondary" title="PDF">
                               <i class="fas fa-file-pdf"></i>
                             </a>` : ''}
                         </div>
@@ -402,7 +426,7 @@
   function aggiornaFiltri() {
     const statoSelect = document.getElementById('filter-stato');
     const ricercaInput = document.getElementById('filter-ricerca');
-    currentFilters.stato = statoSelect?.value || 'tutti';
+    if (statoSelect) currentFilters.stato = statoSelect.value;
     currentFilters.ricerca = ricercaInput?.value?.toLowerCase()?.trim() || '';
     window.applicaFiltriPrenotazioni();
   }
@@ -433,7 +457,7 @@
   };
 
   // MODALE DETTAGLIO COMPLETA
-  window.mostraDettaglioPrenotazione = function(idPrenotazione) {
+  window.mostraDettaglioPrenotazione = async function(idPrenotazione) {
     const prenotazione = allPrenotazioni.find(p => (p.idPrenotazione || p.id) === idPrenotazione);
     if (!prenotazione) {
       window.showToast('❌ Prenotazione non trovata', 'error');
@@ -444,6 +468,19 @@
     const statoConfig = STATI_COLORI[p.stato] || STATI_COLORI['In attesa'];
     const dataInizio = p.giornoInizio ? window.formatDateIT ? window.formatDateIT(p.giornoInizio) : '-' : '-';
     const dataFine = p.giornoFine ? window.formatDateIT ? window.formatDateIT(p.giornoFine) : '-' : '-';
+    // Genera token autisti per link pubblico
+    let tokenAutisti = null;
+    try {
+      const tokRes = await window.securePost?.('generaTokenAutisti', { idPrenotazione: (p.idPrenotazione || p.id) });
+      if (tokRes?.success && tokRes.token) tokenAutisti = tokRes.token;
+    } catch (e) {
+      console.warn('[mostraDettaglioPrenotazione] Impossibile generare token autisti:', e);
+    }
+    // Costruisci URL robusto con API URL
+    const baseUrl = new URL('dati-autisti', window.location.href);
+    baseUrl.searchParams.set('idPrenotazione', String(p.idPrenotazione || p.id));
+    if (tokenAutisti) baseUrl.searchParams.set('t', tokenAutisti);
+    const linkAutisti = baseUrl.toString();
 
     // Crea modale se non esiste
     let modal = document.getElementById('dettaglioPrenotazioneModal');
@@ -468,7 +505,7 @@
             <div class="mb-3">
               <div class="d-flex justify-content-between align-items-center">
                 <h6 class="mb-0"><strong>ID:</strong> ${p.idPrenotazione || p.id}</h6>
-                <span class="badge bg-${statoConfig.bg} fs-6 py-2 px-3">
+                <span class="badge badge-status ${badgeClassForStatus(p.stato)}">
                   <i class="fas fa-${statoConfig.icon} me-1"></i>${p.stato}
                 </span>
               </div>
@@ -562,11 +599,17 @@
             ` : ''}
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
-            <button type="button" class="btn btn-warning" onclick="window.modificaPrenotazione('${p.idPrenotazione || p.id}')">
+            <button type="button" class="btn btn-glass btn-glass-secondary" data-bs-dismiss="modal">Chiudi</button>
+            <a class="btn btn-glass btn-glass-primary" target="_blank" href="${linkAutisti}">
+              <i class="fas fa-external-link-alt me-2"></i>Apri link autisti
+            </a>
+            <button type="button" class="btn btn-glass btn-glass-info" onclick="window.copiaLinkAutisti('${p.idPrenotazione || p.id}')">
+              <i class="fas fa-link me-2"></i>Copia link autisti
+            </button>
+            <button type="button" class="btn btn-glass btn-glass-warning" onclick="window.modificaPrenotazione('${p.idPrenotazione || p.id}')">
               <i class="fas fa-edit me-2"></i>Modifica
             </button>
-            <button type="button" class="btn btn-danger" onclick="window.eliminaPrenotazione('${p.idPrenotazione || p.id}')">
+            <button type="button" class="btn btn-glass btn-glass-danger" onclick="window.eliminaPrenotazione('${p.idPrenotazione || p.id}')">
               <i class="fas fa-trash me-2"></i>Elimina
             </button>
           </div>
@@ -637,12 +680,13 @@
     // Formatta date per input date (YYYY-MM-DD)
     const formatDateForInput = (dateStr) => {
       if (!dateStr) return '';
-      // Se già in formato YYYY-MM-DD, restituiscilo
       if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-      // Altrimenti prova a parsarlo
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return '';
-      return date.toISOString().split('T')[0];
+      const d = (window.parseDateAny ? parseDateAny(dateStr) : new Date(dateStr));
+      if (!d || isNaN(d.getTime())) return '';
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const day = String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${day}`;
     };
 
     modalModifica.innerHTML = `
@@ -667,7 +711,9 @@
                   <div class="row g-3">
                     <div class="col-md-4">
                       <label class="form-label fw-semibold">Targa Veicolo <span class="text-danger">*</span></label>
-                      <input type="text" class="form-control" id="edit-targa" value="${p.targa || ''}" required>
+                      <select class="form-select" id="edit-targa" required>
+                        <option value="">Seleziona targa…</option>
+                      </select>
                     </div>
                     
                     <div class="col-md-4">
@@ -861,10 +907,10 @@
           </div>
           
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <button type="button" class="btn btn-glass btn-glass-secondary" data-bs-dismiss="modal">
               <i class="fas fa-times me-2"></i>Annulla
             </button>
-            <button type="button" class="btn btn-success" onclick="window.salvaModificaPrenotazione('${p.idPrenotazione || p.id}')">
+            <button type="button" class="btn btn-glass btn-glass-success" onclick="window.salvaModificaPrenotazione('${p.idPrenotazione || p.id}')">
               <i class="fas fa-save me-2"></i>Salva Modifiche
             </button>
           </div>
@@ -874,6 +920,36 @@
 
     const bsModal = new bootstrap.Modal(modalModifica);
     bsModal.show();
+
+    // Popola menu targhe dalla flotta
+    try {
+      const selTarga = modalModifica.querySelector('#edit-targa');
+      if (selTarga) {
+        selTarga.disabled = true;
+        selTarga.innerHTML = '<option value="">Caricamento targhe…</option>';
+        const res = await window.securePost?.('getVeicoli');
+        const lista = Array.isArray(res?.data) ? res.data : [];
+        const opts = ['<option value="">Seleziona targa…</option>'].concat(
+          lista.map(v => {
+            const t = v.Targa || '';
+            const label = [v.Targa, v.Marca, v.Modello].filter(Boolean).join(' - ');
+            const selected = t && t === (p.targa || '') ? ' selected' : '';
+            return `<option value="${t}"${selected}>${label}</option>`;
+          })
+        ).join('');
+        selTarga.innerHTML = opts;
+        selTarga.disabled = false;
+      }
+    } catch (e) {
+      console.warn('[modificaPrenotazione] Errore caricamento targhe:', e);
+      const selTarga = modalModifica.querySelector('#edit-targa');
+      if (selTarga) {
+        const current = p.targa || '';
+        const label = current || 'N/D';
+        selTarga.innerHTML = `<option value="${current}" selected>${label}</option>`;
+        selTarga.disabled = false;
+      }
+    }
     
     // Chiudi modale dettaglio se aperto
     const modalDettaglio = document.getElementById('dettaglioPrenotazioneModal');
@@ -942,7 +1018,42 @@
     } finally {
       window.showLoader?.(false);
     }
-  }
+  };
+
+  // Copia link pubblico per compilazione autisti
+  window.copiaLinkAutisti = async function(idPren) {
+    // Costruisci URL robusto con API URL
+    const baseUrl = new URL('dati-autisti', window.location.href);
+    baseUrl.searchParams.set('idPrenotazione', String(idPren));
+    try {
+      const tokRes = await window.securePost?.('generaTokenAutisti', { idPrenotazione: idPren });
+      if (tokRes?.success && tokRes.token) {
+        baseUrl.searchParams.set('t', tokRes.token);
+      }
+    } catch(e) {
+      console.warn('[copiaLinkAutisti] Impossibile generare token autisti:', e);
+    }
+    const url = baseUrl.toString();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url)
+        .then(()=> window.showToast('🔗 Link autisti copiato negli appunti', 'success'))
+        .catch(()=> {
+          try {
+            const ok = window.prompt('Copia il link autisti:', url);
+            if (ok !== null) window.showToast('🔗 Link disponibile', 'info');
+          } catch(_) {
+            window.showToast('⚠️ Impossibile copiare automaticamente. Usa copia manuale.', 'warning');
+          }
+        });
+    } else {
+      try {
+        const ok = window.prompt('Copia il link autisti:', url);
+        if (ok !== null) window.showToast('🔗 Link disponibile', 'info');
+      } catch(_) {
+        window.showToast('⚠️ Impossibile copiare automaticamente. Usa copia manuale.', 'warning');
+      }
+    }
+  };
   // Rendi email non obbligatoria anche lato DOM
   document.addEventListener('DOMContentLoaded', function() {
     const observer = new MutationObserver(function(mutations) {
@@ -956,35 +1067,6 @@
     });
     observer.observe(document.body, { childList: true, subtree: true });
   });
-
-    try {
-      window.showLoader?.(true, 'Salvataggio modifiche in corso...');
-      
-      // Chiamata API backend
-      const response = await window.securePost?.('modificaPrenotazione', datiModificati);
-      
-      if (response?.success) {
-        window.showToast('✅ Prenotazione modificata con successo!', 'success');
-        
-        // Chiudi modale
-        const modal = document.getElementById('modificaPrenotazioneModal');
-        if (modal) {
-          const bsModal = bootstrap.Modal.getInstance(modal);
-          if (bsModal) bsModal.hide();
-        }
-        
-        // Ricarica prenotazioni
-        await caricaPrenotazioni();
-      } else {
-        throw new Error(response?.message || 'Errore durante il salvataggio');
-      }
-    } catch (error) {
-      console.error('[SALVA MODIFICA] Errore:', error);
-      window.showToast(`❌ Errore salvataggio: ${error.message}`, 'error');
-    } finally {
-      window.showLoader?.(false);
-    }
-  };
 
   window.cambiaStatoPrenotazione = async function(idPrenotazione, nuovoStato) {
     try {

@@ -55,7 +55,13 @@
       <form id="driver-form-1" autocomplete="off">
         <div class="row gy-3 mt-1">
           <div class="col-md-12"><label class="form-label">Nome completo</label><input class="form-control form-control-modern" type="text" id="nomeCompleto-1" required placeholder="Mario Rossi"></div>
-          <div class="col-md-6"><label class="form-label">Codice Fiscale</label><input class="form-control form-control-modern" type="text" id="cf-1" required maxlength="16" placeholder="RSSMRA80A12H501L"></div>
+          <div class="col-md-6">
+            <label class="form-label d-flex justify-content-between align-items-center">
+              <span>Codice Fiscale</span>
+              <button type="button" id="search-cf-1" class="btn btn-sm btn-outline-info"><i class="fas fa-search me-1"></i>Cerca dati cliente</button>
+            </label>
+            <input class="form-control form-control-modern" type="text" id="cf-1" required maxlength="16" placeholder="RSSMRA80A12H501L">
+          </div>
           <div class="col-md-6"><label class="form-label">Cellulare</label><input class="form-control form-control-modern" type="tel" id="cell-1" placeholder="+39..." required></div>
           <div class="col-md-6"><label class="form-label">Data di nascita</label><input type="date" class="form-control form-control-modern" id="nascita-1" required></div>
           <div class="col-md-6"><label class="form-label">Luogo di nascita</label><input class="form-control form-control-modern" type="text" id="luogo-1" required placeholder="Comune (PR)"></div>
@@ -157,10 +163,56 @@ function bindUI() {
       }
     });
   });
+  // Ricerca cliente via CF per autista principale
+  const btnSearch = document.getElementById('search-cf-1');
+  if (btnSearch) {
+    btnSearch.onclick = async () => {
+      const cf = (document.getElementById('cf-1')?.value||'').trim().toUpperCase();
+      if (!cf || cf.length !== 16) { showToast('Inserisci un CF valido (16 caratteri)','warning'); return; }
+      try{
+        const res = await api.call({ action:'getCliente', codiceFiscale: cf });
+        if (res && res.success && res.data) {
+          try { localStorage.setItem('imbriani_user', JSON.stringify(res.data)); } catch(_){}
+          prefillDriver(1, {
+            nomeCompleto: res.data.nomeCompleto||res.data.nome||'',
+            cf: res.data.codiceFiscale,
+            cell: res.data.cellulare || res.data.telefono || '',
+            nascita: res.data.dataNascitaFormatted || res.data.dataNascita,
+            luogo: res.data.luogoNascita,
+            patente: res.data.numeroPatente,
+            rilascio: res.data.inizioValiditaPatenteFormatted || res.data.inizioValiditaPatente || res.data.dataInizioPatente,
+            scadenza: res.data.scadenzaPatenteFormatted || res.data.scadenzaPatente,
+            comuneResidenza: res.data.comuneResidenza || '',
+            viaResidenza: res.data.viaResidenza || '',
+            civicoResidenza: res.data.civicoResidenza || ''
+          });
+          showToast('Cliente trovato! Dati compilati automaticamente','success');
+        } else {
+          showToast(res && res.message ? res.message : 'Cliente non trovato', 'warning');
+        }
+      }catch(e){
+        console.error(e);
+        showToast('Errore ricerca cliente: ' + (e.message||e), 'error');
+      }
+    };
+  }
 }
 function renderSummary() {
   document.getElementById('summary').innerHTML = `<div class='text-white'><strong>Attenzione:</strong> Compila almeno i dati dell'autista principale. Usa le card successive per aggiungere autisti extra.</div>`;
 }
+
+// Helper globale: imposta un valore data (ISO yyyy-mm-dd) su input, compatibile con flatpickr
+function applyDatePrefill(inputId, isoValue){
+  const el = document.getElementById(inputId);
+  if (!el) return;
+  const val = isoValue || '';
+  if (el._flatpickr) {
+    try { el._flatpickr.setDate(val, true); } catch(_){ el.value = val; }
+  } else {
+    el.value = val;
+  }
+}
+
 function prefillDriver(i, data) {
   if(!data) return;
   if(document.getElementById(`nomeCompleto-${i}`)&&data.nomeCompleto)
@@ -171,8 +223,35 @@ function prefillDriver(i, data) {
     document.getElementById(`viaResidenza-${i}`).value = data.viaResidenza;
   if(document.getElementById(`civicoResidenza-${i}`)&&data.civicoResidenza)
     document.getElementById(`civicoResidenza-${i}`).value = data.civicoResidenza;
+
+  // Normalizza e imposta correttamente i campi data (YYYY-MM-DD)
+  function normalizeDateInput(v){
+    if(!v) return '';
+    const s = String(v).trim();
+    if (s.includes('T')) return s.split('T')[0];
+    // Usa la funzione toISO già presente per gestire gg/mm/aaaa o yyyy-mm-dd
+    return (function(x){
+      const parts = String(x).split(/[\/\-]/);
+      if(parts.length === 3) {
+        if(parts[2] && parts[2].length === 4) return `${parts[2]}-${String(parts[1]).padStart(2,'0')}-${String(parts[0]).padStart(2,'0')}`;
+        if(parts[0] && parts[0].length === 4) return `${parts[0]}-${String(parts[1]).padStart(2,'0')}-${String(parts[2]).padStart(2,'0')}`;
+      }
+      return x;
+    })(s);
+  }
+
+  if (data.nascita) {
+    applyDatePrefill(`nascita-${i}`, normalizeDateInput(data.nascita));
+  }
+  if (data.rilascio) {
+    applyDatePrefill(`rilascio-${i}`, normalizeDateInput(data.rilascio));
+  }
+  if (data.scadenza) {
+    applyDatePrefill(`scadenza-${i}`, normalizeDateInput(data.scadenza));
+  }
+
   for(const key in data) {
-    if(!['nomeCompleto','comuneResidenza','viaResidenza','civicoResidenza'].includes(key)&&document.getElementById(`${key}-${i}`) && data[key])
+    if(!['nomeCompleto','comuneResidenza','viaResidenza','civicoResidenza','nascita','rilascio','scadenza'].includes(key)&&document.getElementById(`${key}-${i}`) && data[key])
       document.getElementById(`${key}-${i}`).value = data[key];
   }
 }
@@ -200,10 +279,39 @@ function onSubmit() {
     autista3: getDriver(3)
   };
   localStorage.setItem('imbriani_drivers', JSON.stringify(driversData));
+  // Se presente idPrenotazione in query, aggiorna direttamente la prenotazione esistente
+  const qp = new URLSearchParams(window.location.search);
+  const idPren = qp.get('idPrenotazione') || qp.get('id') || '';
+  const driverToken = qp.get('t') || qp.get('token') || '';
+  if (idPren) {
+    const payload = {
+      idPrenotazione: idPren,
+      autista1: Object.assign({}, driversData.autista1),
+      autista2: driversData.autista2 && driversData.autista2.codiceFiscale ? Object.assign({}, driversData.autista2) : null,
+      autista3: driversData.autista3 && driversData.autista3.codiceFiscale ? Object.assign({}, driversData.autista3) : null,
+      cellulare: (driversData.autista1 && (driversData.autista1.cell || driversData.autista1.cellulare)) || ''
+    };
+    showToast('Salvo i dati autisti sulla prenotazione...', 'info');
+    const action = driverToken ? 'aggiornaAutistiPubblico' : 'aggiornaPrenotazioneCompleta';
+    if (driverToken) payload.t = driverToken; // invia token autisti nel campo 't'
+    window.api.call({ action, ...payload })
+      .then(res => {
+        if (res && res.success) {
+          showToast('Dati autisti aggiornati con successo!', 'success');
+          setTimeout(()=>{ window.location.href = 'area-personale.html'; }, 1000);
+        } else {
+          showToast(res && res.message ? res.message : 'Errore aggiornamento prenotazione', 'error');
+        }
+      })
+      .catch(err => {
+        console.error('[UPDATE PRENOTAZIONE] Errore:', err);
+        showToast('Errore di rete durante il salvataggio', 'error');
+      });
+    return;
+  }
+  // Flusso normale: vai al riepilogo
   showToast('Dati validati correttamente! Proseguo...','success',3500);
-  setTimeout(()=>{
-    window.location.href = 'riepilogo-prenotazione.html';
-  }, 800);
+  setTimeout(()=>{ window.location.href = 'riepilogo-prenotazione.html'; }, 800);
 }
 function getDriver(i) {
   const id = `${i}`;
@@ -224,25 +332,147 @@ function getDriver(i) {
 function handleOCRScan(i, tipo, e) {
   const input = e.target;
   if(!input.files.length) return;
+  
   const loader = document.getElementById('ocr-loader-'+i);
   const successDiv = document.getElementById('ocr-success-'+i);
   const errorDiv = document.getElementById('ocr-error-'+i);
-  loader.style.display='block'; successDiv.style.display='none'; errorDiv.style.display='none';
-  fileToBase64(input.files[0], (base64)=>{
-    api.securePost('ocrDocument', { image: base64, autista: i, tipoDocumento: tipo })
-     .then(res=>{
-       loader.style.display='none';
-       if(res && res.success) {
-         prefillDriver(i, mergeFieldsSafe(res.data));
-         successDiv.textContent = 'Dati riconosciuti con successo!';
-         successDiv.style.display='block';
-       } else {
-         errorDiv.textContent = (res && res.message) ? res.message : 'Documento non riconosciuto.';
-         errorDiv.style.display='block';
-       }
-     })
-     .catch(()=>{ loader.style.display='none'; errorDiv.textContent='Errore servizio OCR.'; errorDiv.style.display='block'; });
+  
+  loader.style.display='block'; 
+  successDiv.style.display='none'; 
+  errorDiv.style.display='none';
+  
+  // Validazione file lato client
+  const file = input.files[0];
+  const maxSize = 10 * 1024 * 1024; // 10MB
+  
+  if (file.size > maxSize) {
+    loader.style.display='none';
+    errorDiv.textContent = 'L\'immagine è troppo grande (max 10MB). Usa un\'immagine più piccola.';
+    errorDiv.style.display='block';
+    return;
+  }
+  
+  if (!file.type.startsWith('image/')) {
+    loader.style.display='none';
+    errorDiv.textContent = 'Il file selezionato non è un\'immagine valida.';
+    errorDiv.style.display='block';
+    return;
+  }
+  
+  fileToBase64(file, (base64)=>{
+    performOCRWithRetry(i, tipo, base64, 0, loader, successDiv, errorDiv);
   });
+}
+
+/**
+ * Esegue OCR con logica di retry
+ */
+function performOCRWithRetry(i, tipo, base64, attempt, loader, successDiv, errorDiv) {
+  const maxAttempts = 2;
+  const retryDelay = 1000; // 1 secondo
+  
+  api.securePost('ocrDocument', { image: base64, autista: i, tipoDocumento: tipo })
+   .then(res=>{
+     loader.style.display='none';
+     
+     if(res && res.success) {
+       // Mostra warning se ci sono
+       if (res.validationWarnings && res.validationWarnings.length > 0) {
+         showToast('Attenzione: ' + res.validationWarnings.join(', '), 'warning', 5000);
+       }
+       
+       prefillDriver(i, mergeFieldsSafe(res.data));
+       successDiv.textContent = 'Dati riconosciuti con successo!';
+       successDiv.style.display='block';
+     } else {
+       handleOCRError(res, errorDiv, attempt < maxAttempts - 1, () => {
+         setTimeout(() => {
+           performOCRWithRetry(i, tipo, base64, attempt + 1, loader, successDiv, errorDiv);
+         }, retryDelay);
+       });
+     }
+   })
+   .catch(err => {
+     loader.style.display='none';
+     console.error('[OCR] Errore:', err);
+     
+     // In caso di errore di rete, prova un retry
+     if (attempt < maxAttempts - 1) {
+       errorDiv.textContent = `Errore di connessione. Nuovo tentativo ${attempt + 2}/${maxAttempts}...`;
+       errorDiv.style.display='block';
+       
+       setTimeout(() => {
+         performOCRWithRetry(i, tipo, base64, attempt + 1, loader, successDiv, errorDiv);
+       }, retryDelay);
+     } else {
+       errorDiv.textContent = 'Impossibile contattare il servizio OCR. Verifica la connessione e riprova.';
+       errorDiv.style.display='block';
+     }
+   });
+}
+
+/**
+ * Gestisce gli errori OCR con messaggi specifici
+ */
+function handleOCRError(response, errorDiv, canRetry, retryCallback) {
+  let errorMessage = 'Errore durante la scansione del documento.';
+  
+  if (response && response.errorCode) {
+    switch (response.errorCode) {
+      case 'MISSING_IMAGE':
+        errorMessage = 'Nessuna immagine selezionata.';
+        break;
+      case 'IMAGE_TOO_LARGE':
+        errorMessage = 'L\'immagine è troppo grande. Usa un\'immagine più piccola (max 10MB).';
+        break;
+      case 'IMAGE_TOO_SMALL':
+        errorMessage = 'L\'immagine è troppo piccola o corrotta.';
+        break;
+      case 'UNSUPPORTED_FORMAT':
+        errorMessage = 'Formato immagine non supportato. Usa JPEG, PNG, GIF o WebP.';
+        break;
+      case 'CONFIG_ERROR':
+        errorMessage = 'Servizio OCR temporaneamente non disponibile.';
+        break;
+      case 'VISION_API_ERROR':
+        errorMessage = 'Errore nel servizio di riconoscimento. Riprova con un\'immagine più chiara.';
+        break;
+      case 'QUOTA_EXCEEDED':
+        errorMessage = 'Servizio OCR temporaneamente sovraccarico. Riprotra più tardi.';
+        break;
+      case 'PERMISSION_DENIED':
+        errorMessage = 'Accesso al servizio OCR negato.';
+        break;
+      case 'NO_TEXT_DETECTED':
+        errorMessage = 'Impossibile leggere il documento. Verifica che l\'immagine sia chiara e ben illuminata.';
+        break;
+      case 'TIMEOUT':
+        errorMessage = 'Timeout durante l\'elaborazione. Riprova.';
+        if (canRetry && retryCallback) {
+          errorMessage += ' Nuovo tentativo in corso...';
+          retryCallback();
+          return;
+        }
+        break;
+      case 'NETWORK_ERROR':
+        errorMessage = 'Errore di rete. Verifica la connessione.';
+        if (canRetry && retryCallback) {
+          errorMessage += ' Nuovo tentativo in corso...';
+          retryCallback();
+          return;
+        }
+        break;
+      default:
+        if (response && response.message) {
+          errorMessage = response.message;
+        }
+    }
+  } else if (response && response.message) {
+    errorMessage = response.message;
+  }
+  
+  errorDiv.textContent = errorMessage;
+  errorDiv.style.display='block';
 }
 function mergeFieldsSafe(fields) {
   const mapping = { nomeCompleto:'nomeCompleto', codiceFiscale:'cf', cell:'cell', dataNascita:'nascita', luogoNascita:'luogo', numeroPatente:'patente', dataInizioPatente:'rilascio', scadenzaPatente:'scadenza', comuneResidenza:'comuneResidenza', viaResidenza:'viaResidenza', civicoResidenza:'civicoResidenza' };
@@ -262,6 +492,17 @@ document.addEventListener('DOMContentLoaded', ()=>{
   let user = sessionStorage.getItem('userData');
   if (user) {
     user = JSON.parse(user);
+    function splitAddress(str){
+      const s = String(str||'').trim();
+      if(!s) return { via:'', civico:'' };
+      const parts = s.split(/\s+/);
+      if (parts.length === 1) return { via: s, civico: '' };
+      const last = parts[parts.length-1];
+      if (/^\d+[A-Za-z]?$/.test(last)) {
+        return { via: parts.slice(0,-1).join(' '), civico: last };
+      }
+      return { via: s, civico: '' };
+    }
     function toISO(dateStr) {
       if(!dateStr) return '';
       const parts = dateStr.split(/[\/-]/);
@@ -271,22 +512,235 @@ document.addEventListener('DOMContentLoaded', ()=>{
       }
       return dateStr;
     }
+    const addr = splitAddress(user.indirizzo);
     prefillDriver(1, {
       nomeCompleto: user.nomeCompleto||user.nome||'',
       cf: user.codiceFiscale,
-      cell: user.cellulare,
+      cell: user.cellulare || user.telefono || '',
       nascita: toISO(user.dataNascitaFormatted||user.dataNascita),
       luogo: user.luogoNascita,
       patente: user.numeroPatente,
-      rilascio: toISO(user.inizioValiditaPatenteFormatted||user.inizioValiditaPatente),
+      // Supporta anche dataInizioPatente come alias
+      rilascio: toISO(user.inizioValiditaPatenteFormatted||user.inizioValiditaPatente||user.dataInizioPatente),
       scadenza: toISO(user.scadenzaPatenteFormatted||user.scadenzaPatente),
       comuneResidenza: user.comuneResidenza||'',
-      viaResidenza: user.viaResidenza||'',
-      civicoResidenza: user.civicoResidenza||''
+      viaResidenza: user.viaResidenza || addr.via || '',
+      civicoResidenza: user.civicoResidenza || addr.civico || ''
     });
     if(window.showToast) showToast('Dati del profilo cliente importati!','success');
   }
+
+  // Fallback: se non c'è sessionStorage, usa localStorage (utente loggato)
+  if (!sessionStorage.getItem('userData')) {
+    let raw = localStorage.getItem('imbriani_user');
+    if (raw) {
+      let user = {};
+      try { user = JSON.parse(raw); } catch(_){ }
+
+      function splitAddress(str){
+        const s = String(str||'').trim();
+        if(!s) return { via:'', civico:'' };
+        const parts = s.split(/\s+/);
+        if (parts.length === 1) return { via: s, civico: '' };
+        const last = parts[parts.length-1];
+        if (/^\d+[A-Za-z]?$/.test(last)) {
+          return { via: parts.slice(0,-1).join(' '), civico: last };
+        }
+        return { via: s, civico: '' };
+      }
+      function toISO(dateStr) {
+        if(!dateStr) return '';
+        const parts = String(dateStr).split(/[\/\-]/);
+        if(parts.length === 3) {
+          if(parts[2] && parts[2].length === 4) return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+          if(parts[0] && parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
+        }
+        return dateStr;
+      }
+
+      // applyDatePrefill è ora definita globalmente all'inizio del file
+
+      function birthDateFromCF(cf){
+        try{
+          const s = String(cf||'').toUpperCase();
+          if(s.length !== 16) return '';
+          const yy = s.substring(6,8);
+          const mL = s.substring(8,9);
+          const ddCode = parseInt(s.substring(9,11),10);
+          const months = {A:1,B:2,C:3,D:4,E:5,H:6,L:7,M:8,P:9,R:10,S:11,T:12};
+          const m = months[mL];
+          if(!m || isNaN(ddCode)) return '';
+          const day = ddCode>40?ddCode-40:ddCode;
+          const year = parseInt(yy,10);
+          const fullYear = year>=0 && year<= (new Date().getFullYear()%100) ? 2000+year : 1900+year;
+          const iso = `${fullYear}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+          return iso;
+        }catch(_){return ''}
+      }
+
+      const addr = splitAddress(user.indirizzo);
+      prefillDriver(1, {
+        nomeCompleto: user.nomeCompleto||user.nome||'',
+        cf: user.codiceFiscale,
+        cell: user.cellulare || user.telefono || '',
+        nascita: toISO(user.dataNascitaFormatted||user.dataNascita),
+        luogo: user.luogoNascita,
+        patente: user.numeroPatente,
+        rilascio: toISO(user.inizioValiditaPatenteFormatted||user.inizioValiditaPatente||user.dataInizioPatente),
+        scadenza: toISO(user.scadenzaPatenteFormatted||user.scadenzaPatente),
+        comuneResidenza: user.comuneResidenza||'',
+        viaResidenza: user.viaResidenza || addr.via || '',
+        civicoResidenza: user.civicoResidenza || addr.civico || ''
+      });
+
+      applyDatePrefill('nascita-1', toISO(user.dataNascitaFormatted||user.dataNascita));
+      applyDatePrefill('rilascio-1', toISO(user.inizioValiditaPatenteFormatted||user.inizioValiditaPatente||user.dataInizioPatente));
+      applyDatePrefill('scadenza-1', toISO(user.scadenzaPatenteFormatted||user.scadenzaPatente));
+
+      // Se la data di nascita è assente, prova a derivarla dal CF
+      const currentBirth = document.getElementById('nascita-1')?.value;
+      if(!currentBirth){
+        const cfISO = birthDateFromCF(user.codiceFiscale);
+        if(cfISO) applyDatePrefill('nascita-1', cfISO);
+      }
+
+      if(window.showToast) showToast('Dati del profilo cliente importati!','success');
+    }
+  }
+
+  // Prova ad arricchire dal backend se mancano dati chiave (CF presente)
+  enrichFromBackendIfNeeded();
 });
+
+// Arricchisce i dati dell'utente dal backend e precompila le date se mancanti
+async function enrichFromBackendIfNeeded(){
+  try{
+    const raw = localStorage.getItem('imbriani_user');
+    let user = {};
+    if (!raw) {
+      // Nessun utente in storage: prova con il CF dal form
+      const cfInput = document.getElementById('cf-1');
+      const cfVal = (cfInput && cfInput.value || '').trim().toUpperCase();
+      if (cfVal && cfVal.length === 16) {
+        const res0 = await api.call({ action:'getCliente', codiceFiscale: cfVal });
+        if (res0 && res0.success && res0.data) {
+          user = res0.data;
+          localStorage.setItem('imbriani_user', JSON.stringify(user));
+        } else {
+          return;
+        }
+      } else {
+        return;
+      }
+    } else {
+      try { user = JSON.parse(raw); } catch(_) { return; }
+    }
+
+    const hasBirth = Boolean(user.dataNascita || user.dataNascitaFormatted);
+    const hasLicenseStart = Boolean(user.inizioValiditaPatente || user.inizioValiditaPatenteFormatted || user.dataInizioPatente);
+    const hasLicenseEnd = Boolean(user.scadenzaPatente || user.scadenzaPatenteFormatted);
+    const hasPatenteNum = Boolean(user.numeroPatente);
+    const hasLuogo = Boolean(user.luogoNascita);
+    const hasTelefono = Boolean(user.cellulare || user.telefono);
+    const needsEnrich = !(hasBirth && hasLicenseStart && hasLicenseEnd && hasPatenteNum && hasLuogo && hasTelefono);
+    if (!needsEnrich) return;
+
+    const cf = user.codiceFiscale || (document.getElementById('cf-1')?.value || '').trim().toUpperCase();
+    if (!cf || cf.length !== 16) return;
+    const res = await api.call({ action:'getCliente', codiceFiscale: cf });
+    if (!res || !res.success || !res.data) return;
+
+    const updated = { ...user, ...res.data };
+    localStorage.setItem('imbriani_user', JSON.stringify(updated));
+
+    function splitAddress(str){
+      const s = String(str||'').trim();
+      if(!s) return { via:'', civico:'' };
+      const parts = s.split(/\s+/);
+      if (parts.length === 1) return { via: s, civico: '' };
+      const last = parts[parts.length-1];
+      if (/^\d+[A-Za-z]?$/.test(last)) {
+        return { via: parts.slice(0,-1).join(' '), civico: last };
+      }
+      return { via: s, civico: '' };
+    }
+
+    const addr = splitAddress(updated.indirizzo);
+    const nascitaISO = (function(dateStr){
+      if(!dateStr) return '';
+      const parts = String(dateStr).split(/[\/\-]/);
+      if(parts.length === 3) {
+        if(parts[2] && parts[2].length === 4) return `${parts[2]}-${String(parts[1]).padStart(2,'0')}-${String(parts[0]).padStart(2,'0')}`;
+        if(parts[0] && parts[0].length === 4) return `${parts[0]}-${String(parts[1]).padStart(2,'0')}-${String(parts[2]).padStart(2,'0')}`;
+      }
+      return dateStr;
+    })(updated.dataNascitaFormatted||updated.dataNascita);
+    const rilascioISO = (function(dateStr){
+      if(!dateStr) return '';
+      const parts = String(dateStr).split(/[\/\-]/);
+      if(parts.length === 3) {
+        if(parts[2] && parts[2].length === 4) return `${parts[2]}-${String(parts[1]).padStart(2,'0')}-${String(parts[0]).padStart(2,'0')}`;
+        if(parts[0] && parts[0].length === 4) return `${parts[0]}-${String(parts[1]).padStart(2,'0')}-${String(parts[2]).padStart(2,'0')}`;
+      }
+      return dateStr;
+    })(updated.inizioValiditaPatenteFormatted||updated.inizioValiditaPatente||updated.dataInizioPatente);
+    const scadenzaISO = (function(dateStr){
+      if(!dateStr) return '';
+      const parts = String(dateStr).split(/[\/\-]/);
+      if(parts.length === 3) {
+        if(parts[2] && parts[2].length === 4) return `${parts[2]}-${String(parts[1]).padStart(2,'0')}-${String(parts[0]).padStart(2,'0')}`;
+        if(parts[0] && parts[0].length === 4) return `${parts[0]}-${String(parts[1]).padStart(2,'0')}-${String(parts[2]).padStart(2,'0')}`;
+      }
+      return dateStr;
+    })(updated.scadenzaPatenteFormatted||updated.scadenzaPatente);
+
+    prefillDriver(1, {
+      nomeCompleto: updated.nomeCompleto||updated.nome||'',
+      cf: updated.codiceFiscale,
+      cell: updated.cellulare || updated.telefono || '',
+      nascita: nascitaISO,
+      luogo: updated.luogoNascita,
+      patente: updated.numeroPatente,
+      rilascio: rilascioISO,
+      scadenza: scadenzaISO,
+      comuneResidenza: updated.comuneResidenza||'',
+      viaResidenza: updated.viaResidenza || addr.via || '',
+      civicoResidenza: updated.civicoResidenza || addr.civico || ''
+    });
+
+    applyDatePrefill('nascita-1', nascitaISO);
+    applyDatePrefill('rilascio-1', rilascioISO);
+    applyDatePrefill('scadenza-1', scadenzaISO);
+
+    // Fallback: se la data di nascita è assente, prova a derivarla dal CF
+    try {
+      const nascitaEl = document.getElementById('nascita-1');
+      if (nascitaEl && !nascitaEl.value) {
+        const cfISO = (function(cf){
+          try{
+            const s = String(cf||'').toUpperCase();
+            if(s.length !== 16) return '';
+            const yy = s.substring(6,8);
+            const mL = s.substring(8,9);
+            const ddCode = parseInt(s.substring(9,11),10);
+            const months = {A:1,B:2,C:3,D:4,E:5,H:6,L:7,M:8,P:9,R:10,S:11,T:12};
+            const m = months[mL];
+            if(!m || isNaN(ddCode)) return '';
+            const day = ddCode>40?ddCode-40:ddCode;
+            const year = parseInt(yy,10);
+            const fullYear = year>=0 && year<= (new Date().getFullYear()%100) ? 2000+year : 1900+year;
+            return `${fullYear}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+          }catch(_){return ''}
+        })(updated.codiceFiscale || document.getElementById('cf-1')?.value);
+        if (cfISO) applyDatePrefill('nascita-1', cfISO);
+      }
+    } catch(_){ }
+
+    if (window.showToast) showToast('Dati autocompilati dal backend del cliente loggato','info');
+  }catch(err){
+    console.error('[DRIVERS] Enrich backend failed:', err);
+  }
+}
 </script>
 </body>
 </html>

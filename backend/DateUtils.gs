@@ -14,15 +14,26 @@
  */
 function formatDateToItalian(date) {
   if (!date) return '';
-  
   try {
+    // Se è già una stringa italiana (gg/mm/aaaa), validala e restituiscila normalizzata
+    if (typeof date === 'string' && date.indexOf('/') > -1) {
+      var parts = date.split('/');
+      if (parts.length === 3) {
+        var gg = ('0' + parseInt(parts[0], 10)).slice(-2);
+        var mm = ('0' + parseInt(parts[1], 10)).slice(-2);
+        var yyyy = String(parts[2]).trim();
+        if (!isNaN(parseInt(gg,10)) && !isNaN(parseInt(mm,10)) && !isNaN(parseInt(yyyy,10))) {
+          return gg + '/' + mm + '/' + yyyy;
+        }
+      }
+      return '';
+    }
+    // Altrimenti prova a creare un Date (supporta anche ISO yyyy-mm-dd)
     var d = (date instanceof Date) ? date : new Date(date);
     if (isNaN(d.getTime())) return '';
-    
     var day = String(d.getDate()).padStart(2, '0');
     var month = String(d.getMonth() + 1).padStart(2, '0');
     var year = d.getFullYear();
-    
     return day + '/' + month + '/' + year;
   } catch (e) {
     Logger.log('[formatDateToItalian] Errore: ' + e.message);
@@ -51,6 +62,47 @@ function formatDateForFilename(date) {
 function normalizeDate(date) {
   if (!date || !(date instanceof Date)) return null;
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+/**
+ * Parsing sicuro per date in formato italiano (gg/mm/aaaa) o ISO (yyyy-mm-dd)
+ * @param {string|Date} value
+ * @return {Date|null}
+ */
+function parseItalianOrISO(value) {
+  if (!value) return null;
+  try {
+    if (value instanceof Date) {
+      return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+    }
+    if (typeof value === 'string') {
+      if (value.indexOf('/') > -1) {
+        var p = value.split('/');
+        if (p.length === 3) {
+          var day = parseInt(p[0], 10);
+          var month = parseInt(p[1], 10) - 1;
+          var year = parseInt(p[2], 10);
+          var d = new Date(year, month, day);
+          return isNaN(d.getTime()) ? null : d;
+        }
+      } else if (value.indexOf('-') > -1) {
+        var s = value.split('-');
+        if (s.length === 3) {
+          var y = parseInt(s[0], 10);
+          var m = parseInt(s[1], 10) - 1;
+          var dd = parseInt(s[2], 10);
+          var d2 = new Date(y, m, dd);
+          return isNaN(d2.getTime()) ? null : d2;
+        }
+      }
+    }
+    // Fallback
+    var f = new Date(value);
+    return isNaN(f.getTime()) ? null : new Date(f.getFullYear(), f.getMonth(), f.getDate());
+  } catch (e) {
+    Logger.log('[parseItalianOrISO] Errore: ' + e.message + ' per value=' + value);
+    return null;
+  }
 }
 
 /**

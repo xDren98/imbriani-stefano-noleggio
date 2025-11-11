@@ -2,6 +2,7 @@
  * GESTIONE ENDPOINT GET
  * 
  * Routing e gestione di tutte le richieste GET
+ * Aggiornato per migliorare gestione errori e compatibilità frontend
  */
 
 function handleGet(e) {
@@ -9,36 +10,41 @@ function handleGet(e) {
   var action = p.action || 'health';
   
   try {
+    // Log per debugging
+    dbg(`[handleGet] Richiesta ricevuta - Action: ${action}, Params: ${JSON.stringify(p)}`);
+    
     // Endpoint pubblici (no autenticazione)
     if (action === 'version') {
-      return ContentService
-        .createTextOutput(JSON.stringify(versionInfo()))
-        .setMimeType(ContentService.MimeType.JSON);
+      return createJsonResponse(versionInfo());
     }
     
     if (action === 'health') {
       return createJsonResponse({
         success: true,
         service: 'imbriani-backend',
+        version: '2.0',
+        timestamp: Date.now(),
         spreadsheet_id: CONFIG.SPREADSHEET_ID,
         sheets: ['PRENOTAZIONI', 'PULMINI', 'CLIENTI', 'MANUTENZIONI'],
-        action: 'health_supported'
+        action: 'health_supported',
+        message: 'Backend operativo'
       });
     }
     
     // Validazione token per endpoint protetti
     var token = getAuthHeader(e);
-    if (!validateToken(token)) {
-      Logger.log('[handleGet] Token non valido');
+    if (!validateToken(token, action)) {
+      dbg(`[handleGet] Autenticazione fallita per azione: ${action}`);
       return createJsonResponse({
         success: false,
-        message: 'Token non valido',
+        message: 'Token non valido o mancante',
+        errorCode: 'INVALID_TOKEN',
         code: 401
       }, 401);
     }
     
     // Routing endpoint protetti
-    Logger.log('[handleGet] Action: ' + action);
+    dbg('[handleGet] Action: ' + action);
     switch(action) {
       case 'getVeicoli':
         return getVeicoli();
@@ -48,6 +54,12 @@ function handleGet(e) {
       
       case 'checkDisponibilita':
         return checkDisponibilita(p);
+      
+      case 'bulkCheckDisponibilita':
+        return bulkCheckDisponibilita(p);
+      
+      case 'firstAvailableSlot':
+        return firstAvailableSlot(p);
       
       case 'updateStatiLive':
         return updateStatiLive();
@@ -101,14 +113,17 @@ function handleGet(e) {
       default:
         return createJsonResponse({
           success: false,
-          message: 'Azione non supportata: ' + action
+          message: 'Azione non supportata: ' + action,
+          errorCode: 'INVALID_ACTION'
         }, 400);
     }
   } catch(err) {
-    Logger.log('[handleGet] Errore: ' + err.message);
+    dbg('[handleGet] Errore: ' + err.message);
+    dbg('[handleGet] Stack: ' + err.stack);
     return createJsonResponse({
       success: false,
-      message: 'Errore server: ' + err.message
+      message: 'Errore server: ' + err.message,
+      errorCode: 'SERVER_ERROR'
     }, 500);
   }
 }

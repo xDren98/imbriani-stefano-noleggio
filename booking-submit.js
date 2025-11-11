@@ -58,6 +58,23 @@
         drv3_ComuneResidenza:g('drv3_','ComuneResidenza'), drv3_ViaResidenza:g('drv3_','ViaResidenza'), drv3_CivicoResidenza:g('drv3_','CivicoResidenza'),
         drv3_NumeroPatente:g('drv3_','NumeroPatente'), drv3_DataInizioPatente:g('drv3_','DataInizioPatente'), drv3_ScadenzaPatente:g('drv3_','ScadenzaPatente')
       };
+
+      // 🇮🇹 Normalizza tutte le date in formato gg/mm/aaaa per Google Sheet
+      const fmtDateIT = (d) => {
+        if (!d) return '';
+        try {
+          const formatted = (window.formatDateIT ? window.formatDateIT(d) : new Date(d).toLocaleDateString('it-IT'));
+          return formatted === '-' ? '' : formatted;
+        } catch {
+          return '';
+        }
+      };
+      [
+        'drv1_DataNascita','drv1_DataInizioPatente','drv1_ScadenzaPatente',
+        'drv2_DataNascita','drv2_DataInizioPatente','drv2_ScadenzaPatente',
+        'drv3_DataNascita','drv3_DataInizioPatente','drv3_ScadenzaPatente',
+        'dataInizio','dataFine'
+      ].forEach(k => { payload[k] = fmtDateIT(payload[k]); });
       
       showLoader(true,'Invio prenotazione...');
       const res=await callAPI('creaPrenotazione', payload);
@@ -79,11 +96,13 @@
   window.showSuccessPage=function(id, currentEmail){
     const root=document.querySelector('.container');
     if(!root) return;
+    const safeIdDisplay = (window.escapeHtml ? escapeHtml(String(id)) : String(id));
+    const safeIdAttr = JSON.stringify(String(id));
     root.innerHTML=`
       <div class="glass-card p-5">
         <div class="text-center mb-4">
           <h3 class="fw-bold mb-2">✨ Prenotazione creata!</h3>
-          <p class="text-muted mb-1">ID: <code class="bg-light px-2 py-1 rounded">${id}</code></p>
+          <p class="text-muted mb-1">ID: <code class="bg-light px-2 py-1 rounded">${safeIdDisplay}</code></p>
           <span class="badge bg-secondary fs-6">Da Confermare</span>
         </div>
         
@@ -98,7 +117,7 @@
           </ul>
           <div class="input-group mb-3">
             <input type="email" class="form-control" id="summaryEmail" placeholder="La tua email">
-            <button class="btn btn-outline-primary" type="button" onclick="sendSummaryEmail('${id}')">
+            <button class="btn btn-outline-primary" type="button" onclick="sendSummaryEmail(${safeIdAttr})">
               <i class="fas fa-paper-plane me-1"></i>Invia Riepilogo
             </button>
           </div>
