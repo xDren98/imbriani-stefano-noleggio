@@ -3,3 +3,4 @@ Allow: /
 
 # Sitemap per Google
 Sitemap: https://xdren98.github.io/imbriani-stefano-noleggio/sitemap.xml
+Sitemap: https://xdren98.github.io/imbriani-stefano-noleggio/sitemap.txt
