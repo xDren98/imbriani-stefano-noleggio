@@ -30,6 +30,28 @@ function handleGet(e) {
         message: 'Backend operativo'
       });
     }
+
+    // Endpoint di diagnostica: restituisce info mascherate sull'autenticazione
+    // Uso: GET?action=debugAuth&debug=1
+    if (action === 'debugAuth') {
+      var tokenDebug = getAuthHeader(e);
+      var preview = tokenDebug ? String(tokenDebug).substring(0, 8) + '…' : null;
+      var allowedTokens = (CONFIG && CONFIG.TOKENS) ? CONFIG.TOKENS : [CONFIG.TOKEN];
+      var isAllowed = tokenDebug ? (allowedTokens.indexOf(String(tokenDebug).trim()) !== -1) : false;
+      var sessionInfo = tokenDebug ? validateSession(String(tokenDebug).trim(), e && e.parameter) : null;
+      return createJsonResponse({
+        success: true,
+        action: 'debugAuth',
+        tokenPreview: preview,
+        tokenPresent: !!tokenDebug,
+        isAllowedToken: isAllowed,
+        allowedTokensCount: Array.isArray(allowedTokens) ? allowedTokens.length : 1,
+        sessionValid: !!(sessionInfo && sessionInfo.valid),
+        sessionRole: sessionInfo && sessionInfo.role || null,
+        sensitiveAction: typeof isSensitiveAction === 'function' ? !!isSensitiveAction(p.targetAction || '') : false,
+        message: 'Diagnostica autenticazione (token mascherato)'
+      });
+    }
     
     // Validazione token per endpoint protetti
     var token = getAuthHeader(e);

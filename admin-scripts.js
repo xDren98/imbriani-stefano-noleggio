@@ -3,6 +3,64 @@
   const ADMIN_CONFIG = { VERSION: '3.2.1', REFRESH_INTERVAL: 30000, ITEMS_PER_PAGE: 50 };
   let adminData = { prenotazioni: [], clienti: [], flotta: [], manutenzioni: [], stats: {} };
   
+  // --- Sorting utilities (global) ---
+  function parseDateAnySafe(val){
+    if(!val) return null;
+    if(val instanceof Date && !isNaN(val.getTime())) return val;
+    if(typeof window.parseDateAny === 'function'){
+      const d = window.parseDateAny(val); return (d && !isNaN(d.getTime())) ? d : null;
+    }
+    const d2 = new Date(val); return isNaN(d2.getTime()) ? null : d2;
+  }
+  function cmpStr(a,b){
+    const sa = String(a||'').toLowerCase(); const sb = String(b||'').toLowerCase();
+    if(sa < sb) return -1; if(sa > sb) return 1; return 0;
+  }
+  function cmpNum(a,b){
+    const na = Number(a)||0; const nb = Number(b)||0; return na - nb;
+  }
+  function cmpDate(a,b){
+    const da = parseDateAnySafe(a); const db = parseDateAnySafe(b);
+    const ta = da ? da.getTime() : 0; const tb = db ? db.getTime() : 0; return ta - tb;
+  }
+  function arrow(dir){ return dir==='asc' ? '▲' : '▼'; }
+
+  // Sort states
+  let legacySort = { key: 'di', dir: 'desc' }; // di: data inizio
+  let flottaSort = { key: 'targa', dir: 'asc' };
+  window._clientiSort = { key: null, dir: 'asc' };
+  let dashBookingSort = { key: 'data', dir: 'asc' };
+  let dashLicenseSort = { key: 'scadenza', dir: 'asc' };
+
+  // Exposed setters
+  window.setLegacySort = function(key){
+    if(legacySort.key === key){ legacySort.dir = legacySort.dir === 'asc' ? 'desc' : 'asc'; }
+    else { legacySort.key = key; legacySort.dir = (key==='di' || key==='df') ? 'desc' : 'asc'; }
+    // re-render by reloading section
+    if(typeof loadLegacy === 'function'){ loadLegacy(); }
+  };
+  window.setFlottaSort = function(key){
+    if(flottaSort.key === key){ flottaSort.dir = flottaSort.dir === 'asc' ? 'desc' : 'asc'; }
+    else { flottaSort.key = key; flottaSort.dir = (key==='posti') ? 'desc' : 'asc'; }
+    // re-render by refetch or rerender
+    const btn = document.getElementById('btn-reload-flotta'); btn?.click();
+  };
+  window.setClientiSort = function(key){
+    if(window._clientiSort.key === key){ window._clientiSort.dir = window._clientiSort.dir === 'asc' ? 'desc' : 'asc'; }
+    else { window._clientiSort.key = key; window._clientiSort.dir = 'asc'; }
+    if(typeof renderClienti === 'function'){ renderClienti(window._clientiData||[]); }
+  };
+  window.setDashBookingSort = function(key){
+    if(dashBookingSort.key === key){ dashBookingSort.dir = dashBookingSort.dir === 'asc' ? 'desc' : 'asc'; }
+    else { dashBookingSort.key = key; dashBookingSort.dir = 'asc'; }
+    if(typeof loadDashboard === 'function'){ loadDashboard(); }
+  };
+  window.setDashLicenseSort = function(key){
+    if(dashLicenseSort.key === key){ dashLicenseSort.dir = dashLicenseSort.dir === 'asc' ? 'desc' : 'asc'; }
+    else { dashLicenseSort.key = key; dashLicenseSort.dir = 'asc'; }
+    if(typeof loadDashboard === 'function'){ loadDashboard(); }
+  };
+  
   function qs(id){ return document.getElementById(id); }
   // Usa GET per azioni di lettura e POST per azioni di scrittura
   async function callAPI(action, params={}){
@@ -456,7 +514,12 @@
         <div class="card"><div class="card-body">
           <h5 class="fw-semibold mb-3"><i class="fas fa-calendar-day me-2"></i>Prossime prenotazioni (7 giorni)</h5>
           <div class="table-responsive"><table class="table table-sm align-middle text-white-50">
-            <thead><tr><th>Data</th><th>Targa</th><th>Cliente</th><th>Stato</th></tr></thead>
+            <thead><tr>
+              <th style="cursor:pointer" onclick="window.setDashBookingSort('data')">Data ${dashBookingSort.key==='data'?arrow(dashBookingSort.dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setDashBookingSort('targa')">Targa ${dashBookingSort.key==='targa'?arrow(dashBookingSort.dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setDashBookingSort('cliente')">Cliente ${dashBookingSort.key==='cliente'?arrow(dashBookingSort.dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setDashBookingSort('stato')">Stato ${dashBookingSort.key==='stato'?arrow(dashBookingSort.dir):''}</th>
+            </tr></thead>
             <tbody id="dash-next-bookings"><tr><td colspan="4" class="text-muted">Caricamento…</td></tr></tbody>
           </table></div>
         </div></div>
@@ -465,7 +528,11 @@
         <div class="card"><div class="card-body">
           <h5 class="fw-semibold mb-3"><i class="fas fa-id-card me-2"></i>Patenti in scadenza (90 giorni)</h5>
           <div class="table-responsive"><table class="table table-sm align-middle text-white-50">
-            <thead><tr><th>Nome</th><th>CF</th><th>Scadenza</th></tr></thead>
+            <thead><tr>
+              <th style="cursor:pointer" onclick="window.setDashLicenseSort('nome')">Nome ${dashLicenseSort.key==='nome'?arrow(dashLicenseSort.dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setDashLicenseSort('cf')">CF ${dashLicenseSort.key==='cf'?arrow(dashLicenseSort.dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setDashLicenseSort('scadenza')">Scadenza ${dashLicenseSort.key==='scadenza'?arrow(dashLicenseSort.dir):''}</th>
+            </tr></thead>
             <tbody id="dash-expiring-licenses"><tr><td colspan="3" class="text-muted">Caricamento…</td></tr></tbody>
           </table></div>
         </div></div>
@@ -580,10 +647,19 @@
     // Render tabelle: Prossime prenotazioni (top 5)
     const tbBookings = document.getElementById('dash-next-bookings');
     if(tbBookings){
-      const sorted = next7.sort((a,b) => {
-        const da = parseDateFlexible(a.giornoInizio || a.giornoInizioFormatted)?.getTime()||0;
-        const db = parseDateFlexible(b.giornoInizio || b.giornoInizioFormatted)?.getTime()||0;
-        return da - db;
+      const dir = dashBookingSort.dir==='asc'?1:-1;
+      const sorted = [...next7].sort((a,b) => {
+        switch(dashBookingSort.key){
+          case 'data': {
+            const da = parseDateFlexible(a.giornoInizio || a.giornoInizioFormatted);
+            const db = parseDateFlexible(b.giornoInizio || b.giornoInizioFormatted);
+            return ((da?.getTime()||0) - (db?.getTime()||0)) * dir;
+          }
+          case 'targa': return cmpStr(a.targa, b.targa) * dir;
+          case 'cliente': return cmpStr(a.nomeAutista1, b.nomeAutista1) * dir;
+          case 'stato': return cmpStr(a.stato, b.stato) * dir;
+          default: return 0;
+        }
       }).slice(0,5);
       tbBookings.innerHTML = sorted.map(p => {
         const d = parseDateFlexible(p.giornoInizio || p.giornoInizioFormatted);
@@ -599,6 +675,7 @@
     const tbLic = document.getElementById('dash-expiring-licenses');
     if(tbLic){
       const limit90 = new Date(); limit90.setMonth(limit90.getMonth()+3);
+      const dirL = dashLicenseSort.dir==='asc'?1:-1;
       const expiring = clienti
         .map(c => {
           const raw = (scadKeyFmt && c[scadKeyFmt] !== undefined) ? c[scadKeyFmt] : c[scadKey];
@@ -606,7 +683,14 @@
           return { d, nome: c[nomeKey] || '-', cf: c[cfKey] || '-' };
         })
         .filter(x => x.d && x.d <= limit90)
-        .sort((a,b) => a.d.getTime() - b.d.getTime())
+        .sort((a,b) => {
+          switch(dashLicenseSort.key){
+            case 'scadenza': return ((a.d?.getTime()||0) - (b.d?.getTime()||0)) * dirL;
+            case 'nome': return cmpStr(a.nome, b.nome) * dirL;
+            case 'cf': return cmpStr(a.cf, b.cf) * dirL;
+            default: return 0;
+          }
+        })
         .slice(0,5);
       tbLic.innerHTML = expiring.map(x => `<tr><td>${escapeHtml(x.nome)}</td><td>${escapeHtml(x.cf)}</td><td>${fmtIT(x.d)}</td></tr>`).join('')
         || '<tr><td colspan="3" class="text-muted">Nessuna scadenza entro 90 giorni</td></tr>';
@@ -884,8 +968,14 @@
         <div class="table-responsive">
           <table class="table table-dark table-hover align-middle" id="legacy-table">
             <thead><tr>
-              <th>Data Inizio</th><th>Ora</th><th>Data Fine</th><th>Ora</th>
-              <th>Targa</th><th>Nome (Title)</th><th>Cellulare</th><th>Destinazione</th>
+              <th style="cursor:pointer" onclick="window.setLegacySort('di')">Data Inizio ${legacySort.key==='di'?arrow(legacySort.dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setLegacySort('oi')">Ora ${legacySort.key==='oi'?arrow(legacySort.dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setLegacySort('df')">Data Fine ${legacySort.key==='df'?arrow(legacySort.dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setLegacySort('of')">Ora ${legacySort.key==='of'?arrow(legacySort.dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setLegacySort('targa')">Targa ${legacySort.key==='targa'?arrow(legacySort.dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setLegacySort('nome')">Nome (Title) ${legacySort.key==='nome'?arrow(legacySort.dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setLegacySort('cell')">Cellulare ${legacySort.key==='cell'?arrow(legacySort.dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setLegacySort('dest')">Destinazione ${legacySort.key==='dest'?arrow(legacySort.dir):''}</th>
               <th class="text-end">Azioni</th>
             </tr></thead>
             <tbody id="legacy-tbody"><tr><td colspan="99" class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>Caricamento…</td></tr></tbody>
@@ -906,7 +996,23 @@
         const d = (window.parseDateAny ? parseDateAny(raw) : parseDateFlexible(raw) || new Date(raw));
         return (!d || isNaN(d.getTime())) ? null : d;
       };
-      tbody.innerHTML = legacy.map(p => {
+      const dir = legacySort.dir === 'asc' ? 1 : -1;
+      const sortedLegacy = [...legacy].sort((a,b) => {
+        let cmp = 0;
+        switch(legacySort.key){
+          case 'di': cmp = cmpDate(a.giornoInizio || a.giornoInizioFormatted, b.giornoInizio || b.giornoInizioFormatted); break;
+          case 'df': cmp = cmpDate(a.giornoFine || a.giornoFineFormatted, b.giornoFine || b.giornoFineFormatted); break;
+          case 'oi': cmp = cmpStr(a.oraInizio, b.oraInizio); break;
+          case 'of': cmp = cmpStr(a.oraFine, b.oraFine); break;
+          case 'targa': cmp = cmpStr(a.targa, b.targa); break;
+          case 'nome': cmp = cmpStr(a.nomeAutista1, b.nomeAutista1); break;
+          case 'cell': cmp = cmpStr(a.cellulare, b.cellulare); break;
+          case 'dest': cmp = cmpStr(a.destinazione, b.destinazione); break;
+          default: cmp = cmpDate(a.giornoInizio || a.giornoInizioFormatted, b.giornoInizio || b.giornoInizioFormatted);
+        }
+        return cmp * dir;
+      });
+      tbody.innerHTML = sortedLegacy.map(p => {
         const gi = p.giornoInizio || p.giornoInizioFormatted; const gf = p.giornoFine || p.giornoFineFormatted;
         const di = parseD(gi), df = parseD(gf);
         const nome = p.nomeAutista1 || '';
@@ -1127,16 +1233,29 @@
     const rawHeaders = (data && data.length) ? Object.keys(data[0]) : (window._clientiHeaders||[]);
     // Nascondi colonne duplicate '...Formatted' ma mantieni i valori formattati per la visualizzazione
     const headers = (window._clientiHeaders = rawHeaders.filter(h => !/formatted$/i.test(h)));
-    // Header pari al foglio + Azioni
-    thead.innerHTML = headers.map(h => `<th>${escapeHtml(h)}</th>`).join('') + '<th class="text-end">Azioni</th>';
+    // Header cliccabili + Azioni
+    thead.innerHTML = headers.map(h => `<th style="cursor:pointer" data-key="${escapeHtml(h)}">${escapeHtml(h)} ${window._clientiSort.key===h ? arrow(window._clientiSort.dir) : ''}</th>`).join('') + '<th class="text-end">Azioni</th>';
 
     const cfKey = window._clientiCFKey || (window._clientiCFKey = findKey(headers, 'CODICE.*FISCALE|CF'));
 
-    const rows = (data||[])
+    // Prepara dataset filtrato
+    let rowsData = (data||[])
       .filter(c => headers.some(h => String(c[h]||'').trim() !== ''))
       .filter(c => matchesSearch(c, term))
       .filter(c => withinExpiryFilter(c, months))
-      .map(c => {
+    // Sorting se definito
+    if(window._clientiSort.key){
+      const key = window._clientiSort.key; const dir = window._clientiSort.dir==='asc'?1:-1;
+      rowsData = rowsData.sort((a,b) => {
+        const av = a[key+'Formatted'] ?? a[key];
+        const bv = b[key+'Formatted'] ?? b[key];
+        // prova date, poi numeri, poi stringhe
+        const dcmp = cmpDate(av,bv); if(dcmp !== 0) return dcmp * dir;
+        const ncmp = cmpNum(av,bv); if(ncmp !== 0) return ncmp * dir;
+        return cmpStr(av,bv) * dir;
+      });
+    }
+    const rows = rowsData.map(c => {
         const tds = headers.map(h => {
           const fmtKey = h + 'Formatted';
           const value = c[fmtKey] ?? c[h];
@@ -1158,6 +1277,10 @@
     tbody.innerHTML = rows || `<tr><td colspan="${headers.length+1}" class="text-center text-muted">Nessun cliente</td></tr>`;
     // Bind edit buttons
     tbody.querySelectorAll('button[data-action="edit"]').forEach(btn => btn.addEventListener('click', () => openClienteModal(btn.dataset.cf)));
+    // Bind sort header clicks
+    thead.querySelectorAll('th[data-key]').forEach(th => {
+      th.addEventListener('click', () => window.setClientiSort(th.dataset.key));
+    });
   }
 
   function escapeHtml(s){ return String(s||'').replace(/[&<>"\']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m])); }
@@ -1337,11 +1460,11 @@
         <div class="table-responsive">
           <table class="table table-sm align-middle text-white-50" id="flotta-table">
             <thead><tr>
-              <th class="text-white-50">Targa</th>
-              <th class="text-white-50">Marca/Modello</th>
-              <th class="text-white-50">Posti</th>
-              <th class="text-white-50">Stato</th>
-              <th class="text-white-50">Manutenzione</th>
+              <th class="text-white-50" style="cursor:pointer" onclick="window.setFlottaSort('targa')">Targa ${flottaSort.key==='targa'?arrow(flottaSort.dir):''}</th>
+              <th class="text-white-50" style="cursor:pointer" onclick="window.setFlottaSort('mm')">Marca/Modello ${flottaSort.key==='mm'?arrow(flottaSort.dir):''}</th>
+              <th class="text-white-50" style="cursor:pointer" onclick="window.setFlottaSort('posti')">Posti ${flottaSort.key==='posti'?arrow(flottaSort.dir):''}</th>
+              <th class="text-white-50" style="cursor:pointer" onclick="window.setFlottaSort('stato')">Stato ${flottaSort.key==='stato'?arrow(flottaSort.dir):''}</th>
+              <th class="text-white-50" style="cursor:pointer" onclick="window.setFlottaSort('man')">Manutenzione ${flottaSort.key==='man'?arrow(flottaSort.dir):''}</th>
               <th class="text-white-50 text-end">Azioni</th>
             </tr></thead>
             <tbody id="flotta-tbody"><tr><td colspan="6" class="text-center py-4">Caricamento flotta…</td></tr></tbody>
@@ -1364,7 +1487,24 @@
     function renderFlottaTable(flotta){
       const tb = document.getElementById('flotta-tbody'); if(!tb) return;
       if(!flotta?.length){ tb.innerHTML = `<tr><td colspan="6" class="text-center py-4">Nessun veicolo in flotta</td></tr>`; return; }
-      tb.innerHTML = flotta.map(v => {
+      const dir = flottaSort.dir==='asc'?1:-1;
+      const sorted = [...flotta].sort((a,b) => {
+        let cmp = 0;
+        switch(flottaSort.key){
+          case 'targa': cmp = cmpStr(a.Targa, b.Targa); break;
+          case 'mm': cmp = cmpStr(`${a.Marca||''} ${a.Modello||''}`, `${b.Marca||''} ${b.Modello||''}`); break;
+          case 'posti': cmp = cmpNum(a.Posti, b.Posti); break;
+          case 'stato': {
+            const sa = a.InManutenzioneOggi ? 'In manutenzione' : 'Disponibile';
+            const sb = b.InManutenzioneOggi ? 'In manutenzione' : 'Disponibile';
+            cmp = cmpStr(sa, sb); break;
+          }
+          case 'man': cmp = cmpStr(a.StatoManutenzione, b.StatoManutenzione); break;
+          default: cmp = cmpStr(a.Targa, b.Targa);
+        }
+        return cmp * dir;
+      });
+      tb.innerHTML = sorted.map(v => {
         const stato = v.InManutenzioneOggi ? 'In manutenzione' : 'Disponibile';
         const statoBadge = v.InManutenzioneOggi
           ? '<span class="pill-action pill-danger">Manutenzione attiva</span>'

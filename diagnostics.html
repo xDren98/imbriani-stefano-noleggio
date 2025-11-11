@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Diagnostica API — Imbriani</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+  <style>
+    body { background: #0b1727; color: #e9eef7; }
+    .card { background: #12233a; border: 1px solid #1f3554; }
+    .code { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .badge-pass { background-color: #28a745; }
+    .badge-fail { background-color: #dc3545; }
+    .small-muted { color: #9fb1cc; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="container py-4">
+    <div class="d-flex align-items-center mb-3">
+      <i class="fas fa-stethoscope me-2"></i>
+      <h3 class="mb-0">Pagina di Test e Diagnostica API</h3>
+    </div>
+
+    <!-- Avviso autenticazione -->
+    <div id="auth-warning" class="alert alert-warning d-none" role="alert">
+      <i class="fas fa-exclamation-triangle me-2"></i>
+      Sessione admin non valida o assente. Effettua login (OTP) o usa il login di sviluppo su localhost.
+    </div>
+
+    <!-- Info Config -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <h5 class="card-title">Informazioni Ambiente</h5>
+        <div id="env-info" class="code small-muted"></div>
+      </div>
+    </div>
+
+    <!-- Azioni principali -->
+    <div class="card mb-4">
+      <div class="card-body">
+        <h5 class="card-title">Test Automatici</h5>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <button id="run-all" class="btn btn-primary"><i class="fas fa-play me-2"></i>Esegui tutti i test</button>
+          <button id="test-health" class="btn btn-outline-light">Health</button>
+          <button id="test-version" class="btn btn-outline-light">Version</button>
+          <button id="test-debugauth" class="btn btn-outline-warning">Debug Auth</button>
+          <button id="test-veicoli" class="btn btn-outline-info">GET: getVeicoli</button>
+          <button id="test-firstslot" class="btn btn-outline-info">GET: firstAvailableSlot</button>
+          <button id="test-direct-health" class="btn btn-outline-secondary">Direct (GAS): health</button>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Admin Name</label>
+            <select id="admin-name" class="form-select">
+              <option value="Antonio">Antonio</option>
+              <option value="Beatrice">Beatrice</option>
+              <option value="Stefano">Stefano</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">OTP</label>
+            <input id="admin-otp" type="text" class="form-control" placeholder="6 cifre" />
+          </div>
+          <div class="col-md-4 d-flex align-items-end gap-2">
+            <button id="test-request-otp" class="btn btn-outline-primary flex-grow-1">Richiedi OTP</button>
+            <button id="test-admin-login" class="btn btn-outline-success flex-grow-1">Login Admin</button>
+            <button id="diag-dev-login-btn" class="btn btn-outline-secondary flex-grow-1">Accedi in sviluppo (localhost)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Risultati -->
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Risultati</h5>
+        <div id="results"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="config.js"></script>
+  <script src="shared-utils.js"></script>
+  <script>
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8vOsfdliS4e5odoRMkvCwaWY7SowSkgtW0zTuvqDIu4R99sUEixlLSW7Y9MyvNWk/exec';
+
+    function isLocalHost() { return ['localhost','127.0.0.1'].includes(location.hostname); }
+
+    function setAdminSessionCookie(session){
+      try{
+        const payload = btoa(unescape(encodeURIComponent(JSON.stringify(session))));
+        document.cookie = `imbriani_admin_session=${payload}; path=/; max-age=${60*60*24}; SameSite=Lax`;
+      }catch(_){ }
+    }
+
+    function tokenPreview() {
+      try {
+        const rawAdmin = localStorage.getItem('imbriani_admin_session');
+        if (rawAdmin) {
+          const s = JSON.parse(rawAdmin);
+          if (s && s.token) return String(s.token).substring(0, 8) + '… (admin session)';
+        }
+        const rawSess = localStorage.getItem('imbriani_session');
+        if (rawSess) {
+          const s2 = JSON.parse(rawSess);
+          if (s2 && s2.token) return String(s2.token).substring(0, 8) + '… (user session)';
+        }
+      } catch (_) {}
+      try { return (window.CONFIG?.AUTH_TOKEN || 'n/a').substring(0, 8) + '… (AUTH_TOKEN)'; } catch (_) { return 'n/a'; }
+    }
+
+    function hasAdminSession() {
+      try { return !!localStorage.getItem('imbriani_admin_session'); } catch (_) { return false; }
+    }
+
+    function printEnvInfo() {
+      const info = {
+        origin: location.origin,
+        apiUrl: window.CONFIG?.API_URL,
+        appsScriptUrl: APPS_SCRIPT_URL,
+        authTokenPreview: tokenPreview(),
+        hasAdminSession: hasAdminSession(),
+        userAgent: navigator.userAgent
+      };
+      document.getElementById('env-info').textContent = JSON.stringify(info, null, 2);
+    }
+
+    function appendResult(title, data, ok = null) {
+      const container = document.getElementById('results');
+      const wrapper = document.createElement('div');
+      wrapper.className = 'mb-3';
+      const badge = ok === null ? '' : `<span class="badge ${ok ? 'badge-pass' : 'badge-fail'} ms-2">${ok ? 'PASS' : 'FAIL'}</span>`;
+      wrapper.innerHTML = `<div class="small-muted mb-1">${title} ${badge}</div><div class="code p-2 rounded" style="background:#0f1c30;">${escapeHtml(JSON.stringify(data, null, 2))}</div>`;
+      container.prepend(wrapper);
+    }
+
+    function escapeHtml(s){
+      return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
+    }
+
+    async function runHealth() {
+      try {
+        const res = await secureGet('health');
+        appendResult('GET health (proxy)', res, !!(res && res.success));
+      } catch (err) {
+        appendResult('GET health (proxy) — errore', { error: err.message }, false);
+      }
+    }
+
+    async function runVersion() {
+      try {
+        const res = await secureGet('version');
+        appendResult('GET version (proxy)', res, !!(res && res.success));
+      } catch (err) {
+        appendResult('GET version (proxy) — errore', { error: err.message }, false);
+      }
+    }
+
+    async function runDebugAuth() {
+      try {
+        const res = await secureGet('debugAuth', { targetAction: 'getVeicoli', debug: 1 });
+        const ok = !!(res && res.success);
+        appendResult('GET debugAuth (proxy)', res, ok);
+        const warn = document.getElementById('auth-warning');
+        if (warn) {
+          const validAdmin = !!(res && res.success && res.sessionValid && String(res.sessionRole||'').toLowerCase()==='admin');
+          warn.classList.toggle('d-none', validAdmin);
+        }
+      } catch (err) {
+        appendResult('GET debugAuth (proxy) — errore', { error: err.message }, false);
+      }
+    }
+
+    async function runGetVeicoli() {
+      try {
+        const res = await secureGet('getVeicoli');
+        appendResult('GET getVeicoli (proxy)', res, !!(res && res.success));
+      } catch (err) {
+        appendResult('GET getVeicoli (proxy) — errore', { error: err.message }, false);
+      }
+    }
+
+    function todayPlus(days) {
+      const d = new Date();
+      d.setDate(d.getDate() + days);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    async function runFirstAvailableSlot() {
+      try {
+        const res = await secureGet('firstAvailableSlot', {
+          dataInizio: todayPlus(0),
+          dataFine: todayPlus(1),
+          oraInizio: '08:00',
+          oraFine: '22:00'
+        });
+        appendResult('GET firstAvailableSlot (proxy)', res, !!(res && res.success));
+      } catch (err) {
+        appendResult('GET firstAvailableSlot (proxy) — errore', { error: err.message }, false);
+      }
+    }
+
+    // Direct GET (Apps Script) via JSONP per diagnostica
+    async function runDirectHealth() {
+      const url = new URL(APPS_SCRIPT_URL);
+      url.searchParams.set('action', 'health');
+      const token = (window.CONFIG && window.CONFIG.AUTH_TOKEN) ? String(window.CONFIG.AUTH_TOKEN) : '';
+      if (token) url.searchParams.set('token', token);
+
+      return new Promise((resolve) => {
+        const callbackName = 'jsonp_callback_' + Math.round(100000 * Math.random());
+        url.searchParams.set('callback', callbackName);
+        window[callbackName] = function(data) {
+          delete window[callbackName];
+          document.body.removeChild(script);
+          appendResult('GET health (direct GAS)', data, !!(data && data.success));
+          resolve(data);
+        };
+        const script = document.createElement('script');
+        script.onerror = function() {
+          delete window[callbackName];
+          document.body.removeChild(script);
+          appendResult('GET health (direct GAS) — errore', { error: 'script error' }, false);
+          resolve(null);
+        };
+        script.src = url.toString();
+        document.body.appendChild(script);
+        setTimeout(() => {
+          if (window[callbackName]) {
+            delete window[callbackName];
+            document.body.removeChild(script);
+            appendResult('GET health (direct GAS) — timeout', { timeout: true }, false);
+            resolve(null);
+          }
+        }, 8000);
+      });
+    }
+
+    async function runRequestOTP() {
+      const name = document.getElementById('admin-name')?.value || 'Antonio';
+      try {
+        const res = await securePost('requestAdminOTP', { name });
+        appendResult('POST requestAdminOTP (proxy)', res, !!(res && res.success));
+        if (res && res.debugOtp) {
+          const otpEl = document.getElementById('admin-otp');
+          if (otpEl) otpEl.value = String(res.debugOtp);
+        }
+      } catch (err) {
+        appendResult('POST requestAdminOTP (proxy) — errore', { error: err.message }, false);
+      }
+    }
+
+    async function runAdminLogin() {
+      const name = document.getElementById('admin-name')?.value || '';
+      const otp = document.getElementById('admin-otp')?.value || '';
+      try {
+        const res = await securePost('adminLogin', { name, otp });
+        appendResult('POST adminLogin (proxy)', res, !!(res && res.success));
+        if (res && res.success && res.token) {
+          const session = { name: res.name||name, token: res.token, role: res.role||'admin', exp: res.exp, timestamp: Date.now() };
+          try { localStorage.setItem('imbriani_admin_session', JSON.stringify(session)); } catch(_){}
+          setAdminSessionCookie(session);
+          const warn = document.getElementById('auth-warning');
+          if (warn) warn.classList.add('d-none');
+        }
+      } catch (err) {
+        appendResult('POST adminLogin (proxy) — errore', { error: err.message }, false);
+      }
+    }
+
+    // Login di sviluppo (solo localhost)
+    async function runDevLogin(){
+      try {
+        if (!isLocalHost()) { appendResult('Dev login', { message: 'Disponibile solo su localhost' }, false); return; }
+        const token = (window.CONFIG && (window.CONFIG.AUTH_TOKEN || window.CONFIG.TOKEN)) || 'imbriani_secret_2025';
+        const name = document.getElementById('admin-name')?.value || 'DevAdmin';
+        const session = { name, token, role: 'admin', exp: new Date(Date.now()+60*60*1000).toISOString(), timestamp: Date.now() };
+        try { localStorage.setItem('imbriani_admin_session', JSON.stringify(session)); } catch(_){}
+        setAdminSessionCookie(session);
+        appendResult('Dev login', { success:true, name, tokenPreview: String(token).substring(0,8)+'…' }, true);
+        const warn = document.getElementById('auth-warning');
+        if (warn) warn.classList.add('d-none');
+      } catch(err) {
+        appendResult('Dev login — errore', { error: err.message }, false);
+      }
+    }
+
+    async function runAll() {
+      document.getElementById('results').innerHTML = '';
+      printEnvInfo();
+      await runHealth();
+      await runVersion();
+      await runDebugAuth();
+      await runGetVeicoli();
+      await runFirstAvailableSlot();
+      await runDirectHealth();
+    }
+
+    // Bind
+    window.addEventListener('DOMContentLoaded', async () => {
+      printEnvInfo();
+      // Nascondi pulsante di sviluppo fuori da localhost
+      try { const btn = document.getElementById('diag-dev-login-btn'); if (btn && !isLocalHost()) btn.classList.add('d-none'); } catch(_){}
+      await runDebugAuth();
+      document.getElementById('run-all')?.addEventListener('click', runAll);
+      document.getElementById('test-health')?.addEventListener('click', runHealth);
+      document.getElementById('test-version')?.addEventListener('click', runVersion);
+      document.getElementById('test-debugauth')?.addEventListener('click', runDebugAuth);
+      document.getElementById('test-veicoli')?.addEventListener('click', runGetVeicoli);
+      document.getElementById('test-firstslot')?.addEventListener('click', runFirstAvailableSlot);
+      document.getElementById('test-direct-health')?.addEventListener('click', runDirectHealth);
+      document.getElementById('test-request-otp')?.addEventListener('click', runRequestOTP);
+      document.getElementById('test-admin-login')?.addEventListener('click', runAdminLogin);
+      document.getElementById('diag-dev-login-btn')?.addEventListener('click', runDevLogin);
+    });
+  </script>
+</body>
+</html>

@@ -176,13 +176,20 @@ function validateSession(sessionToken, params) {
     if (!s.expiresAt || now > Number(s.expiresAt)) { return null; }
     var reqIp = params && params.cfip ? String(params.cfip) : null;
     var reqUa = params && params.ua ? String(params.ua) : null;
-    if (s.ip && reqIp && String(s.ip) !== reqIp) {
-      appendAuditLog({ event: 'session_validation', action: 'ip_mismatch', ok: false, userId: s.userId, role: s.role, ip: reqIp, ua: reqUa, details: 'expected:' + s.ip });
-      return null;
-    }
-    if (s.ua && reqUa && String(s.ua) !== reqUa) {
-      appendAuditLog({ event: 'session_validation', action: 'ua_mismatch', ok: false, userId: s.userId, role: s.role, ip: reqIp, ua: reqUa, details: 'expected:' + s.ua });
-      return null;
+    var ipMismatch = (s.ip && reqIp && String(s.ip) !== String(reqIp));
+    var uaMismatch = (s.ua && reqUa && String(s.ua) !== String(reqUa));
+    if (ipMismatch || uaMismatch) {
+      // Per le sessioni admin tolleriamo mismatch IP/UA ma logghiamo l'evento
+      if (String(s.role||'').toLowerCase() === 'admin') {
+        var details = [];
+        if (ipMismatch) details.push('ip_expected:' + s.ip + ' got:' + reqIp);
+        if (uaMismatch) details.push('ua_expected:' + s.ua + ' got:' + reqUa);
+        appendAuditLog({ event: 'session_validation', action: 'admin_bind_mismatch_tolerated', ok: true, userId: s.userId, role: s.role, ip: reqIp, ua: reqUa, details: details.join(' | ') });
+      } else {
+        // Per altri ruoli manteniamo la validazione stretta
+        appendAuditLog({ event: 'session_validation', action: (ipMismatch ? 'ip_mismatch' : 'ua_mismatch'), ok: false, userId: s.userId, role: s.role, ip: reqIp, ua: reqUa, details: (ipMismatch ? ('expected:' + s.ip) : ('expected:' + s.ua)) });
+        return null;
+      }
     }
     return { valid: true, userId: s.userId, role: s.role || 'guest' };
   } catch(err) {

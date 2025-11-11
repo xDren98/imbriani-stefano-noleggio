@@ -138,7 +138,23 @@ function handlePost(e) {
         return createJsonResponse({ success:false, error:'Errore durante admin login', errorCode:'GENERIC_ERROR' }, 500);
       }
     }
-    
+
+    // Logout / Revoca sessione
+    if (action === 'revokeSession' || action === 'logout') {
+      dbg('[handlePost] Revoca sessione richiesta');
+      try {
+        var tok = finalToken || (post && post.token) || null;
+        var ok = false;
+        if (tok) {
+          ok = revokeSession(String(tok), 'user_logout') === true;
+        }
+        return createJsonResponse({ success: true, revoked: !!ok });
+      } catch(errLogout) {
+        dbg('[handlePost] Errore revokeSession: ' + String(errLogout && errLogout.message || errLogout));
+        return createJsonResponse({ success: false, error: 'Errore durante logout', errorCode: 'LOGOUT_ERROR' }, 500);
+      }
+    }
+
     // OCR ora richiede autenticazione (sessione cliente o admin)
     if (action === 'ocrDocument') {
       dbg('[handlePost] OCR richiesto - validazione token');

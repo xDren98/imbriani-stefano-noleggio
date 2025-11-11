@@ -1,6 +1,6 @@
 // admin-prenotazioni.js v3.11 - Card cliccabile + Modale Modifica Funzionante!
 (function(){
-  const STATI_TABELLA = ['Tutte', 'In attesa', 'Programmata', 'In corso', 'Completata'];
+  const STATI_TABELLA = ['Tutte', 'In attesa', 'Programmata', 'In corso', 'Completata', 'Legacy'];
   const STATI_COLORI = {
     'Tutte': { bg: 'secondary', icon: 'list', text: 'white' },
     'In attesa': { bg: 'warning', icon: 'clock', text: 'dark' },
@@ -8,7 +8,8 @@
     'Programmata': { bg: 'info', icon: 'calendar-check', text: 'white' },
     'In corso': { bg: 'primary', icon: 'car', text: 'white' },
     'Completata': { bg: 'secondary', icon: 'flag-checkered', text: 'white' },
-    'Rifiutata': { bg: 'danger', icon: 'times-circle', text: 'white' }
+    'Rifiutata': { bg: 'danger', icon: 'times-circle', text: 'white' },
+    'Legacy': { bg: 'dark', icon: 'hourglass-half', text: 'white' }
   };
 
   // Classe CSS per badge stato uniforme “pill”
@@ -37,6 +38,82 @@
   let filteredPrenotazioni = [];
   let currentFilters = { stato: 'tutti', ricerca: '' };
   let currentView = 'card'; // 'card' or 'table'
+  let prenotazioniSort = { key: 'date', dir: 'desc' }; // default ordinamento cronologico decrescente
+
+  function getId(p){
+    const v = p.idPrenotazione || p.id || '';
+    const n = Number(String(v).replace(/\D/g,''));
+    return isNaN(n) ? String(v) : n;
+  }
+
+  function parseDateSafe(s){
+    const d = (window.parseDateAny ? parseDateAny(s) : new Date(s));
+    return d && !isNaN(d.getTime()) ? d : null;
+  }
+
+  function compareValues(a, b, type){
+    if(type === 'number'){
+      const na = Number(a) || 0; const nb = Number(b) || 0;
+      return na - nb;
+    } else if(type === 'date'){
+      const da = parseDateSafe(a); const db = parseDateSafe(b);
+      const ta = da ? da.getTime() : 0; const tb = db ? db.getTime() : 0;
+      return ta - tb;
+    } else {
+      const sa = (a||'').toString().toLowerCase();
+      const sb = (b||'').toString().toLowerCase();
+      if (sa < sb) return -1;
+      if (sa > sb) return 1;
+      return 0;
+    }
+  }
+
+  function sortPrenotazioni(list){
+    const dir = prenotazioniSort.dir === 'asc' ? 1 : -1;
+    const key = prenotazioniSort.key;
+    return [...list].sort((a,b) => {
+      let cmp = 0;
+      switch(key){
+        case 'id':
+          cmp = compareValues(getId(a), getId(b), typeof getId(a) === 'number' && typeof getId(b) === 'number' ? 'number' : 'string');
+          break;
+        case 'cliente':
+          cmp = compareValues(a.nomeAutista1, b.nomeAutista1, 'string');
+          break;
+        case 'veicolo':
+          cmp = compareValues(a.targa, b.targa, 'string');
+          break;
+        case 'date':
+          cmp = compareValues(a.giornoInizio, b.giornoInizio, 'date');
+          if(cmp === 0) cmp = compareValues(a.giornoFine, b.giornoFine, 'date');
+          break;
+        case 'orari':
+          cmp = compareValues(a.oraInizio, b.oraInizio, 'string');
+          if(cmp === 0) cmp = compareValues(a.oraFine, b.oraFine, 'string');
+          break;
+        case 'destinazione':
+          cmp = compareValues(a.destinazione, b.destinazione, 'string');
+          break;
+        case 'stato':
+          cmp = compareValues(a.stato, b.stato, 'string');
+          break;
+        default:
+          cmp = compareValues(a.giornoInizio, b.giornoInizio, 'date');
+          if(cmp === 0) cmp = compareValues(a.giornoFine, b.giornoFine, 'date');
+      }
+      return cmp * dir;
+    });
+  }
+
+  window.setPrenotazioniSort = function(key){
+    if(prenotazioniSort.key === key){
+      prenotazioniSort.dir = prenotazioniSort.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+      prenotazioniSort.key = key;
+      prenotazioniSort.dir = (key === 'date' || key === 'orari' || key === 'id') ? 'desc' : 'asc';
+    }
+    renderPrenotazioni();
+  };
 
   // Sistema toast migliorato v3.2
   window.showToast = function(message, type = 'info') {
@@ -175,7 +252,8 @@
       'In attesa': allPrenotazioni.filter(p => p.stato === 'In attesa').length,
       'Programmata': allPrenotazioni.filter(p => p.stato === 'Programmata').length,
       'In corso': allPrenotazioni.filter(p => p.stato === 'In corso').length,
-      'Completata': allPrenotazioni.filter(p => p.stato === 'Completata').length
+      'Completata': allPrenotazioni.filter(p => p.stato === 'Completata').length,
+      'Legacy': allPrenotazioni.filter(p => String(p.stato||'') === 'Legacy').length
     };
     
     statsDiv.innerHTML = STATI_TABELLA.map(stato => {
@@ -235,13 +313,7 @@
       return;
     }
     
-    const sorted = [...filteredPrenotazioni].sort((a, b) => {
-      const db = (window.parseDateAny ? parseDateAny(b.giornoInizio) : new Date(b.giornoInizio));
-      const da = (window.parseDateAny ? parseDateAny(a.giornoInizio) : new Date(a.giornoInizio));
-      const tb = db && !isNaN(db.getTime()) ? db.getTime() : 0;
-      const ta = da && !isNaN(da.getTime()) ? da.getTime() : 0;
-      return tb - ta;
-    });
+    const sorted = sortPrenotazioni(filteredPrenotazioni);
     
     container.innerHTML = `<div class="row g-3">` +
       sorted.map(p => {
@@ -344,13 +416,7 @@
       return;
     }
     
-    const sorted = [...filteredPrenotazioni].sort((a, b) => {
-      const db = (window.parseDateAny ? parseDateAny(b.giornoInizio) : new Date(b.giornoInizio));
-      const da = (window.parseDateAny ? parseDateAny(a.giornoInizio) : new Date(a.giornoInizio));
-      const tb = db && !isNaN(db.getTime()) ? db.getTime() : 0;
-      const ta = da && !isNaN(da.getTime()) ? da.getTime() : 0;
-      return tb - ta;
-    });
+    const sorted = sortPrenotazioni(filteredPrenotazioni);
     
     container.innerHTML = `
       <div class="card">
@@ -360,13 +426,13 @@
             <table class="table table-hover mb-0">
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>Cliente</th>
-                  <th>Veicolo</th>
-                  <th>Date</th>
-                  <th>Orari</th>
-                  <th>Destinazione</th>
-                  <th>Stato</th>
+                  <th style="cursor:pointer" onclick="window.setPrenotazioniSort('id')">ID ${prenotazioniSort.key==='id' ? (prenotazioniSort.dir==='asc'?'▲':'▼') : ''}</th>
+                  <th style="cursor:pointer" onclick="window.setPrenotazioniSort('cliente')">Cliente ${prenotazioniSort.key==='cliente' ? (prenotazioniSort.dir==='asc'?'▲':'▼') : ''}</th>
+                  <th style="cursor:pointer" onclick="window.setPrenotazioniSort('veicolo')">Veicolo ${prenotazioniSort.key==='veicolo' ? (prenotazioniSort.dir==='asc'?'▲':'▼') : ''}</th>
+                  <th style="cursor:pointer" onclick="window.setPrenotazioniSort('date')">Date ${prenotazioniSort.key==='date' ? (prenotazioniSort.dir==='asc'?'▲':'▼') : ''}</th>
+                  <th style="cursor:pointer" onclick="window.setPrenotazioniSort('orari')">Orari ${prenotazioniSort.key==='orari' ? (prenotazioniSort.dir==='asc'?'▲':'▼') : ''}</th>
+                  <th style="cursor:pointer" onclick="window.setPrenotazioniSort('destinazione')">Destinazione ${prenotazioniSort.key==='destinazione' ? (prenotazioniSort.dir==='asc'?'▲':'▼') : ''}</th>
+                  <th style="cursor:pointer" onclick="window.setPrenotazioniSort('stato')">Stato ${prenotazioniSort.key==='stato' ? (prenotazioniSort.dir==='asc'?'▲':'▼') : ''}</th>
                   <th class="text-end">Azioni</th>
                 </tr>
               </thead>

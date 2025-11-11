@@ -21,12 +21,38 @@
         const s = JSON.parse(rawAdmin);
         if (s && s.token) return String(s.token);
       }
+      // Admin session (sessionStorage fallback)
+      try {
+        const rawAdminSS = sessionStorage.getItem('imbriani_admin_session');
+        if (rawAdminSS) {
+          const sSS = JSON.parse(rawAdminSS);
+          if (sSS && sSS.token) return String(sSS.token);
+        }
+      } catch(_){ }
+      // Admin session (cookie fallback)
+      try {
+        const m = document.cookie.match(/(?:^|; )imbriani_admin_session=([^;]*)/);
+        if (m && m[1]) {
+          const payload = m[1];
+          const json = decodeURIComponent(escape(atob(payload)));
+          const sCK = JSON.parse(json);
+          if (sCK && sCK.token) return String(sCK.token);
+        }
+      } catch(_){ }
       // Cliente sessione
       const rawSess = localStorage.getItem('imbriani_session');
       if (rawSess) {
         const s2 = JSON.parse(rawSess);
         if (s2 && s2.token) return String(s2.token);
       }
+      // Cliente sessione (sessionStorage fallback)
+      try {
+        const rawSessSS = sessionStorage.getItem('imbriani_session');
+        if (rawSessSS) {
+          const s2SS = JSON.parse(rawSessSS);
+          if (s2SS && s2SS.token) return String(s2SS.token);
+        }
+      } catch(_){ }
     } catch(_){ /* ignore */ }
     return cfg('AUTH_TOKEN');
   }
@@ -319,6 +345,11 @@
     });
 
     const token = getActiveToken();
+    if (!token || String(token).trim().length < 6) {
+      console.warn('[secureGet] Token assente o sospetto (lunghezza < 6). Controlla config.js -> AUTH_TOKEN o sessione admin/cliente.');
+    } else {
+      console.log('[secureGet] Token preview:', String(token).substring(0, 8) + '…');
+    }
     // Include anche il token come query param per compatibilità con Apps Script
     // (oltre all'Authorization header passato via proxy)
     if (token) {
