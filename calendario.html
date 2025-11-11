@@ -52,8 +52,7 @@
       const [veicoli, prenotazioni, manutenzioniData] = await Promise.all([
         api.call({ action: 'getVeicoli' }),
         api.call({ action: 'getPrenotazioni' }),
-        fetch(`${CONFIG.API_URL}?action=getSheet&name=MANUTENZIONI&token=${encodeURIComponent(CONFIG.AUTH_TOKEN)}`)
-          .then(r=>r.json())
+        window.secureGet('getSheet', { name: 'MANUTENZIONI' })
       ]);
       allVehicles = veicoli.data || [];
       allPrenotazioni = prenotazioni.data || [];

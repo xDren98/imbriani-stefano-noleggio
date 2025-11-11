@@ -280,7 +280,7 @@
   async function secureGet(action, params = {}) {
     const url = new URL(cfg('API_URL'));
     url.searchParams.set('action', action);
-    
+
     // Aggiungi tutti i parametri alla query string
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
@@ -291,10 +291,7 @@
     const token = cfg('AUTH_TOKEN');
     console.log('[secureGet]', action, 'params:', params);
 
-    // IMPORTANT: Il proxy Cloudflare non inoltra l'Authorization header verso Apps Script.
-    // Per compatibilità, includiamo SEMPRE il token anche in query string.
-    url.searchParams.set('token', token);
-    url.searchParams.set('AUTH_TOKEN', token);
+    // Il token non viene inserito nella query; il Worker inoltra l'Authorization.
 
     try {
       // Prova prima con il proxy
@@ -309,16 +306,16 @@
       });
 
       const data = await toJSONSafe(res);
-      
+
       if (!res.ok || data.success === false) {
         showError((data && data.message) ? data.message : ('Errore API: ' + res.status));
       }
-      
+
       return data;
     } catch (err) {
       console.warn('[secureGet] Errore proxy, provo fallback diretto...', err.message);
-      
-      // Fallback diretto a Google Apps Script con JSONP
+
+      // Fallback diretto a Google Apps Script con JSONP (qui includiamo token in query)
       try {
         return await secureGetDirectFallback(action, params);
       } catch (fallbackErr) {

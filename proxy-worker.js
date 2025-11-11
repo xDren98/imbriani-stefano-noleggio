@@ -7,6 +7,7 @@ const ALLOWED_ORIGINS = [
   'http://localhost:8000',
   'http://127.0.0.1:8000',
   'http://127.0.0.1:8080',
+  'https://xdren98.github.io',
   'https://imbriani-stefano-noleggio.vercel.app',
   'https://imbriani-stefano-noleggio.netlify.app'
 ];
@@ -22,11 +23,11 @@ async function handleRequest(request) {
   
   // Gestisci preflight CORS
   if (request.method === 'OPTIONS') {
+    const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : null;
     return new Response(null, {
       status: 200,
       headers: {
-        // In DEV consenti tutte le origini se non riconosciuta
-        'Access-Control-Allow-Origin': origin && ALLOWED_ORIGINS.includes(origin) ? origin : '*',
+        'Access-Control-Allow-Origin': allowedOrigin || 'https://xdren98.github.io',
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
         'Access-Control-Max-Age': '86400',
@@ -38,7 +39,13 @@ async function handleRequest(request) {
   try {
     // Inoltra la richiesta a Google Apps Script
     const url = new URL(request.url);
-    const searchParams = url.search;
+    const originalParams = new URLSearchParams(url.search);
+    // Forward Authorization header e IP come query param per Apps Script
+    const authHeader = request.headers.get('Authorization') || '';
+    const cfIp = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || '';
+    if (authHeader) originalParams.set('Authorization', authHeader);
+    if (cfIp) originalParams.set('cfip', cfIp);
+    const searchParams = `?${originalParams.toString()}`;
     
     // Costruisci la nuova richiesta per Apps Script
     let body = null;
@@ -63,14 +70,14 @@ async function handleRequest(request) {
     const responseText = await response.text();
 
     // Costruisci la risposta con CORS
-    const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : '*';
+    const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : 'https://xdren98.github.io';
     const responseHeaders = {
       'Content-Type': response.headers.get('Content-Type') || 'application/json',
       'Access-Control-Allow-Origin': allowedOrigin,
       'Vary': 'Origin'
     };
     // Invia credenziali solo se l'origine è esplicitamente consentita
-    if (allowedOrigin !== '*') {
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
       responseHeaders['Access-Control-Allow-Credentials'] = 'true';
     }
 
@@ -90,7 +97,7 @@ async function handleRequest(request) {
       status: 500,
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': origin && ALLOWED_ORIGINS.includes(origin) ? origin : '*'
+        'Access-Control-Allow-Origin': origin && ALLOWED_ORIGINS.includes(origin) ? origin : 'https://xdren98.github.io'
       }
     });
   }

@@ -5,10 +5,28 @@
  * Contiene tutte le configurazioni e costanti del sistema
  */
 
+// Utilizza Script Properties per caricare segreti e configurazioni sensibili,
+// mantenendo compatibilità con i valori attuali come fallback.
+function getScriptProp(key, fallback) {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var val = props.getProperty(key);
+    if (val && String(val).trim() !== '') return val;
+    if (fallback !== undefined) {
+      Logger.log('[CONFIG] Proprietà mancante: ' + key + ' — uso fallback');
+      return fallback;
+    }
+    return null;
+  } catch (err) {
+    Logger.log('[CONFIG] Errore lettura proprietà ' + key + ': ' + err.message);
+    return fallback;
+  }
+}
+
 const CONFIG = {
-  VERSION: '8.9.5',
-  SPREADSHEET_ID: '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns',
-  TOKEN: 'imbriani_secret_2025',
+  VERSION: '8.9.6',
+  SPREADSHEET_ID: getScriptProp('SPREADSHEET_ID', '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns'),
+  TOKEN: getScriptProp('TOKEN', 'imbriani_secret_2025'),
   
   SHEETS: {
     PRENOTAZIONI: 'PRENOTAZIONI',
@@ -105,22 +123,22 @@ const CONFIG = {
     // API Key per Google Cloud Vision (OCR documenti)
     // Costi: ~$1.50 per 1000 immagini
     // Dashboard: https://console.cloud.google.com/apis/credentials
-    VISION_API_KEY: 'AIzaSyA0xqCwwA3ywzW8rOIErg1WS6CnjQeUU2Y'
+    VISION_API_KEY: getScriptProp('GOOGLE_VISION_API_KEY', 'AIzaSyA0xqCwwA3ywzW8rOIErg1WS6CnjQeUU2Y')
   },
   
   TELEGRAM: {
-    BOT_TOKEN: '8029941478:AAGR808kmlCeyw5j5joJn0T_MLKL25qwM0o',
-    CHAT_ID: '203195623'
+    BOT_TOKEN: getScriptProp('TELEGRAM_BOT_TOKEN', '8029941478:AAGR808kmlCeyw5j5joJn0T_MLKL25qwM0o'),
+    CHAT_ID: getScriptProp('TELEGRAM_CHAT_ID', '203195623')
   },
   
   EMAIL: {
-    FROM_NAME: 'Imbriani Stefano Noleggio',
-    FROM_EMAIL: 'imbrianistefanonoleggio@gmail.com'
+    FROM_NAME: getScriptProp('EMAIL_FROM_NAME', 'Imbriani Stefano Noleggio'),
+    FROM_EMAIL: getScriptProp('EMAIL_FROM_EMAIL', 'imbrianistefanonoleggio@gmail.com')
   },
   
   PDF: {
-    TEMPLATE_DOC_ID: '1JEpqJZq9SnmmBWAucrRQ-CAzditSK3fL7HXKbWe-kcM',
-    PDF_FOLDER_ID: '1bYLuvfydAUaKsZpZVrFq-H3uRT66oo98',
+    TEMPLATE_DOC_ID: getScriptProp('PDF_TEMPLATE_DOC_ID', '1JEpqJZq9SnmmBWAucrRQ-CAzditSK3fL7HXKbWe-kcM'),
+    PDF_FOLDER_ID: getScriptProp('PDF_FOLDER_ID', '1bYLuvfydAUaKsZpZVrFq-H3uRT66oo98'),
     TIMEZONE: 'Europe/Rome',
     VEICOLI: {
       'DN391FW': { marca: 'Fiat', modello: 'Ducato' },

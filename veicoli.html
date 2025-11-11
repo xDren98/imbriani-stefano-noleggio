@@ -438,8 +438,14 @@
         const diISO = selectedDates.dataInizio;
         const dfISO = selectedDates.dataFine;
         const targheCSV = allVehicles.map(v => v.Targa).join(',');
-        const bulkUrl = `${CONFIG.API_URL}?action=bulkCheckDisponibilita&targhe=${encodeURIComponent(targheCSV)}&dataInizio=${encodeURIComponent(diISO)}&dataFine=${encodeURIComponent(dfISO)}&oraInizio=${encodeURIComponent(selectedDates.oraRitiro)}&oraFine=${encodeURIComponent(selectedDates.oraRiconsegna)}&token=${encodeURIComponent(CONFIG.TOKEN)}`;
-        const bulkResp = await fetch(bulkUrl).then(r => r.json()).catch(err => { console.error('Errore bulk check:', err); return { success:false, results:[] }; });
+        const bulkParams = {
+          targhe: targheCSV,
+          dataInizio: diISO,
+          dataFine: dfISO,
+          oraInizio: selectedDates.oraRitiro,
+          oraFine: selectedDates.oraRiconsegna
+        };
+        const bulkResp = await window.secureGet('bulkCheckDisponibilita', bulkParams).catch(err => { console.error('Errore bulk check:', err); return { success:false, results:[] }; });
         const results = (bulkResp && bulkResp.success && Array.isArray(bulkResp.results)) ? bulkResp.results : [];
         // memorizza risultati per suggerimenti (compatibilità struttura precedente)
         window.lastCheckResults = results.map(r => ({ v: allVehicles.find(v => String(v.Targa) === String(r.targa)), checkResp: { success:true, disponibile:r.disponibile } }));
@@ -566,9 +572,15 @@
         for (const slot of candidateSlots){
           if (suggestions.length >= maxSuggestions) break;
           const targheCSV = allVehicles.map(v => v.Targa).join(',');
-          const bulkUrl = `${CONFIG.API_URL}?action=bulkCheckDisponibilita&targhe=${encodeURIComponent(targheCSV)}&dataInizio=${encodeURIComponent(slot.baseISO)}&dataFine=${encodeURIComponent(slot.endISO)}&oraInizio=${encodeURIComponent(slot.startTime)}&oraFine=${encodeURIComponent(slot.endTime)}&token=${encodeURIComponent(CONFIG.TOKEN)}`;
+          const bulkParams = {
+            targhe: targheCSV,
+            dataInizio: slot.baseISO,
+            dataFine: slot.endISO,
+            oraInizio: slot.startTime,
+            oraFine: slot.endTime
+          };
           try{
-            const resp = await fetch(bulkUrl, { signal }).then(r=>r.json());
+            const resp = await window.secureGet('bulkCheckDisponibilita', bulkParams);
             if (resp && resp.success && Array.isArray(resp.results)){
               for (const r of resp.results){
                 if (suggestions.length >= maxSuggestions) break;

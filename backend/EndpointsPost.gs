@@ -32,9 +32,16 @@ function handlePost(e) {
       return handleLogin(e); // Passa l'intera richiesta per compatibilità
     }
     
-    // OCR NON richiede token per evitare problemi UX
+    // OCR ora richiede autenticazione (sessione cliente o admin)
     if (action === 'ocrDocument') {
-      dbg('[handlePost] OCR richiesto - nessuna validazione token');
+      dbg('[handlePost] OCR richiesto - validazione token');
+      if (!validateToken(finalToken, 'ocrDocument')) {
+        return createJsonResponse({
+          success: false,
+          message: 'Token non valido o mancante',
+          errorCode: 'INVALID_TOKEN'
+        }, 401);
+      }
       return ocrDocument(post);
     }
     
