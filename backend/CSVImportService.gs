@@ -74,13 +74,24 @@ function importaPrenotazioniCSV(post){
 // Parsing date flessibile lato Apps Script
 function parseDateFlexibleGS(val){
   if (!val) return null;
-  if (val instanceof Date && !isNaN(val.getTime())) return val;
+  if (val instanceof Date && !isNaN(val.getTime())) {
+    return new Date(val.getFullYear(), val.getMonth(), val.getDate(), 12, 0, 0, 0);
+  }
   var s = String(val).trim();
   // dd/mm/yyyy
   var m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (m){ var d = new Date(m[3]+'-'+m[2]+'-'+m[1]); return isNaN(d.getTime())?null:d; }
+  if (m){
+    var d = new Date(parseInt(m[3],10), parseInt(m[2],10)-1, parseInt(m[1],10), 12, 0, 0, 0);
+    return isNaN(d.getTime())?null:d;
+  }
   // yyyy-mm-dd
-  var d2 = new Date(s); return isNaN(d2.getTime())?null:d2;
+  var iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso){
+    var d2 = new Date(parseInt(iso[1],10), parseInt(iso[2],10)-1, parseInt(iso[3],10), 12, 0, 0, 0);
+    return isNaN(d2.getTime())?null:d2;
+  }
+  var d3 = new Date(s);
+  return isNaN(d3.getTime())?null:new Date(d3.getFullYear(), d3.getMonth(), d3.getDate(), 12, 0, 0, 0);
 }
 
 function formatISODate(d, hhmm){

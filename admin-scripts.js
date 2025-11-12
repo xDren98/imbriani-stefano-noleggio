@@ -31,33 +31,44 @@
   window._clientiSort = { key: null, dir: 'asc' };
   let dashBookingSort = { key: 'data', dir: 'asc' };
   let dashLicenseSort = { key: 'scadenza', dir: 'asc' };
+  // Ripristina persistenze
+  try { const s = JSON.parse(localStorage.getItem('imbriani_sort_legacy')||'null'); if(s && s.key && s.dir) legacySort = s; } catch(_){}
+  try { const s = JSON.parse(localStorage.getItem('imbriani_sort_flotta')||'null'); if(s && s.key && s.dir) flottaSort = s; } catch(_){}
+  try { const s = JSON.parse(localStorage.getItem('imbriani_sort_clienti')||'null'); if(s && s.key !== undefined && s.dir) window._clientiSort = s; } catch(_){}
+  try { const s = JSON.parse(localStorage.getItem('imbriani_sort_dash_bookings')||'null'); if(s && s.key && s.dir) dashBookingSort = s; } catch(_){}
+  try { const s = JSON.parse(localStorage.getItem('imbriani_sort_dash_licenses')||'null'); if(s && s.key && s.dir) dashLicenseSort = s; } catch(_){}
 
   // Exposed setters
   window.setLegacySort = function(key){
     if(legacySort.key === key){ legacySort.dir = legacySort.dir === 'asc' ? 'desc' : 'asc'; }
     else { legacySort.key = key; legacySort.dir = (key==='di' || key==='df') ? 'desc' : 'asc'; }
+    try{ localStorage.setItem('imbriani_sort_legacy', JSON.stringify(legacySort)); }catch(_){}
     // re-render by reloading section
     if(typeof loadLegacy === 'function'){ loadLegacy(); }
   };
   window.setFlottaSort = function(key){
     if(flottaSort.key === key){ flottaSort.dir = flottaSort.dir === 'asc' ? 'desc' : 'asc'; }
     else { flottaSort.key = key; flottaSort.dir = (key==='posti') ? 'desc' : 'asc'; }
+    try{ localStorage.setItem('imbriani_sort_flotta', JSON.stringify(flottaSort)); }catch(_){}
     // re-render by refetch or rerender
     const btn = document.getElementById('btn-reload-flotta'); btn?.click();
   };
   window.setClientiSort = function(key){
     if(window._clientiSort.key === key){ window._clientiSort.dir = window._clientiSort.dir === 'asc' ? 'desc' : 'asc'; }
     else { window._clientiSort.key = key; window._clientiSort.dir = 'asc'; }
+    try{ localStorage.setItem('imbriani_sort_clienti', JSON.stringify(window._clientiSort)); }catch(_){}
     if(typeof renderClienti === 'function'){ renderClienti(window._clientiData||[]); }
   };
   window.setDashBookingSort = function(key){
     if(dashBookingSort.key === key){ dashBookingSort.dir = dashBookingSort.dir === 'asc' ? 'desc' : 'asc'; }
     else { dashBookingSort.key = key; dashBookingSort.dir = 'asc'; }
+    try{ localStorage.setItem('imbriani_sort_dash_bookings', JSON.stringify(dashBookingSort)); }catch(_){}
     if(typeof loadDashboard === 'function'){ loadDashboard(); }
   };
   window.setDashLicenseSort = function(key){
     if(dashLicenseSort.key === key){ dashLicenseSort.dir = dashLicenseSort.dir === 'asc' ? 'desc' : 'asc'; }
     else { dashLicenseSort.key = key; dashLicenseSort.dir = 'asc'; }
+    try{ localStorage.setItem('imbriani_sort_dash_licenses', JSON.stringify(dashLicenseSort)); }catch(_){}
     if(typeof loadDashboard === 'function'){ loadDashboard(); }
   };
   
@@ -1312,7 +1323,15 @@
       const numeroPatente = cliente?.['NUMERO_PATENTE'] || '';
       const inizioPatente = cliente?.['DATA_INIZIO_PATENTE'] || cliente?.['DATA_INIZIO_PATENTEFormatted'] || '';
       const scadenzaPatente = cliente?.['SCADENZA_PATENTE'] || cliente?.['SCADENZA_PATENTEFormatted'] || '';
-      const toISO = (v) => { const d = parseDateFlexible(v); return d ? d.toISOString().slice(0,10) : ''; };
+      // Converte una data in stringa ISO locale 'yyyy-mm-dd' senza usare toISOString (evita slittamenti)
+      const toISO = (v) => {
+        const d = parseDateFlexible(v);
+        if (!d || isNaN(d.getTime())) return '';
+        const y = d.getFullYear();
+        const m = String(d.getMonth()+1).padStart(2,'0');
+        const day = String(d.getDate()).padStart(2,'0');
+        return `${y}-${m}-${day}`;
+      };
 
       const modalHtml = `
         <div class="modal fade" id="clienteModal" tabindex="-1">

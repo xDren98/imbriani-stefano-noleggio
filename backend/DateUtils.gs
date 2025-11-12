@@ -73,7 +73,8 @@ function parseItalianOrISO(value) {
   if (!value) return null;
   try {
     if (value instanceof Date) {
-      return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+      // Usa mezzogiorno locale per evitare shift di giornata dovuti al timezone
+      return new Date(value.getFullYear(), value.getMonth(), value.getDate(), 12, 0, 0, 0);
     }
     if (typeof value === 'string') {
       if (value.indexOf('/') > -1) {
@@ -82,7 +83,8 @@ function parseItalianOrISO(value) {
           var day = parseInt(p[0], 10);
           var month = parseInt(p[1], 10) - 1;
           var year = parseInt(p[2], 10);
-          var d = new Date(year, month, day);
+          // Costruisci la data a mezzogiorno
+          var d = new Date(year, month, day, 12, 0, 0, 0);
           return isNaN(d.getTime()) ? null : d;
         }
       } else if (value.indexOf('-') > -1) {
@@ -91,14 +93,15 @@ function parseItalianOrISO(value) {
           var y = parseInt(s[0], 10);
           var m = parseInt(s[1], 10) - 1;
           var dd = parseInt(s[2], 10);
-          var d2 = new Date(y, m, dd);
+          // Input ISO da <input type="date"> → set a mezzogiorno
+          var d2 = new Date(y, m, dd, 12, 0, 0, 0);
           return isNaN(d2.getTime()) ? null : d2;
         }
       }
     }
     // Fallback
     var f = new Date(value);
-    return isNaN(f.getTime()) ? null : new Date(f.getFullYear(), f.getMonth(), f.getDate());
+    return isNaN(f.getTime()) ? null : new Date(f.getFullYear(), f.getMonth(), f.getDate(), 12, 0, 0, 0);
   } catch (e) {
     Logger.log('[parseItalianOrISO] Errore: ' + e.message + ' per value=' + value);
     return null;

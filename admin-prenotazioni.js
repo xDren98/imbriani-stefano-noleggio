@@ -39,6 +39,10 @@
   let currentFilters = { stato: 'tutti', ricerca: '' };
   let currentView = 'card'; // 'card' or 'table'
   let prenotazioniSort = { key: 'date', dir: 'desc' }; // default ordinamento cronologico decrescente
+  // Ripristina persistenza
+  try { const s = JSON.parse(localStorage.getItem('imbriani_pren_sort')||'null'); if(s && s.key && s.dir) prenotazioniSort = s; } catch(_){}
+  try { const f = JSON.parse(localStorage.getItem('imbriani_pren_filters')||'null'); if(f && (f.stato||f.stato==='tutti')) currentFilters = { stato: f.stato||'tutti', ricerca: f.ricerca||'' }; } catch(_){}
+  try { const v = localStorage.getItem('imbriani_pren_view'); if(v === 'card' || v === 'table') currentView = v; } catch(_){ }
 
   function getId(p){
     const v = p.idPrenotazione || p.id || '';
@@ -112,6 +116,7 @@
       prenotazioniSort.key = key;
       prenotazioniSort.dir = (key === 'date' || key === 'orari' || key === 'id') ? 'desc' : 'asc';
     }
+    try { localStorage.setItem('imbriani_pren_sort', JSON.stringify(prenotazioniSort)); } catch(_){}
     renderPrenotazioni();
   };
 
@@ -275,6 +280,7 @@
     if (fs) fs.value = stato === 'Tutte' ? 'tutti' : stato;
     window.applicaFiltriPrenotazioni();
     renderQuickStats();
+    try { localStorage.setItem('imbriani_pren_filters', JSON.stringify(currentFilters)); } catch(_){}
   };
 
   function switchView(type) {
@@ -282,6 +288,7 @@
     document.getElementById('btn-view-grid').classList.toggle('switch-view-btn-active', type === 'card');
     document.getElementById('btn-view-list').classList.toggle('switch-view-btn-active', type === 'table');
     renderPrenotazioni();
+    try { localStorage.setItem('imbriani_pren_view', currentView); } catch(_){}
   }
 
   function renderPrenotazioni() {
@@ -495,6 +502,7 @@
     if (statoSelect) currentFilters.stato = statoSelect.value;
     currentFilters.ricerca = ricercaInput?.value?.toLowerCase()?.trim() || '';
     window.applicaFiltriPrenotazioni();
+    try { localStorage.setItem('imbriani_pren_filters', JSON.stringify(currentFilters)); } catch(_){}
   }
 
   window.applicaFiltriPrenotazioni = function() {

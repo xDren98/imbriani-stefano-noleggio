@@ -101,8 +101,9 @@ function handleGet(e) {
       case 'notifyTest':
         var demo = {
           targa: 'TEST123',
-          giornoInizio: new Date().toISOString().slice(0, 10),
-          giornoFine: new Date().toISOString().slice(0, 10),
+    // Usa data locale in formato 'yyyy-mm-dd' per evitare slittamenti
+    giornoInizio: (function(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,'0')+"-"+String(d.getDate()).padStart(2,'0'); })(),
+    giornoFine: (function(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,'0')+"-"+String(d.getDate()).padStart(2,'0'); })(),
           oraInizio: '09:00',
           oraFine: '12:00',
           destinazione: 'Test Destinazione',

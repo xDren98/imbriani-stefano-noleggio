@@ -12,9 +12,10 @@ function ocrDocument(post) {
     var imageBase64 = post.image;
     var autistaNum = post.autista || 1;
     var tipoDoc = post.tipoDocumento || 'auto';
+    var mimeType = post.mimeType || '';
     
     // Validazione e preprocessing immagine
-    var validationResult = validateAndPreprocessImage(imageBase64);
+    var validationResult = validateAndPreprocessImage(imageBase64, mimeType);
     if (!validationResult.valid) {
       return createJsonResponse({ 
         success: false, 
@@ -220,12 +221,14 @@ function normalizzaData(dataStr) { /* invariata */ }
 /**
  * Valida e preprocessa l'immagine base64
  */
-function validateAndPreprocessImage(imageBase64) {
+function validateAndPreprocessImage(imageBase64, mimeType) {
   try {
     // Rimuovi prefisso data URL se presente
     if (imageBase64.indexOf('base64,') !== -1) {
       imageBase64 = imageBase64.split('base64,')[1];
     }
+    // Normalizza: rimuovi eventuali whitespace/newline
+    imageBase64 = String(imageBase64 || '').replace(/\s+/g, '');
     
     // Decodifica base64 per validare
     var decodedBytes = Utilities.base64Decode(imageBase64);
@@ -272,6 +275,15 @@ function validateAndPreprocessImage(imageBase64) {
       isValidImage = true;
     }
     
+    // Fallback: se il mime type dichiarato è supportato, accetta comunque
+    if (!isValidImage && mimeType) {
+      var mt = String(mimeType).toLowerCase();
+      if (/^image\/(jpeg|jpg|png|gif|webp)$/.test(mt)) {
+        isValidImage = true;
+        Logger.log('[OCR] Formato accettato via mimeType: ' + mt);
+      }
+    }
+    
     if (!isValidImage) {
       return { 
         valid: false, 
@@ -283,11 +295,15 @@ function validateAndPreprocessImage(imageBase64) {
     // Se l'immagine è troppo grande, potremmo ridimensionarla, ma per ora accettiamola
     // Google Vision API gestisce il ridimensionamento automatico
     
+    var format = detectImageFormat(firstBytes);
+    if (!format && mimeType) {
+      format = String(mimeType).toLowerCase();
+    }
     return {
       valid: true,
       processedImage: imageBase64,
       sizeInBytes: sizeInBytes,
-      format: detectImageFormat(firstBytes)
+      format: format
     };
     
   } catch (error) {

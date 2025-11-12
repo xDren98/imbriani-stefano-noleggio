@@ -232,7 +232,9 @@
   // Inizializzazione automatica
   function initializeHomepage(){
     try {
-      const oggi = new Date().toISOString().split('T')[0];
+  // Costruisci 'oggi' come yyyy-mm-dd locale per evitare slittamenti
+  const _now = new Date();
+  const oggi = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}-${String(_now.getDate()).padStart(2,'0')}`;
       const dataRitiroEl = document.getElementById('new-data-ritiro');
       const dataConsegnaEl = document.getElementById('new-data-consegna');
       
@@ -244,7 +246,9 @@
         dataConsegnaEl.min = oggi;
         const domani = new Date();
         domani.setDate(domani.getDate() + 1);
-        dataConsegnaEl.value = domani.toISOString().split('T')[0];
+  // Imposta domani in formato locale yyyy-mm-dd
+  const domaniISO = `${domani.getFullYear()}-${String(domani.getMonth()+1).padStart(2,'0')}-${String(domani.getDate()).padStart(2,'0')}`;
+  dataConsegnaEl.value = domaniISO;
       }
       
       bindLogin();

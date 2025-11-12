@@ -519,9 +519,11 @@ function aggiornaAutistiPubblico(post) {
       .getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
     var data = sh.getDataRange().getValues();
     var rowIndex = -1;
+    var statoAttuale = '';
     for (var i = 1; i < data.length; i++) {
       if (String(data[i][CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1]) === String(idPrenotazione)) {
         rowIndex = i + 1;
+        statoAttuale = String(data[i][CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE - 1] || '').trim();
         break;
       }
     }
@@ -574,6 +576,16 @@ function aggiornaAutistiPubblico(post) {
     var a3Start = a3.inizioValiditaPatente || a3.dataInizioPatente;
     if (a3Start) sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.DATA_INIZIO_PATENTE_AUTISTA_3).setValue(parseItalianOrISO(a3Start));
     if (post.scadenzaPatenteAutista3 || a3.scadenzaPatente) sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.SCADENZA_PATENTE_AUTISTA_3).setValue(parseItalianOrISO(post.scadenzaPatenteAutista3 || a3.scadenzaPatente));
+
+    // Se la prenotazione è stata importata come Legacy, portala in "In attesa" dopo l'invio dei dati autisti
+    if (statoAttuale && /^legacy$/i.test(statoAttuale)) {
+      try {
+        sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE).setValue('In attesa');
+        Logger.log('[aggiornaAutistiPubblico] Stato aggiornato: Legacy → In attesa');
+      } catch (e) {
+        Logger.log('[aggiornaAutistiPubblico] Errore aggiornamento stato Legacy→In attesa: ' + e.message);
+      }
+    }
 
     return createJsonResponse({ success: true, message: 'Dati autisti aggiornati' });
   } catch (err) {
