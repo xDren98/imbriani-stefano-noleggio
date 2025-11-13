@@ -4,15 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Diagnostica API — Imbriani</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" integrity="sha512-RXf+QSDCUQs6b4v5A9R2v6KUVKp1R9+XcMgy7pYzFSHLn3U4a8gE9F7R5C3XxR28Z59TLEEqzvvR1vpuYeIRsA==" crossorigin="anonymous" />
   <style>
-    body { background: #0b1727; color: #e9eef7; }
-    .card { background: #12233a; border: 1px solid #1f3554; }
-    .code { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    body { background: #0b1727; color: #eaf1ff; }
+    .card { background: #12233a; border: 1px solid #2a4a75; }
+    .small-muted { color: #c3d3ea; font-size: 0.92rem; }
     .badge-pass { background-color: #28a745; }
     .badge-fail { background-color: #dc3545; }
-    .small-muted { color: #9fb1cc; font-size: 0.9rem; }
+    .badge-chip { background-color: #1f3554; color: #eaf1ff; border: 1px solid #2a4a75; font-weight: 500; }
+    .code { color: #eaf1ff; background: #0f1f36; border: 1px solid #2a4a75; border-radius: 6px; padding: 10px; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .result-head { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+    .result-title { color: #eaf1ff; font-weight: 600; }
+    .result-actions { display: flex; align-items: center; gap: 8px; }
+    .btn-xs { padding: 2px 8px; font-size: 0.8rem; }
   </style>
 </head>
 <body>
@@ -48,6 +53,8 @@
           <button id="test-veicoli" class="btn btn-outline-info">GET: getVeicoli</button>
           <button id="test-firstslot" class="btn btn-outline-info">GET: firstAvailableSlot</button>
           <button id="test-direct-health" class="btn btn-outline-secondary">Direct (GAS): health</button>
+          <button id="test-cache-hit" class="btn btn-outline-success">GET (cache): getVeicoli</button>
+          <button id="test-sheet-clients" class="btn btn-outline-info">GET: getSheet CLIENTI (fields/limit)</button>
         </div>
 
         <div class="row g-3">
@@ -61,7 +68,7 @@
           </div>
           <div class="col-md-4">
             <label class="form-label">OTP</label>
-            <input id="admin-otp" type="text" class="form-control" placeholder="6 cifre" />
+            <input id="admin-otp" type="text" inputmode="numeric" autocomplete="off" class="form-control" placeholder="6 cifre" />
           </div>
           <div class="col-md-4 d-flex align-items-end gap-2">
             <button id="test-request-otp" class="btn btn-outline-primary flex-grow-1">Richiedi OTP</button>
@@ -72,6 +79,12 @@
       </div>
     </div>
 
+    <div class="card mb-4">
+      <div class="card-body">
+        <h5 class="card-title">Riepilogo</h5>
+        <div id="summary" class="small-muted"></div>
+      </div>
+    </div>
     <!-- Risultati -->
     <div class="card">
       <div class="card-body">
@@ -81,7 +94,7 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
   <script src="config.js"></script>
   <script src="shared-utils.js"></script>
   <script>
@@ -128,14 +141,68 @@
       document.getElementById('env-info').textContent = JSON.stringify(info, null, 2);
     }
 
-    function appendResult(title, data, ok = null) {
-      const container = document.getElementById('results');
-      const wrapper = document.createElement('div');
-      wrapper.className = 'mb-3';
-      const badge = ok === null ? '' : `<span class="badge ${ok ? 'badge-pass' : 'badge-fail'} ms-2">${ok ? 'PASS' : 'FAIL'}</span>`;
-      wrapper.innerHTML = `<div class="small-muted mb-1">${title} ${badge}</div><div class="code p-2 rounded" style="background:#0f1c30;">${escapeHtml(JSON.stringify(data, null, 2))}</div>`;
-      container.prepend(wrapper);
-    }
+  const __metrics = { total:0, pass:0, fail:0, cache:{HIT:0,MISS:0,STALE:0,'N/A':0}, actions:{}, times:[] };
+  function renderSummary(){
+    const el = document.getElementById('summary'); if (!el) return;
+    const avg = __metrics.times.length ? Math.round(__metrics.times.reduce((a,b)=>a+b,0)/__metrics.times.length) : 0;
+    const hit = __metrics.cache.HIT||0, miss=__metrics.cache.MISS||0, stale=__metrics.cache.STALE||0, na=__metrics.cache['N/A']||0;
+    const cacheTotal = hit+miss+stale+na; const hitPct = cacheTotal?Math.round(hit*100/cacheTotal):0; const stalePct = cacheTotal?Math.round(stale*100/cacheTotal):0; const missPct = cacheTotal?Math.round(miss*100/cacheTotal):0;
+    const rows = Object.entries(__metrics.actions).map(([k,v])=>{
+      const aavg = v.times.length?Math.round(v.times.reduce((x,y)=>x+y,0)/v.times.length):0;
+      const h=v.cache.HIT||0,m=v.cache.MISS||0,s=v.cache.STALE||0,n=v.cache['N/A']||0; const tot=h+m+s+n || 1;
+      const hp=Math.round(h*100/tot), sp=Math.round(s*100/tot), mp=Math.round(m*100/tot);
+      return `<tr><td>${k}</td><td><span class="badge badge-chip">${aavg} ms</span></td><td><span class="badge badge-chip">HIT ${hp}%</span> <span class="badge badge-chip">STALE ${sp}%</span> <span class="badge badge-chip">MISS ${mp}%</span></td><td>${v.count}</td></tr>`;
+    }).join('');
+    el.innerHTML = `
+      <div class="d-flex flex-wrap gap-2 mb-2">
+        <span class="badge badge-chip">Test: ${__metrics.total}</span>
+        <span class="badge badge-chip">Pass: ${__metrics.pass}</span>
+        <span class="badge badge-chip">Fail: ${__metrics.fail}</span>
+        <span class="badge badge-chip">Avg: ${avg} ms</span>
+        <span class="badge badge-chip">Cache HIT ${hitPct}%</span>
+        <span class="badge badge-chip">Cache STALE ${stalePct}%</span>
+        <span class="badge badge-chip">Cache MISS ${missPct}%</span>
+      </div>
+      <div class="table-responsive"><table class="table table-sm align-middle text-white-50"><thead><tr><th>Azione</th><th>Tempo medio</th><th>Cache</th><th>Chiamate</th></tr></thead><tbody>${rows||'<tr><td colspan="4" class="text-muted">Esegui i test per vedere il riepilogo</td></tr>'}</tbody></table></div>`;
+  }
+  function updateMetrics(title,data,ok){
+    __metrics.total += 1; if (ok===true) __metrics.pass += 1; else if (ok===false) __metrics.fail += 1;
+    const meta = (data && data.__meta) ? data.__meta : null; if (meta && typeof meta.ms==='number') __metrics.times.push(meta.ms);
+    const cache = meta && meta.cache ? meta.cache : 'N/A'; if (!__metrics.cache[cache]) __metrics.cache[cache]=0; __metrics.cache[cache]+=1;
+    const action = String(title||'').split(' ')[1] || title; if (!__metrics.actions[action]) __metrics.actions[action] = { times:[], cache:{HIT:0,MISS:0,STALE:0,'N/A':0}, count:0 };
+    __metrics.actions[action].count += 1; if (meta && typeof meta.ms==='number') __metrics.actions[action].times.push(meta.ms);
+    if (!__metrics.actions[action].cache[cache]) __metrics.actions[action].cache[cache]=0; __metrics.actions[action].cache[cache]+=1;
+    renderSummary();
+  }
+  function appendResult(title, data, ok = null) {
+    const container = document.getElementById('results');
+    const wrapper = document.createElement('div');
+    wrapper.className = 'mb-3';
+    const passfail = ok === null ? '' : `<span class="badge ${ok ? 'badge-pass' : 'badge-fail'}">${ok ? 'PASS' : 'FAIL'}</span>`;
+    const meta = (data && data.__meta) ? data.__meta : null;
+    const metaBadges = meta ? `<span class="badge badge-chip">${meta.ms} ms</span><span class="badge badge-chip">HTTP ${meta.status}</span><span class="badge badge-chip">Cache: ${meta.cache}</span>` : '';
+    const out = (data && data.__payload) ? data.__payload : data;
+    const codeText = escapeHtml(JSON.stringify(out, null, 2));
+    const id = 'code_' + Math.random().toString(36).slice(2);
+    wrapper.innerHTML = `
+      <div class="result-head mb-1">
+        <div class="result-title">${title} ${passfail}</div>
+        <div class="result-actions">
+          ${metaBadges}
+          <button class="btn btn-outline-light btn-xs" data-action="toggle" data-target="${id}">Dettagli</button>
+          <button class="btn btn-outline-light btn-xs" data-action="copy" data-target="${id}">Copia</button>
+        </div>
+      </div>
+      <div id="${id}" class="code">${codeText}</div>
+    `;
+    container.prepend(wrapper);
+    const toggleBtn = wrapper.querySelector('button[data-action="toggle"]');
+    const copyBtn = wrapper.querySelector('button[data-action="copy"]');
+    const codeEl = wrapper.querySelector('#'+id);
+    if (toggleBtn && codeEl) toggleBtn.onclick = () => { codeEl.classList.toggle('d-none'); };
+    if (copyBtn && codeEl) copyBtn.onclick = async () => { try { await navigator.clipboard.writeText(codeEl.textContent); copyBtn.textContent='Copiato'; setTimeout(()=>copyBtn.textContent='Copia',1500); } catch(_) { } };
+    updateMetrics(title, data, ok);
+  }
 
     function escapeHtml(s){
       return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
@@ -174,14 +241,44 @@
       }
     }
 
-    async function runGetVeicoli() {
-      try {
-        const res = await secureGet('getVeicoli');
-        appendResult('GET getVeicoli (proxy)', res, !!(res && res.success));
-      } catch (err) {
-        appendResult('GET getVeicoli (proxy) — errore', { error: err.message }, false);
-      }
+  async function runGetVeicoli() {
+    try {
+      const res = await diagFetchGet('getVeicoli');
+      const ok = (res && res.__meta && res.__meta.status < 400) && !(res && res.__payload && res.__payload.success === false);
+      appendResult('GET getVeicoli (proxy)', res, ok);
+    } catch (err) {
+      appendResult('GET getVeicoli (proxy) — errore', { error: err.message }, false);
     }
+  }
+
+  async function diagFetchGet(action, params={}) {
+    const url = new URL(window.CONFIG?.API_URL || '');
+    url.searchParams.set('action', action);
+    url.searchParams.set('diag', '1');
+    Object.entries(params).forEach(([k,v]) => { if (v!==undefined&&v!==null) url.searchParams.set(k, String(v)); });
+    const token = (typeof getActiveToken === 'function') ? getActiveToken() : (window.CONFIG?.AUTH_TOKEN || '');
+    const t0 = performance.now();
+    const res = await fetch(url.toString(), { method:'GET', headers: { 'Authorization': `Bearer ${token}` } });
+    const t1 = performance.now();
+    let cacheHdr = res.headers.get('X-Proxy-Cache') || res.headers.get('x-proxy-cache') || 'N/A';
+    const meta = { ms: Math.round(t1 - t0), status: res.status, cache: cacheHdr };
+    let payload; try { payload = await res.json(); } catch(_) { payload = { success:false, message:'non-JSON' }; }
+    const displayMeta = { ...meta };
+    if (payload && payload.__proxy && payload.__proxy.cache) displayMeta.cache = payload.__proxy.cache;
+    return { __meta: displayMeta, __payload: payload };
+  }
+
+  async function runCacheHit(){
+    const a = await diagFetchGet('getVeicoli');
+    appendResult('GET getVeicoli (proxy) #1', a, (a && a.__meta && a.__meta.status < 400) && !(a && a.__payload && a.__payload.success === false));
+    const b = await diagFetchGet('getVeicoli');
+    appendResult('GET getVeicoli (proxy) #2', b, (b && b.__meta && b.__meta.status < 400) && !(b && b.__payload && b.__payload.success === false));
+  }
+
+  async function runSheetClients(){
+    const res = await diagFetchGet('getSheet', { name:'CLIENTI', fields:'NOME,CODICE_FISCALE,SCADENZA_PATENTE', limit: 100 });
+    appendResult('GET getSheet CLIENTI (fields/limit)', res, (res && res.__meta && res.__meta.status < 400) && !(res && res.__payload && res.__payload.success === false));
+  }
 
     function todayPlus(days) {
       const d = new Date();
@@ -296,14 +393,17 @@
       printEnvInfo();
       await runHealth();
       await runVersion();
+      renderSummary();
       await runDebugAuth();
       await runGetVeicoli();
+      await runCacheHit();
+      await runSheetClients();
       await runFirstAvailableSlot();
       await runDirectHealth();
     }
 
     // Bind
-    window.addEventListener('DOMContentLoaded', async () => {
+  window.addEventListener('DOMContentLoaded', async () => {
       printEnvInfo();
       // Nascondi pulsante di sviluppo fuori da localhost
       try { const btn = document.getElementById('diag-dev-login-btn'); if (btn && !isLocalHost()) btn.classList.add('d-none'); } catch(_){}
@@ -313,6 +413,8 @@
       document.getElementById('test-version')?.addEventListener('click', runVersion);
       document.getElementById('test-debugauth')?.addEventListener('click', runDebugAuth);
       document.getElementById('test-veicoli')?.addEventListener('click', runGetVeicoli);
+      document.getElementById('test-cache-hit')?.addEventListener('click', runCacheHit);
+      document.getElementById('test-sheet-clients')?.addEventListener('click', runSheetClients);
       document.getElementById('test-firstslot')?.addEventListener('click', runFirstAvailableSlot);
       document.getElementById('test-direct-health')?.addEventListener('click', runDirectHealth);
       document.getElementById('test-request-otp')?.addEventListener('click', runRequestOTP);

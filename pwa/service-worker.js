@@ -19,9 +19,13 @@ self.addEventListener('install', (event) => {
   console.log('[SW] Installing service worker...');
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
+      .then(async (cache) => {
         console.log('[SW] Caching app shell');
-        return cache.addAll(ASSETS_TO_CACHE);
+        const results = await Promise.allSettled(
+          ASSETS_TO_CACHE.map(u => cache.add(u).catch(_ => null))
+        );
+        const failed = results.filter(r => r.status === 'rejected').length;
+        if (failed) console.warn('[SW] Some assets failed to cache:', failed);
       })
       .then(() => self.skipWaiting())
   );
@@ -71,6 +75,22 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(req).then((cached) => {
       if (cached) return cached;
+      // API caching: stale-while-revalidate per GET verso proxy
+      try {
+        const isApi = req.method === 'GET' && (req.url.startsWith('https://imbriani-proxy.dreenhd.workers.dev'));
+        if (isApi) {
+          return caches.match(req).then((apiCached) => {
+            const networkFetch = fetch(req).then((networkResp) => {
+              if (networkResp && networkResp.status === 200) {
+                const respClone = networkResp.clone();
+                caches.open(CACHE_NAME).then((cache) => cache.put(req, respClone));
+              }
+              return networkResp;
+            }).catch(() => apiCached || Promise.reject('network-error'));
+            return apiCached ? apiCached : networkFetch;
+          });
+        }
+      } catch(_) { }
       return fetch(req)
         .then((networkResp) => {
           if (!networkResp || networkResp.status !== 200 || networkResp.type !== 'basic') {

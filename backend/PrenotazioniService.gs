@@ -211,6 +211,7 @@ function creaPrenotazione(post) {
     
     // Salva prenotazione
     sh.appendRow(row);
+    invalidateIndex('PREN');
     
     // Upsert clienti se richiesto
     if (post.upsertClienti) {
@@ -271,17 +272,8 @@ function aggiornaStatoPrenotazione(post) {
       }, 400);
     }
     
-    var sh = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID)
-      .getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
-    var data = sh.getDataRange().getValues();
-    var rowIndex = -1;
-    
-    for (var i = 1; i < data.length; i++) {
-      if (String(data[i][CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE - 1]) === String(idPrenotazione)) {
-        rowIndex = i + 1;
-        break;
-      }
-    }
+    var sh = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID).getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
+    var rowIndex = prenRowIndexById(idPrenotazione);
     
     if (rowIndex === -1) {
       return createJsonResponse({
@@ -290,13 +282,13 @@ function aggiornaStatoPrenotazione(post) {
       }, 404);
     }
     
-    // Aggiorna stato
-    sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE).setValue(nuovoStato);
-    
-    // Aggiorna importo se confermata
-    if (importo && nuovoStato === 'Confermata') {
-      sh.getRange(rowIndex, CONFIG.PRENOTAZIONI_COLS.IMPORTO_PREVENTIVO).setValue(importo);
-    }
+    var lastCol = sh.getLastColumn();
+    var row = sh.getRange(rowIndex, 1, 1, lastCol).getValues()[0];
+    var C = CONFIG.PRENOTAZIONI_COLS;
+    row[C.STATO_PRENOTAZIONE-1] = nuovoStato;
+    if (importo && nuovoStato === 'Confermata') { row[C.IMPORTO_PREVENTIVO-1] = importo; }
+    sh.getRange(rowIndex, 1, 1, lastCol).setValues([row]);
+    invalidateIndex('PREN');
     
     var pdfResult = null;
     

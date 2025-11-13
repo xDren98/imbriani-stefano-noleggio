@@ -2,6 +2,12 @@
 (function(){
   const ADMIN_CONFIG = { VERSION: '3.2.1', REFRESH_INTERVAL: 30000, ITEMS_PER_PAGE: 50 };
   let adminData = { prenotazioni: [], clienti: [], flotta: [], manutenzioni: [], stats: {} };
+  async function prefetchCritical(){
+    try { if (typeof window.secureGet === 'function') { await Promise.allSettled([
+      window.secureGet('getVeicoli', {}),
+      window.secureGet('getSheet', { name:'CLIENTI', limit: 50 })
+    ]); } }catch(_){ }
+  }
   
   // --- Sorting utilities (global) ---
   function parseDateAnySafe(val){
@@ -75,7 +81,7 @@
   function qs(id){ return document.getElementById(id); }
   // Usa GET per azioni di lettura e POST per azioni di scrittura
   async function callAPI(action, params={}){
-    console.log(`[ADMIN-API] ${action}:`, params);
+    console.log(`[ADMIN-API] ${action}`);
     const POST_ACTIONS = new Set([
       'setManutenzione',
       'setVeicolo',
@@ -113,6 +119,11 @@
         if (typeof window.secureGet === 'function') {
           const result = await window.secureGet(action, params);
           console.log(`[ADMIN-API] ${action} (GET) result:`, result);
+          return result;
+        }
+        if (typeof window.api?.call === 'function') {
+          const result = await window.api.call({ action, ...params });
+          console.log(`[ADMIN-API] ${action} (GET-fallback) result:`, result);
           return result;
         }
         return { success:false, message:'secureGet missing' };
@@ -306,7 +317,7 @@
       grid.innerHTML = '<div class="text-center p-3">🔄 Verifico disponibilità reale…</div>';
       
       const [flottaResp, dispResp] = await Promise.all([
-        callAPI('flotta',{method:'get'}), 
+        callAPI('getVeicoli'),
         callAPI('disponibilita', window.adminSearchParams||{})
       ]);
       
@@ -327,16 +338,16 @@
       renderAdminVehicles(flotta, disponibili.map(v => v.Targa));
     }catch(e){ 
       const grid = qs('admin-vehicles-grid');
-      if(grid) grid.innerHTML = '<div class="text-center text-danger p-3">Errore: ' + e.message + '</div>';
+      if(grid) grid.innerHTML = '<div class="text-center text-danger p-3">Errore: ' + escapeHtml(String(e && e.message || e)) + '</div>';
     }
   }
 
   function showAdminSuggestions(suggestions, grid){
     const suggHtml = suggestions.map(s => 
       `<div class="alert alert-warning mb-2"><div class="d-flex justify-content-between align-items-start">
-          <div><strong>💡 ${s.marca} ${s.modello} (${s.targa})</strong><br><small>${s.motivoOriginale}</small><br>
-          <strong>Proposta:</strong> ${s.dataInizioSuggerita} ${s.oraInizioSuggerita} → ${s.dataFineSuggerita} ${s.oraFineSuggerita}</div>
-          <button class="btn btn-sm btn-warning use-admin-suggestion" data-start-date="${s.dataInizioSuggerita}" data-start-time="${s.oraInizioSuggerita}" data-end-date="${s.dataFineSuggerita}" data-end-time="${s.oraFineSuggerita}">✅ Usa fascia</button>
+          <div><strong>💡 ${escapeHtml(String(s.marca||''))} ${escapeHtml(String(s.modello||''))} (${escapeHtml(String(s.targa||''))})</strong><br><small>${escapeHtml(String(s.motivoOriginale||''))}</small><br>
+          <strong>Proposta:</strong> ${escapeHtml(String(s.dataInizioSuggerita||''))} ${escapeHtml(String(s.oraInizioSuggerita||''))} → ${escapeHtml(String(s.dataFineSuggerita||''))} ${escapeHtml(String(s.oraFineSuggerita||''))}</div>
+          <button class="btn btn-sm btn-warning use-admin-suggestion" data-start-date="${escapeHtml(String(s.dataInizioSuggerita||''))}" data-start-time="${escapeHtml(String(s.oraInizioSuggerita||''))}" data-end-date="${escapeHtml(String(s.dataFineSuggerita||''))}" data-end-time="${escapeHtml(String(s.oraFineSuggerita||''))}">✅ Usa fascia</button>
         </div></div>`
     ).join('');
     
@@ -344,7 +355,7 @@
     
     grid.querySelectorAll('.use-admin-suggestion').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        const b = e.target;
+        const b = e.currentTarget;
         qs('admin-data-ritiro').value = b.dataset.startDate; qs('admin-ora-ritiro').value = b.dataset.startTime;
         qs('admin-data-consegna').value = b.dataset.endDate; qs('admin-ora-consegna').value = b.dataset.endTime;
         window.showToast?.('✅ Fascia aggiornata!', 'success'); handleAdminCheckAvailability();
@@ -366,9 +377,9 @@
       if(passoLungo) badges.push('<span class="badge bg-warning">Passo Lungo</span>');
       
       return `<div class="mb-3 p-3 border rounded"><div class="d-flex justify-content-between align-items-start mb-2">
-          <div><h6 class="fw-bold mb-1">${v.Marca} ${v.Modello}</h6><div class="small text-muted">Targa: ${v.Targa} | ${v.Posti} posti</div></div>
+          <div><h6 class="fw-bold mb-1">${escapeHtml(String(v.Marca||''))} ${escapeHtml(String(v.Modello||''))}</h6><div class="small text-muted">Targa: ${escapeHtml(String(v.Targa||''))} | ${escapeHtml(String(v.Posti||''))} posti</div></div>
           <div class="d-flex flex-wrap gap-1">${badges.join('')}</div></div>
-        <button class="btn btn-sm btn-primary admin-vehicle-select" data-targa="${v.Targa}" data-vehicle='${encodeURIComponent(JSON.stringify(v))}'>
+        <button class="btn btn-sm btn-primary admin-vehicle-select" data-targa="${escapeHtml(String(v.Targa||''))}" data-vehicle='${encodeURIComponent(JSON.stringify(v))}'>
           <i class="fas fa-check me-1"></i>Seleziona per prenotazione</button></div>`;
     }).join('');
     
@@ -378,7 +389,7 @@
     grid.querySelectorAll('.admin-vehicle-select').forEach(btn=>{
       btn.addEventListener('click', (ev)=>{
         try{ 
-          window.adminSelectedVehicle = JSON.parse(decodeURIComponent(ev.target.dataset.vehicle)); 
+          window.adminSelectedVehicle = JSON.parse(decodeURIComponent(ev.currentTarget.dataset.vehicle)); 
           showAdminQuoteStep();
         }catch(e){ window.adminSelectedVehicle=null; }
       });
@@ -422,11 +433,22 @@
       const cf = cfField.value.toUpperCase().trim(); if(cf.length !== 16) return;
       window.showLoader?.(true, 'Caricamento dati cliente...');
       try{
-        const resp = await callAPI('autocompletaCliente', {cf});
+        const resp = await callAPI('getCliente', { cf });
         if(resp.success && resp.data) {
-          const d = resp.data; const prefix = fieldId.replace('admin-cf-', 'admin-');
-          const fields = {[`nome-${prefix}`]: d.Nome,[`data-nascita-${prefix}`]: d.DataNascita,[`luogo-nascita-${prefix}`]: d.LuogoNascita,[`comune-${prefix}`]: d.ComuneResidenza,[`via-${prefix}`]: d.ViaResidenza,[`civico-${prefix}`]: d.CivicoResidenza,[`patente-${prefix}`]: d.NumeroPatente,[`inizio-patente-${prefix}`]: d.DataInizioPatente,[`scadenza-patente-${prefix}`]: d.ScadenzaPatente,[`telefono-${prefix}`]: d.Cellulare,[`email-${prefix}`]: d.Email};
-          Object.entries(fields).forEach(([id, value]) => { const el = qs(id); if(el && value) el.value = value; });
+          const d = resp.data; 
+          const suffix = fieldId.replace('admin-cf-','');
+          const setVal = (id, val) => { const el = qs(id); if (el && val !== undefined && val !== null && String(val).trim() !== '') el.value = String(val); };
+          setVal(`admin-nome-${suffix}`, d.nome || d.NOME || '');
+          setVal(`admin-data-nascita-${suffix}`, window.toISO?.(d.dataNascita || d.DataNascita || d.dataNascitaFormatted || '') || '');
+          setVal(`admin-luogo-nascita-${suffix}`, d.luogoNascita || d.LuogoNascita || '');
+          setVal(`admin-comune-${suffix}`, d.comuneResidenza || d.COMUNE_RESIDENZA || '');
+          setVal(`admin-via-${suffix}`, d.viaResidenza || d.VIA_RESIDENZA || '');
+          setVal(`admin-civico-${suffix}`, d.civicoResidenza || d.CIVICO_RESIDENZA || '');
+          setVal(`admin-patente-${suffix}`, d.numeroPatente || d.NUMERO_PATENTE || '');
+          setVal(`admin-inizio-patente-${suffix}`, window.toISO?.(d.inizioValiditaPatente || d.DataInizioPatente || d.inizioValiditaPatenteFormatted || '') || '');
+          setVal(`admin-scadenza-patente-${suffix}`, window.toISO?.(d.scadenzaPatente || d.ScadenzaPatente || d.scadenzaPatenteFormatted || '') || '');
+          setVal(`admin-telefono-${suffix}`, d.cellulare || d.CELLULARE || '');
+          setVal(`admin-email-${suffix}`, d.email || d.EMAIL || '');
           window.showToast?.('✅ Cliente compilato automaticamente', 'success');
         } else { window.showToast?.('ℹ️ Cliente non trovato', 'info'); }
       } catch(e) { window.showToast?.('❌ Errore ricerca', 'error'); } finally { window.showLoader?.(false); }
@@ -574,7 +596,7 @@
       const [vResp, pResp, cResp] = await Promise.all([
         callAPI('getVeicoli'),
         callAPI('getPrenotazioni'),
-        callAPI('getSheet', {name:'CLIENTI'})
+        callAPI('getSheet', {name:'CLIENTI', fields:'NOME,CODICE_FISCALE,SCADENZA_PATENTE', limit: 1000})
       ]);
       veicoli = vResp?.success ? (vResp.data||[]) : [];
       prenotazioni = pResp?.success ? (pResp.data||[]) : [];
@@ -890,8 +912,8 @@
     const previewEl = qs('csv-preview');
     const updatePreview = (parsed) => {
       const { headers, rows } = parsed; if (!rows.length){ previewEl.textContent = '(nessuna riga)'; return; }
-      const sample = rows.slice(0,5).map(r => JSON.stringify(mapRow(headers, r))).join('<br>');
-      previewEl.innerHTML = sample;
+      const sample = rows.slice(0,5).map(r => JSON.stringify(mapRow(headers, r))).join('\n');
+      previewEl.textContent = sample;
     };
 
     qs('csv-file')?.addEventListener('change', (e) => {
@@ -1004,7 +1026,7 @@
       const parseD = (raw) => {
         if(!raw) return null;
         if(raw instanceof Date && !isNaN(raw.getTime())) return raw;
-        const d = (window.parseDateAny ? parseDateAny(raw) : parseDateFlexible(raw) || new Date(raw));
+        const d = (window.parseDateAny ? window.parseDateAny(raw) : parseDateFlexible(raw) || new Date(raw));
         return (!d || isNaN(d.getTime())) ? null : d;
       };
       const dir = legacySort.dir === 'asc' ? 1 : -1;
@@ -1266,32 +1288,41 @@
         return cmpStr(av,bv) * dir;
       });
     }
-    const rows = rowsData.map(c => {
-        const tds = headers.map(h => {
-          const fmtKey = h + 'Formatted';
-          const value = c[fmtKey] ?? c[h];
-          // Se non esiste il campo formattato, prova a formattare la data in italiano
-          const display = (() => {
-            const out = value;
-            const asDate = parseDateFlexible(out);
-            if(asDate){ 
-              const f = window.formatDateIT?.(asDate) || '-';
-              return f === '-' ? '' : f;
-            }
-            return out ?? '';
-          })();
-          return `<td>${escapeHtml(display)}</td>`;
-        }).join('');
-        const cf = cfKey ? String(c[cfKey]||'') : '';
-        return `<tr>${tds}<td class="text-end"><button class="btn btn-sm btn-outline-light" data-action="edit" data-cf="${escapeHtml(cf)}"><i class="fas fa-edit me-1"></i>Modifica</button></td></tr>`;
-      }).join('');
-    tbody.innerHTML = rows || `<tr><td colspan="${headers.length+1}" class="text-center text-muted">Nessun cliente</td></tr>`;
-    // Bind edit buttons
-    tbody.querySelectorAll('button[data-action="edit"]').forEach(btn => btn.addEventListener('click', () => openClienteModal(btn.dataset.cf)));
+    tbody.innerHTML = '';
+    if (!rowsData.length) {
+      tbody.innerHTML = `<tr><td colspan="${headers.length+1}" class="text-center text-muted">Nessun cliente</td></tr>`;
+    } else {
+      const chunkSize = 200;
+      let index = 0;
+      const renderChunk = () => {
+        const frag = document.createDocumentFragment();
+        for (let i = 0; i < chunkSize && index < rowsData.length; i++, index++) {
+          const c = rowsData[index];
+          const tr = document.createElement('tr');
+          let html = '';
+          for (let h of headers) {
+            const fmtKey = h + 'Formatted';
+            const value = c[fmtKey] ?? c[h];
+            const asDate = parseDateFlexible(value);
+            const display = asDate ? (window.formatDateIT?.(asDate) || '') : (value ?? '');
+            html += `<td>${escapeHtml(display)}</td>`;
+          }
+          const cf = cfKey ? String(c[cfKey]||'') : '';
+          html += `<td class="text-end"><button class="btn btn-sm btn-outline-light" data-action="edit" data-cf="${escapeHtml(cf)}"><i class="fas fa-edit me-1"></i>Modifica</button></td>`;
+          tr.innerHTML = html;
+          frag.appendChild(tr);
+        }
+        tbody.appendChild(frag);
+        if (index < rowsData.length) {
+          requestAnimationFrame(renderChunk);
+        } else {
+          tbody.querySelectorAll('button[data-action="edit"]').forEach(btn => btn.addEventListener('click', () => openClienteModal(btn.dataset.cf)));
+        }
+      };
+      requestAnimationFrame(renderChunk);
+    }
     // Bind sort header clicks
-    thead.querySelectorAll('th[data-key]').forEach(th => {
-      th.addEventListener('click', () => window.setClientiSort(th.dataset.key));
-    });
+    thead.querySelectorAll('th[data-key]').forEach(th => { th.addEventListener('click', () => window.setClientiSort(th.dataset.key)); });
   }
 
   function escapeHtml(s){ return String(s||'').replace(/[&<>"\']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m])); }
@@ -1872,6 +1903,24 @@
   // Expose globals
   window.loadAdminSection = loadAdminSection;
   window.handleAdminCheckAvailability = handleAdminCheckAvailability;
+  function showAdminGate(show){ const gate = qs('admin-login-gate'); if (!gate) return; try{ if (show && hasAdminSessionPresent()){ gate.classList.add('d-none'); gate.classList.remove('d-flex'); return; } }catch(_){} if (show){ gate.classList.remove('d-none'); gate.classList.add('d-flex'); } else { gate.classList.add('d-none'); gate.classList.remove('d-flex'); } }
+  function hasAdminSessionPresent(){ try{ if (sessionStorage.getItem('imbriani_admin_session')) return true; }catch(_){ } try{ const m = document.cookie.match(/(?:^|; )imbriani_admin_session=([^;]*)/); if (m && m[1]) return true; }catch(_){ } return false; }
+  function hideAdminGatePermanent(){ const gate = qs('admin-login-gate'); if (gate && gate.parentNode){ gate.style.display = 'none'; try{ gate.parentNode.removeChild(gate); }catch(_){ } } }
+  function setAdminSessionCookie(session){ try{ const payload = btoa(unescape(encodeURIComponent(JSON.stringify(session)))); document.cookie = `imbriani_admin_session=${payload}; path=/; max-age=${60*60*24}; SameSite=Lax`; }catch(_){ } }
+  function setAdminSession(session){ try{ sessionStorage.setItem('imbriani_admin_session', JSON.stringify(session)); }catch(_){ } setAdminSessionCookie(session); try{ setWindowNameSession(session); }catch(_){ } }
+  function clearAdminSessionCookie(){ try{ document.cookie = 'imbriani_admin_session=; path=/; max-age=0; SameSite=Lax'; }catch(_){ } }
+  function getCookie(name){ const m = document.cookie.match(new RegExp('(?:^|; )'+name+'=([^;]*)')); return m ? m[1] : null; }
+  function restoreAdminSessionFromCookie(){ const hasSess = !!sessionStorage.getItem('imbriani_admin_session'); if (hasSess) return true; try{ const raw = getCookie('imbriani_admin_session'); if (!raw) return false; const json = decodeURIComponent(escape(atob(raw))); const sess = JSON.parse(json); if (sess && sess.token){ sessionStorage.setItem('imbriani_admin_session', JSON.stringify(sess)); try{ sessionStorage.setItem('imbriani_session', JSON.stringify(sess)); }catch(_){ } return true; } }catch(_){ } return false; }
+  function setWindowNameSession(session){ try{ const payload = btoa(unescape(encodeURIComponent(JSON.stringify(session)))); window.name = `imbriani_admin_session:${payload}`; }catch(_){ } }
+  function restoreAdminSessionFromWindowName(){ const hasSess = !!sessionStorage.getItem('imbriani_admin_session'); if (hasSess) return true; try{ const nm = window.name || ''; if (!nm.startsWith('imbriani_admin_session:')) return false; const payload = nm.split(':')[1] || ''; const json = decodeURIComponent(escape(atob(payload))); const sess = JSON.parse(json); if (sess && sess.token){ sessionStorage.setItem('imbriani_admin_session', JSON.stringify(sess)); try{ sessionStorage.setItem('imbriani_session', JSON.stringify(sess)); }catch(_){ } return true; } }catch(_){ } return false; }
+  function clearWindowNameSession(){ try{ if ((window.name||'').startsWith('imbriani_admin_session:')) window.name=''; }catch(_){ } }
+  function clearAdminSessionAll(){ try{ sessionStorage.removeItem('imbriani_admin_session'); }catch(_){ } try{ sessionStorage.removeItem('imbriani_session'); }catch(_){ } clearAdminSessionCookie(); clearWindowNameSession(); }
+  async function ensureAdminGateState(){ if (typeof window.secureGet === 'function'){ try{ const res = await window.secureGet('debugAuth', { targetAction: 'getVeicoli', debug: 1 }); const ok = !!(res && res.success && res.sessionValid && String(res.sessionRole||'').toLowerCase()==='admin'); if (ok){ try{ const tok = (typeof window.getActiveToken === 'function') ? window.getActiveToken() : null; if (tok){ const session = { name:'Admin', token: tok, role:'admin', exp:null, timestamp: Date.now() }; setAdminSession(session); hideAdminGatePermanent(); if (window.loadAdminSection) { loadAdminSection('dashboard'); } } }catch(_){ } } else { clearAdminSessionAll(); showAdminGate(true); } }catch(_){ } } }
+  async function requestAdminOTP(){ const name = document.getElementById('admin-name')?.value || 'Antonio'; try{ const res = await (window.securePost ? window.securePost('requestAdminOTP', { name }) : Promise.resolve({ success:false })); if (res && res.success){ window.showToast?.('OTP inviato su Telegram','info'); } else { window.showToast?.('Errore invio OTP','error'); } }catch(err){ console.warn('requestAdminOTP error', err); window.showToast?.('Errore invio OTP','error'); } }
+  async function handleAdminLogin(){ const name = document.getElementById('admin-name')?.value || ''; const otp = document.getElementById('admin-otp')?.value || ''; const btn = document.getElementById('admin-login-btn'); if (!name || !otp){ window.showToast?.('Inserisci nome ed OTP','warning'); return; } if (btn){ btn.disabled = true; const original = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Accesso...'; try{ const res = await (window.securePost ? window.securePost('adminLogin', { name, otp }) : Promise.resolve({ success:false })); if (res && res.success && res.token){ const session = { name: res.name||name, token: res.token, role: res.role||'admin', exp: res.exp, timestamp: Date.now() }; setAdminSession(session); window.showToast?.('Accesso admin riuscito','success'); hideAdminGatePermanent(); if (window.loadAdminSection) { loadAdminSection('dashboard'); } } else { window.showToast?.('OTP non valido o scaduto','error'); } }catch(err){ console.error('adminLogin error', err); window.showToast?.('Errore accesso','error'); } finally { btn.disabled = false; btn.innerHTML = original; } } }
+  async function handleAdminLogout(){ const btn = document.getElementById('admin-logout-btn'); if (btn){ btn.disabled = true; const original = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Logout...'; try{ if (window.securePost){ try{ await window.securePost('revokeSession', {}); }catch(_){ } } try{ sessionStorage.removeItem('imbriani_admin_session'); }catch(_){ } try{ sessionStorage.removeItem('imbriani_session'); }catch(_){ } window.showToast?.('Logout effettuato','success'); location.reload(); } finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-out-alt me-1"></i> Logout admin'; } } }
+  function initAdminPage(){ document.getElementById('sidebar-toggle')?.addEventListener('click', () => { const sidebar = document.getElementById('sidebar'); const main = document.getElementById('mainContent'); if (window.innerWidth < 992){ sidebar.classList.toggle('show'); } else { const collapsed = sidebar.classList.toggle('collapsed'); main.classList.toggle('collapsed', collapsed); try{ localStorage.setItem('adminSidebarCollapsed', collapsed ? '1' : '0'); }catch(e){} } }); document.querySelectorAll('.sidebar-nav .nav-link').forEach(link => { link.addEventListener('click', (e) => { e.preventDefault(); document.querySelectorAll('.sidebar-nav .nav-link').forEach(l => l.classList.remove('active')); link.classList.add('active'); const titles = { dashboard:'Dashboard', prenotazioni:'Gestione Prenotazioni', legacy:'Prenotazioni Legacy', clienti:'Gestione Clienti', flotta:'Gestione Flotta', statistiche:'Statistiche', settings:'Impostazioni' }; document.getElementById('page-title').textContent = titles[link.dataset.section] || 'Dashboard'; const hasSession = hasAdminSessionPresent(); if (window.loadAdminSection && hasSession){ loadAdminSection(link.dataset.section); } else { window.showToast?.('Effettua il login admin per accedere','warning'); showAdminGate(true); } if (window.innerWidth < 992){ document.getElementById('sidebar').classList.remove('show'); } }); }); window.addEventListener('DOMContentLoaded', async () => { (function(){ try{ const isLocal = ['localhost','127.0.0.1'].includes(location.hostname); if (!isLocal) return; if (hasAdminSessionPresent()) return; const token = (window.CONFIG && (window.CONFIG.AUTH_TOKEN || window.CONFIG.TOKEN)) || 'imbriani_secret_2025'; const session = { name:'DevAdmin', token, role:'admin', exp:null, timestamp: Date.now() }; try{ sessionStorage.setItem('imbriani_admin_session', JSON.stringify(session)); }catch(_){ } setAdminSessionCookie(session); }catch(_){ } })(); restoreAdminSessionFromCookie(); restoreAdminSessionFromWindowName(); prefetchCritical(); await ensureAdminGateState(); const hasAdminSession = hasAdminSessionPresent(); showAdminGate(!hasAdminSession); try{ const isLocal = ['localhost','127.0.0.1'].includes(location.hostname); const devBtn = document.getElementById('admin-dev-login-btn'); if (devBtn && !isLocal) devBtn.classList.add('d-none'); }catch(_){ } document.getElementById('admin-request-otp')?.addEventListener('click', requestAdminOTP); document.getElementById('admin-login-btn')?.addEventListener('click', handleAdminLogin); document.getElementById('admin-logout-btn')?.addEventListener('click', handleAdminLogout); document.getElementById('admin-logout-btn')?.addEventListener('click', () => { clearAdminSessionAll(); }); if (hasAdminSession){ try{ const raw = sessionStorage.getItem('imbriani_admin_session'); if (raw) setWindowNameSession(JSON.parse(raw)); }catch(_){ } } if (window.loadAdminSection && hasAdminSession){ loadAdminSection('dashboard'); } try{ const persisted = localStorage.getItem('adminSidebarCollapsed') === '1'; if (persisted && window.innerWidth >= 992){ document.getElementById('sidebar').classList.add('collapsed'); document.getElementById('mainContent').classList.add('collapsed'); } }catch(e){} if (window.loadAdminSection && hasAdminSession){ loadAdminSection('dashboard'); } document.getElementById('refresh-all')?.addEventListener('click', () => { const activeSection = document.querySelector('.sidebar-nav .nav-link.active')?.dataset.section || 'dashboard'; const hasSession = hasAdminSessionPresent(); if (window.loadAdminSection && hasSession){ loadAdminSection(activeSection); } else { window.showToast?.('Sessione admin mancante. Accedi per continuare.','warning'); showAdminGate(true); } }); }); }
+  initAdminPage();
   
   console.log(`[ADMIN-SCRIPTS] v${ADMIN_CONFIG.VERSION} loaded - Authorization header fixed`);
 })();

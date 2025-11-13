@@ -12,6 +12,25 @@
     catch(_){ return DEFAULTS[key]; }
   }
 
+  const CLIENT_CACHE_TTL_MS = 30000;
+  const __clientCache = new Map();
+  function makeCacheKey(action, params){
+    try{
+      const p = Object.assign({}, params||{});
+      delete p.Authorization; delete p.token; delete p.ua; delete p.cfip; delete p.debug; delete p.diag; delete p.nocache;
+      return action + '|' + JSON.stringify(p);
+    }catch(_){ return action; }
+  }
+  function clientCacheGet(key){
+    const e = __clientCache.get(key);
+    if (!e) return null;
+    if ((Date.now() - e.ts) > CLIENT_CACHE_TTL_MS) { __clientCache.delete(key); return null; }
+    try{ return JSON.parse(e.payload); }catch(_){ return null; }
+  }
+  function clientCachePut(key, obj){
+    try{ __clientCache.set(key, { ts: Date.now(), payload: JSON.stringify(obj) }); }catch(_){ }
+  }
+
   // Sorgente token attivo: preferisci sessione (admin o cliente) rispetto al token statico
   function getActiveToken(){
     try {
@@ -86,17 +105,26 @@
       return res.json().catch(async () => {
         const t = await res.text();
         try { return JSON.parse(t); }
-        catch(_) { return { success:false, message:'Risposta non JSON', raw: t, status }; }
+        catch(_) { 
+          console.error('[toJSONSafe] Failed to parse JSON response. Content-Type:', ct, 'Status:', status, 'Raw:', t.substring(0, 200));
+          return { success:false, message:'Risposta non JSON', raw: t, status }; 
+        }
       });
     }
     return res.text().then(t => {
       try { return JSON.parse(t); }
-      catch(_) { return { success:false, message:'Risposta non JSON', raw: t, status }; }
+      catch(_) { 
+        console.error('[toJSONSafe] Non-JSON response detected. Content-Type:', ct, 'Status:', status, 'Raw:', t.substring(0, 200));
+        return { success:false, message:'Risposta non JSON', raw: t, status }; 
+      }
     });
   }
 
   function showError(msg){
     console.error('[API ERROR]', msg);
+    if (typeof msg === 'string' && msg.includes('Risposta non JSON')) {
+      console.error('[API ERROR DETAIL] Non-JSON response detected - this may indicate CSP blocking or server error');
+    }
     if (window.showToast) {
       showToast(msg, 'error');
     } else {
@@ -220,21 +248,49 @@
     return new Promise((resolve, reject) => {
       if (document.getElementById(id)) return resolve();
       const s = document.createElement('script');
-      s.src = src; s.id = id; s.onload = resolve; s.onerror = reject; document.head.appendChild(s);
+      s.src = src; s.id = id; s.crossOrigin = 'anonymous'; s.onload = resolve; s.onerror = reject; document.head.appendChild(s);
     });
+  }
+
+  function toISO(dateVal) {
+    try {
+      if (!dateVal) return '';
+      if (dateVal instanceof Date && !isNaN(dateVal.getTime())) {
+        const y = dateVal.getFullYear();
+        const m = String(dateVal.getMonth() + 1).padStart(2, '0');
+        const d = String(dateVal.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+      const s = String(dateVal).trim();
+      if (s.includes('T')) return s.split('T')[0];
+      const mIT = s.match(/^([0-3]?\d)[\/.\-]([0-1]?\d)[\/.\-](\d{4})$/);
+      if (mIT) return `${mIT[3]}-${String(mIT[2]).padStart(2,'0')}-${String(mIT[1]).padStart(2,'0')}`;
+      const mISO = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (mISO) return s;
+      const d2 = new Date(s);
+      if (!isNaN(d2.getTime())) {
+        const y = d2.getFullYear();
+        const m = String(d2.getMonth() + 1).padStart(2, '0');
+        const d = String(d2.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+      return '';
+    } catch {
+      return '';
+    }
   }
   function loadStyleOnce(href, id){
     if (document.getElementById(id)) return;
     const l = document.createElement('link');
-    l.rel = 'stylesheet'; l.href = href; l.id = id; document.head.appendChild(l);
+    l.rel = 'stylesheet'; l.href = href; l.id = id; l.crossOrigin = 'anonymous'; document.head.appendChild(l);
   }
 
   async function initDatePickersItalian(){
     try{
       // Carica CSS e JS di flatpickr solo una volta
-      loadStyleOnce('https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css','flatpickr-css');
-      await loadScriptOnce('https://cdn.jsdelivr.net/npm/flatpickr','flatpickr-js');
-      await loadScriptOnce('https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/it.js','flatpickr-it');
+      loadStyleOnce('https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css','flatpickr-css');
+      await loadScriptOnce('https://cdn.jsdelivr.net/npm/flatpickr@4.6.13','flatpickr-js');
+      await loadScriptOnce('https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/it.js','flatpickr-it');
 
       const inputs = Array.from(document.querySelectorAll('input[type="date"]'));
       inputs.forEach(el => {
@@ -360,6 +416,12 @@
     // Il token non viene inserito nella query; il Worker inoltra l'Authorization.
 
     try {
+      let ck = null;
+      if (String(params.nocache||'') !== '1') {
+        ck = makeCacheKey(action, params);
+        const hit = clientCacheGet(ck);
+        if (hit && hit.success === true) { return hit; }
+      }
       // Prova prima con il proxy
       const res = await fetch(url.toString(), {
         method: 'GET',
@@ -371,35 +433,40 @@
       });
 
       const data = await toJSONSafe(res);
-      
-      // Se la risposta non è ok oppure non è JSON, prova fallback diretto
       const isNonJson = data && String(data.message||'').toLowerCase().includes('risposta non json');
+      console.log('[secureGet] Response check - Status:', res.status, 'isNonJson:', isNonJson, 'ok:', res.ok);
       if (!res.ok || isNonJson) {
-        console.warn('[secureGet] Risposta non ok o non JSON, avvio fallback diretto…', { status: res.status, ct: res.headers.get('content-type') });
-        try {
-          const fb = await secureGetDirectFallback(action, params);
-          if (fb && fb.success !== false) return fb;
-          const msg = (data && (data.message || data.error)) ? (data.message || data.error) : ('Errore API: ' + res.status);
-          showError(msg);
-        } catch (fallbackErr) {
-          showError('Errore di rete: ' + fallbackErr.message);
+        if (isNonJson) {
+          console.log('[secureGet] Triggering JSONP fallback due to non-JSON response for action:', action);
+          try {
+            const alt = await secureGetDirectFallback(action, params);
+            console.log('[secureGet] JSONP fallback result for action:', action, 'success:', alt.success, 'message:', alt.message);
+            if (alt && (alt.success === true || alt.data)) {
+              if (ck) { try{ clientCachePut(ck, alt); }catch(_){ } }
+              return alt;
+            }
+          } catch(_) { }
         }
-      } else if (data && data.success === false) {
-        const msg = (data.message || data.error) || ('Errore API: ' + res.status);
+        if (res.status === 429) {
+          await new Promise(r => setTimeout(r, 600));
+          const res2 = await fetch(url.toString(), { method:'GET', mode:'cors', cache:'no-cache', headers: { 'Authorization': `Bearer ${token}` } });
+          const data2 = await toJSONSafe(res2);
+          if (!res2.ok || (data2 && data2.success === false)) {
+            const msg2 = (data2 && (data2.message || data2.error)) ? (data2.message || data2.error) : ('Errore API: ' + res2.status);
+            showError(msg2);
+          }
+          if (ck) { try{ clientCachePut(ck, data2); }catch(_){ } }
+          return data2;
+        }
+        const msg = (data && (data.message || data.error)) ? (data.message || data.error) : ('Errore API: ' + res.status);
         showError(msg);
       }
-
+      if (ck) { try{ clientCachePut(ck, data); }catch(_){ } }
       return data;
     } catch (err) {
-      console.warn('[secureGet] Errore proxy, provo fallback diretto...', err.message);
-
-      // Fallback diretto a Google Apps Script con JSONP (qui includiamo token in query)
-      try {
-        return await secureGetDirectFallback(action, params);
-      } catch (fallbackErr) {
-        showError('Errore di rete: ' + err.message + ' - Fallback fallito: ' + fallbackErr.message);
-        return { success: false, message: err.message + ' - Fallback: ' + fallbackErr.message };
-      }
+      console.warn('[secureGet] Errore rete', err.message);
+      showError('Errore di rete: ' + err.message);
+      return { success:false, message: err.message };
     }
   }
 
@@ -423,6 +490,7 @@
     return new Promise((resolve, reject) => {
       const callbackName = 'jsonp_callback_' + Math.round(100000 * Math.random());
       url.searchParams.set('callback', callbackName);
+      console.log('[JSONP Fallback] Setting up callback:', callbackName, 'for action:', action);
 
       window[callbackName] = function(data) {
         delete window[callbackName];
@@ -435,7 +503,8 @@
       };
 
       const script = document.createElement('script');
-      script.onerror = function() {
+      script.onerror = function(e) {
+        console.error('[JSONP Fallback] Script load error for action:', action, e);
         delete window[callbackName];
         document.body.removeChild(script);
         // Invece di rigettare, restituisci un errore gestito
@@ -447,11 +516,25 @@
       };
       
       script.src = url.toString();
-      document.body.appendChild(script);
+      
+      try {
+        document.body.appendChild(script);
+        console.log('[JSONP Fallback] Script injected successfully for action:', action);
+      } catch (e) {
+        console.error('[JSONP Fallback] Failed to inject script - CSP may be blocking:', e);
+        delete window[callbackName];
+        resolve({ 
+          success: false, 
+          message: 'CSP blocking JSONP fallback - script injection failed',
+          cspError: true 
+        });
+        return;
+      }
       
       // Timeout di sicurezza
       setTimeout(() => {
         if (window[callbackName]) {
+          console.warn('[JSONP Fallback] Timeout reached for action:', action);
           delete window[callbackName];
           document.body.removeChild(script);
           resolve({ 
@@ -495,23 +578,15 @@
       });
 
       const data = await toJSONSafe(res);
-      
-      if (!res.ok || data.success === false) {
+      if (!res.ok || (data && data.success === false)) {
         const msg = (data && (data.message || data.error)) ? (data.message || data.error) : ('Errore API: ' + res.status);
         showError(msg);
       }
-      
       return data;
     } catch (err) {
-      console.warn('[securePost] Errore proxy, provo fallback diretto...', err.message);
-      
-      // Fallback diretto con form post per aggirare CORS
-      try {
-        return await securePostDirectFallback(action, payload);
-      } catch (fallbackErr) {
-        showError('Errore di rete: ' + err.message + ' - Fallback fallito: ' + fallbackErr.message);
-        return { success: false, message: err.message + ' - Fallback: ' + fallbackErr.message };
-      }
+      console.warn('[securePost] Errore rete', err.message);
+      showError('Errore di rete: ' + err.message);
+      return { success:false, message: err.message };
     }
   }
 
@@ -636,7 +711,18 @@
   window.formatDateIT = formatDateIT;  // 🇮🇹 Export funzione formattazione date italiane
   window.escapeHtml = escapeHtml;      // 🔐 Export global escape
   window.parseDateAny = parseDateAny;  // 📅 Export parser date
+  window.toISO = toISO;
   document.addEventListener('DOMContentLoaded', initDatePickersItalian);
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(async () => {
+      try {
+        await secureGet('getVeicoli', {});
+      } catch(_){ }
+      try {
+        await secureGet('getSheet', { name:'CLIENTI', fields:'NOME,CODICE_FISCALE,SCADENZA_PATENTE', limit: 200 });
+      } catch(_){ }
+    }, 600);
+  });
   
   console.log('[SHARED-UTILS] v8.9 loaded - formatDateIT added for Italian dates (gg/mm/aaaa)');
 })();

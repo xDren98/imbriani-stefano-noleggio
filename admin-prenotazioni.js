@@ -36,6 +36,7 @@
 
   let allPrenotazioni = [];
   let filteredPrenotazioni = [];
+  let prenPage = { limit: 50 };
   let currentFilters = { stato: 'tutti', ricerca: '' };
   let currentView = 'card'; // 'card' or 'table'
   let prenotazioniSort = { key: 'date', dir: 'desc' }; // default ordinamento cronologico decrescente
@@ -321,9 +322,10 @@
     }
     
     const sorted = sortPrenotazioni(filteredPrenotazioni);
+    const slice = sorted.slice(0, prenPage.limit);
     
     container.innerHTML = `<div class="row g-3">` +
-      sorted.map(p => {
+      slice.map(p => {
         const statoConfig = STATI_COLORI[p.stato] || STATI_COLORI['In attesa'];
         const dataInizio = p.giornoInizio ? window.formatDateIT ? window.formatDateIT(p.giornoInizio) : '-' : '-';
         const dataFine = p.giornoFine ? window.formatDateIT ? window.formatDateIT(p.giornoFine) : '-' : '-';
@@ -397,6 +399,14 @@
           </div>
         `;
       }).join('') + '</div>';
+
+    if (sorted.length > prenPage.limit) {
+      const footer = document.createElement('div');
+      footer.className = 'text-center mt-3';
+      footer.innerHTML = `<button class="btn btn-outline-light btn-sm" id="pren-load-more"><i class="fas fa-plus me-1"></i>Carica altri</button>`;
+      container.appendChild(footer);
+      document.getElementById('pren-load-more').onclick = () => { prenPage.limit += 50; renderPrenotazioniCard(); };
+    }
   }
 
   function renderPrenotazioniTable() {
@@ -424,6 +434,7 @@
     }
     
     const sorted = sortPrenotazioni(filteredPrenotazioni);
+    const slice = sorted.slice(0, prenPage.limit);
     
     container.innerHTML = `
       <div class="card">
@@ -444,7 +455,7 @@
                 </tr>
               </thead>
               <tbody>
-                ${sorted.map(p => {
+                ${slice.map(p => {
                   const statoConfig = STATI_COLORI[p.stato] || STATI_COLORI['In attesa'];
                   const dataInizio = p.giornoInizio ? window.formatDateIT ? window.formatDateIT(p.giornoInizio) : '-' : '-';
                   const dataFine = p.giornoFine ? window.formatDateIT ? window.formatDateIT(p.giornoFine) : '-' : '-';
@@ -494,6 +505,14 @@
         </div>
       </div>
     `;
+
+    if (sorted.length > prenPage.limit) {
+      const footer = document.createElement('div');
+      footer.className = 'text-center mt-3';
+      footer.innerHTML = `<button class="btn btn-outline-light btn-sm" id="pren-load-more"><i class="fas fa-plus me-1"></i>Carica altri</button>`;
+      container.appendChild(footer);
+      document.getElementById('pren-load-more').onclick = () => { prenPage.limit += 50; renderPrenotazioniTable(); };
+    }
   }
 
   function aggiornaFiltri() {

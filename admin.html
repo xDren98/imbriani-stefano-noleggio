@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin — Imbriani Stefano Noleggio</title>
   <meta name="theme-color" content="#0066FF">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://script.google.com https://script.googleusercontent.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data:; connect-src 'self' https://imbriani-proxy.dreenhd.workers.dev https://script.google.com https://script.googleusercontent.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self';">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" integrity="sha512-Avb2QiuDEEvB4bZJYdft2mNjVShBftLdPG8FJ0V7irTLQ8Uo0qcPxh4Plq7G5tGm0rU+1SPhVotteLpBERwTkw==" crossorigin="anonymous">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -35,7 +37,7 @@
         </div>
         <div class="mb-3">
           <label class="form-label">Codice OTP</label>
-          <input id="admin-otp" type="text" inputmode="numeric" autocomplete="one-time-code" class="form-control" placeholder="6 cifre" />
+          <input id="admin-otp" type="text" inputmode="numeric" autocomplete="off" class="form-control" placeholder="6 cifre" />
         </div>
         <div class="d-grid gap-2">
           <button id="admin-login-btn" class="btn btn-primary" type="button">
@@ -96,14 +98,14 @@
   </div>
 
   <!-- Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
   <script src="config.js"></script>
   <script src="shared-utils.js"></script>
   <script src="admin-scripts.js"></script>
   <!-- Cache-busting per aggiornare rapidamente gli script dell'admin -->
   <script src="admin-prenotazioni.js?v=9013"></script>
 
-  <script>
+  <!-- Inline admin script rimosso: ora gestito in admin-scripts.js
     function showAdminGate(show){
       const gate = document.getElementById('admin-login-gate');
       if (!gate) return;
@@ -157,8 +159,6 @@
 
     // Util centralizzato per persistere la sessione admin su tutti i canali
     function setAdminSession(session){
-      try { localStorage.setItem('imbriani_admin_session', JSON.stringify(session)); } catch(_){}
-      try { localStorage.setItem('imbriani_session', JSON.stringify(session)); } catch(_){}
       try { sessionStorage.setItem('imbriani_admin_session', JSON.stringify(session)); } catch(_){}
       setAdminSessionCookie(session);
       try { setWindowNameSession(session); } catch(_){}
@@ -185,8 +185,8 @@
         const json = decodeURIComponent(escape(atob(raw)));
         const sess = JSON.parse(json);
         if (sess && sess.token){
-          localStorage.setItem('imbriani_admin_session', JSON.stringify(sess));
-          try { localStorage.setItem('imbriani_session', JSON.stringify(sess)); } catch(_){}
+          sessionStorage.setItem('imbriani_admin_session', JSON.stringify(sess));
+          try { sessionStorage.setItem('imbriani_session', JSON.stringify(sess)); } catch(_){}
           return true;
         }
       }catch(_){ }
@@ -211,8 +211,8 @@
         const json = decodeURIComponent(escape(atob(payload)));
         const sess = JSON.parse(json);
         if (sess && sess.token){
-          localStorage.setItem('imbriani_admin_session', JSON.stringify(sess));
-          try { localStorage.setItem('imbriani_session', JSON.stringify(sess)); } catch(_){}
+          sessionStorage.setItem('imbriani_admin_session', JSON.stringify(sess));
+          try { sessionStorage.setItem('imbriani_session', JSON.stringify(sess)); } catch(_){}
           return true;
         }
       }catch(_){ }
@@ -365,7 +365,6 @@
           if (hasAdminSessionPresent()) return;
           const token = (window.CONFIG && (window.CONFIG.AUTH_TOKEN || window.CONFIG.TOKEN)) || 'imbriani_secret_2025';
           const session = { name: 'DevAdmin', token, role: 'admin', exp: null, timestamp: Date.now() };
-          try { localStorage.setItem('imbriani_admin_session', JSON.stringify(session)); } catch(_){}
           try { sessionStorage.setItem('imbriani_admin_session', JSON.stringify(session)); } catch(_){}
           setAdminSessionCookie(session);
           console.debug('[ADMIN] Dev auto-session attivata su localhost');
@@ -409,7 +408,7 @@
       document.getElementById('admin-logout-btn')?.addEventListener('click', () => { clearAdminSessionAll(); });
       // Se ora c'è sessione, persisti anche in window.name per i prossimi reload
       if (hasAdminSession) {
-        try{ const raw = localStorage.getItem('imbriani_admin_session'); if (raw) setWindowNameSession(JSON.parse(raw)); }catch(_){ }
+        try{ const raw = sessionStorage.getItem('imbriani_admin_session'); if (raw) setWindowNameSession(JSON.parse(raw)); }catch(_){ }
       }
       // Se ora c'è sessione, carica dashboard
       if (window.loadAdminSection && hasAdminSession) { loadAdminSection('dashboard'); }
@@ -436,6 +435,6 @@
         showAdminGate(true);
       }
     });
-  </script>
+  -->
 </body>
 </html>

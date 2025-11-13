@@ -7,6 +7,8 @@
   <meta name="description" content="Imbriani Stefano Noleggio - Prenotazione e accesso clienti. Verifica disponibilità e richiesta preventivo.">
   <meta name="theme-color" content="#0066FF">
   <meta name="robots" content="index, follow">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://script.google.com https://script.googleusercontent.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data:; connect-src 'self' https://imbriani-proxy.dreenhd.workers.dev https://script.google.com https://script.googleusercontent.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self';">
   <link rel="canonical" href="https://xdren98.github.io/imbriani-stefano-noleggio/">
   <meta name="google-site-verification" content="ie4dmGl4Uomtol4-87-smX6os_CNjh2U3a5JA9UTn_A">
   <!-- Open Graph -->
@@ -145,7 +147,7 @@
               <div class="mb-3">
                 <label for="cf-input" class="form-label fw-semibold">Codice Fiscale</label>
                 <div class="position-relative">
-                  <input type="text" class="form-control form-control-modern" id="cf-input" placeholder="RSSMRA85M01H501Z" maxlength="16" autocomplete="off" style="padding-left:50px">
+                  <input type="text" class="form-control form-control-modern" id="cf-input" placeholder="RSSMRA85M01H501Z" maxlength="16" autocomplete="off" style="padding-left:50px" pattern="^[A-Z]{6}[0-9]{2}[A-Z][0-9]{2}[A-Z][0-9]{3}[A-Z]$" title="Inserisci un Codice Fiscale valido (16 caratteri)">
                   <i class="fas fa-user position-absolute" style="left:18px;top:50%;transform:translateY(-50%);color:#94A3B8"></i>
                 </div>
                 <div class="form-text"><i class="fas fa-info-circle me-1"></i>16 caratteri alfanumerici del tuo CF</div>
@@ -167,15 +169,6 @@
   <script src="scripts.js" defer></script>
   <script src="booking-submit.js" defer></script>
   
-  <!-- Initialization -->
-  <script defer>
-    document.addEventListener('DOMContentLoaded', function() {
-      if (window.bindCFHandlers) {
-        window.bindCFHandlers();
-      }
-      console.log('✅ App inizializzata con script essenziali');
-    });
-  </script>
   
   <!-- PWA Service Worker Registration -->
   <script>
