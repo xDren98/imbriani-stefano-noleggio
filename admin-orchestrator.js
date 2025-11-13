@@ -108,7 +108,7 @@ async function loadAdminSection(section){
       const nextList = document.getElementById('dash-next-list');
       if (nextList){
         const fmt = (d) => window.formatDateIT?.(d)||d;
-        const esc = (s) => window.escapeHtml ? escapeHtml(String(s||'')) : String(s||'');
+        const esc = (s) => (window.escapeHtml ? window.escapeHtml(String(s||'')) : String(s||''));
         const items = upcoming.slice(0,5).map(p => {
           const cliente = p.cliente || p.nomeAutista1 || p.nomeAutista2 || p.nomeAutista3 || p.nome1 || (p.autista1 && p.autista1.nomeCompleto) || '';
           const targa = esc(p.targa||'');
