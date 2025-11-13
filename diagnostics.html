@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Diagnostica API — Imbriani</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous" />
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" integrity="sha512-RXf+QSDCUQs6b4v5A9R2v6KUVKp1R9+XcMgy7pYzFSHLn3U4a8gE9F7R5C3XxR28Z59TLEEqzvvR1vpuYeIRsA==" crossorigin="anonymous" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" integrity="sha512-Avb2QiuDEEvB4bZJYdft2mNjVShBftLdPG8FJ0V7irTLQ8Uo0qcPxh4Plq7G5tGm0rU+1SPhVotteLpBERwTkw==" crossorigin="anonymous" />
   <style>
     body { background: #0b1727; color: #eaf1ff; }
     .card { background: #12233a; border: 1px solid #2a4a75; }
@@ -273,6 +273,10 @@
     appendResult('GET getVeicoli (proxy) #1', a, (a && a.__meta && a.__meta.status < 400) && !(a && a.__payload && a.__payload.success === false));
     const b = await diagFetchGet('getVeicoli');
     appendResult('GET getVeicoli (proxy) #2', b, (b && b.__meta && b.__meta.status < 400) && !(b && b.__payload && b.__payload.success === false));
+    // Attendi la revalidazione asincrona del proxy, poi verifica HIT
+    await new Promise(r => setTimeout(r, 900));
+    const c = await diagFetchGet('getVeicoli');
+    appendResult('GET getVeicoli (proxy) #3 (atteso HIT)', c, (c && c.__meta && c.__meta.status < 400) && !(c && c.__payload && c.__payload.success === false));
   }
 
   async function runSheetClients(){

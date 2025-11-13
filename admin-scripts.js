@@ -9,27 +9,12 @@
     ]); } }catch(_){ }
   }
   
-  // --- Sorting utilities (global) ---
-  function parseDateAnySafe(val){
-    if(!val) return null;
-    if(val instanceof Date && !isNaN(val.getTime())) return val;
-    if(typeof window.parseDateAny === 'function'){
-      const d = window.parseDateAny(val); return (d && !isNaN(d.getTime())) ? d : null;
-    }
-    const d2 = new Date(val); return isNaN(d2.getTime()) ? null : d2;
-  }
-  function cmpStr(a,b){
-    const sa = String(a||'').toLowerCase(); const sb = String(b||'').toLowerCase();
-    if(sa < sb) return -1; if(sa > sb) return 1; return 0;
-  }
-  function cmpNum(a,b){
-    const na = Number(a)||0; const nb = Number(b)||0; return na - nb;
-  }
-  function cmpDate(a,b){
-    const da = parseDateAnySafe(a); const db = parseDateAnySafe(b);
-    const ta = da ? da.getTime() : 0; const tb = db ? db.getTime() : 0; return ta - tb;
-  }
-  function arrow(dir){ return dir==='asc' ? '▲' : '▼'; }
+  // --- Sorting utilities (import from module) ---
+  const parseDateAnySafe = window.adminValidation?.parseDateAnySafe;
+  const cmpStr = window.adminValidation?.cmpStr;
+  const cmpNum = window.adminValidation?.cmpNum;
+  const cmpDate = window.adminValidation?.cmpDate;
+  const arrow = window.adminValidation?.arrow;
 
   // Sort states
   let legacySort = { key: 'di', dir: 'desc' }; // di: data inizio
@@ -37,6 +22,10 @@
   window._clientiSort = { key: null, dir: 'asc' };
   let dashBookingSort = { key: 'data', dir: 'asc' };
   let dashLicenseSort = { key: 'scadenza', dir: 'asc' };
+  window.legacySort = legacySort;
+  window.flottaSort = flottaSort;
+  window.dashBookingSort = dashBookingSort;
+  window.dashLicenseSort = dashLicenseSort;
   // Ripristina persistenze
   try { const s = JSON.parse(localStorage.getItem('imbriani_sort_legacy')||'null'); if(s && s.key && s.dir) legacySort = s; } catch(_){}
   try { const s = JSON.parse(localStorage.getItem('imbriani_sort_flotta')||'null'); if(s && s.key && s.dir) flottaSort = s; } catch(_){}
@@ -45,93 +34,19 @@
   try { const s = JSON.parse(localStorage.getItem('imbriani_sort_dash_licenses')||'null'); if(s && s.key && s.dir) dashLicenseSort = s; } catch(_){}
 
   // Exposed setters
-  window.setLegacySort = function(key){
-    if(legacySort.key === key){ legacySort.dir = legacySort.dir === 'asc' ? 'desc' : 'asc'; }
-    else { legacySort.key = key; legacySort.dir = (key==='di' || key==='df') ? 'desc' : 'asc'; }
-    try{ localStorage.setItem('imbriani_sort_legacy', JSON.stringify(legacySort)); }catch(_){}
-    // re-render by reloading section
-    if(typeof loadLegacy === 'function'){ loadLegacy(); }
-  };
-  window.setFlottaSort = function(key){
-    if(flottaSort.key === key){ flottaSort.dir = flottaSort.dir === 'asc' ? 'desc' : 'asc'; }
-    else { flottaSort.key = key; flottaSort.dir = (key==='posti') ? 'desc' : 'asc'; }
-    try{ localStorage.setItem('imbriani_sort_flotta', JSON.stringify(flottaSort)); }catch(_){}
-    // re-render by refetch or rerender
-    const btn = document.getElementById('btn-reload-flotta'); btn?.click();
-  };
-  window.setClientiSort = function(key){
-    if(window._clientiSort.key === key){ window._clientiSort.dir = window._clientiSort.dir === 'asc' ? 'desc' : 'asc'; }
-    else { window._clientiSort.key = key; window._clientiSort.dir = 'asc'; }
-    try{ localStorage.setItem('imbriani_sort_clienti', JSON.stringify(window._clientiSort)); }catch(_){}
-    if(typeof renderClienti === 'function'){ renderClienti(window._clientiData||[]); }
-  };
-  window.setDashBookingSort = function(key){
-    if(dashBookingSort.key === key){ dashBookingSort.dir = dashBookingSort.dir === 'asc' ? 'desc' : 'asc'; }
-    else { dashBookingSort.key = key; dashBookingSort.dir = 'asc'; }
-    try{ localStorage.setItem('imbriani_sort_dash_bookings', JSON.stringify(dashBookingSort)); }catch(_){}
-    if(typeof loadDashboard === 'function'){ loadDashboard(); }
-  };
-  window.setDashLicenseSort = function(key){
-    if(dashLicenseSort.key === key){ dashLicenseSort.dir = dashLicenseSort.dir === 'asc' ? 'desc' : 'asc'; }
-    else { dashLicenseSort.key = key; dashLicenseSort.dir = 'asc'; }
-    try{ localStorage.setItem('imbriani_sort_dash_licenses', JSON.stringify(dashLicenseSort)); }catch(_){}
-    if(typeof loadDashboard === 'function'){ loadDashboard(); }
-  };
+  // setLegacySort spostato in admin-ui.js
+  // setFlottaSort spostato in admin-ui.js
+  // setClientiSort spostato in admin-ui.js
+  // setDashBookingSort spostato in admin-ui.js
+  // setDashLicenseSort spostato in admin-ui.js
   
   function qs(id){ return document.getElementById(id); }
   // Usa GET per azioni di lettura e POST per azioni di scrittura
   async function callAPI(action, params={}){
-    console.log(`[ADMIN-API] ${action}`);
-    const POST_ACTIONS = new Set([
-      'setManutenzione',
-      'setVeicolo',
-      'eliminaVeicolo',
-      'creaPrenotazione',
-      'aggiornaPrenotazione',
-      'aggiornaPrenotazioneCompleta',
-      'eliminaPrenotazione',
-      'aggiornaStato',
-      'confermaPrenotazione',
-      'aggiornaCliente',
-      'creaCliente',
-      'importaPrenotazioniICS',
-      'importaPrenotazioniCSV',
-      'aggiornaStatoPrenotazione'
-    ]);
-
-    const isWrite = POST_ACTIONS.has(action);
-
-    try {
-      if (isWrite) {
-        if (typeof window.securePost === 'function') {
-          const result = await window.securePost(action, params);
-          console.log(`[ADMIN-API] ${action} (POST) result:`, result);
-          return result;
-        }
-        // Fallback legacy
-        if (typeof window.api?.call === 'function') {
-          const result = await window.api.call({ action, ...params });
-          console.log(`[ADMIN-API] ${action} (POST-fallback) result:`, result);
-          return result;
-        }
-        return { success:false, message:'securePost missing' };
-      } else {
-        if (typeof window.secureGet === 'function') {
-          const result = await window.secureGet(action, params);
-          console.log(`[ADMIN-API] ${action} (GET) result:`, result);
-          return result;
-        }
-        if (typeof window.api?.call === 'function') {
-          const result = await window.api.call({ action, ...params });
-          console.log(`[ADMIN-API] ${action} (GET-fallback) result:`, result);
-          return result;
-        }
-        return { success:false, message:'secureGet missing' };
-      }
-    } catch (err) {
-      console.error(`[ADMIN-API] Errore chiamando ${action}:`, err);
-      return { success:false, message: String(err && err.message || err) };
+    if (window.adminApi && typeof window.adminApi.callAPI === 'function') {
+      return window.adminApi.callAPI(action, params);
     }
+    return { success:false, message:'API bridge missing' };
   }
 
   const TIME_SLOTS = ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'];
@@ -364,42 +279,16 @@
   }
 
   function renderAdminVehicles(flotta, availableTags){
-    const grid = qs('admin-vehicles-grid'); if(!grid) return;
-    const availableSet = new Set(availableTags); const available = flotta.filter(v => availableSet.has(v.Targa));
-    
-    if(available.length === 0) {
-      grid.innerHTML = '<div class="text-center text-muted p-3">Nessun veicolo disponibile</div>'; return;
+    if (window.adminRenderer && typeof window.adminRenderer.renderAdminVehicles === 'function') {
+      window.adminRenderer.renderAdminVehicles(flotta, availableTags);
     }
-    
-    grid.innerHTML = available.map(v => {
-      const badges = ['<span class="badge bg-success">Disponibile</span>'];
-      const passoLungo = v.PassoLungo || v.Targa === 'EC787NM';
-      if(passoLungo) badges.push('<span class="badge bg-warning">Passo Lungo</span>');
-      
-      return `<div class="mb-3 p-3 border rounded"><div class="d-flex justify-content-between align-items-start mb-2">
-          <div><h6 class="fw-bold mb-1">${escapeHtml(String(v.Marca||''))} ${escapeHtml(String(v.Modello||''))}</h6><div class="small text-muted">Targa: ${escapeHtml(String(v.Targa||''))} | ${escapeHtml(String(v.Posti||''))} posti</div></div>
-          <div class="d-flex flex-wrap gap-1">${badges.join('')}</div></div>
-        <button class="btn btn-sm btn-primary admin-vehicle-select" data-targa="${escapeHtml(String(v.Targa||''))}" data-vehicle='${encodeURIComponent(JSON.stringify(v))}'>
-          <i class="fas fa-check me-1"></i>Seleziona per prenotazione</button></div>`;
-    }).join('');
-    
-    const countEl = qs('admin-vehicles-count');
-    if(countEl) countEl.textContent = `${available.length} disponibili su ${flotta.length} totali`;
-    
-    grid.querySelectorAll('.admin-vehicle-select').forEach(btn=>{
-      btn.addEventListener('click', (ev)=>{
-        try{ 
-          window.adminSelectedVehicle = JSON.parse(decodeURIComponent(ev.currentTarget.dataset.vehicle)); 
-          showAdminQuoteStep();
-        }catch(e){ window.adminSelectedVehicle=null; }
-      });
-    });
   }
 
   function showAdminQuoteStep(){
     // Show continue banner
     addAdminContinueBanner();
   }
+  window.showAdminQuoteStep = showAdminQuoteStep;
 
   function addAdminContinueBanner(){
     if(qs('admin-step-continue-banner')) return;
@@ -548,10 +437,10 @@
           <h5 class="fw-semibold mb-3"><i class="fas fa-calendar-day me-2"></i>Prossime prenotazioni (7 giorni)</h5>
           <div class="table-responsive"><table class="table table-sm align-middle text-white-50">
             <thead><tr>
-              <th style="cursor:pointer" onclick="window.setDashBookingSort('data')">Data ${dashBookingSort.key==='data'?arrow(dashBookingSort.dir):''}</th>
-              <th style="cursor:pointer" onclick="window.setDashBookingSort('targa')">Targa ${dashBookingSort.key==='targa'?arrow(dashBookingSort.dir):''}</th>
-              <th style="cursor:pointer" onclick="window.setDashBookingSort('cliente')">Cliente ${dashBookingSort.key==='cliente'?arrow(dashBookingSort.dir):''}</th>
-              <th style="cursor:pointer" onclick="window.setDashBookingSort('stato')">Stato ${dashBookingSort.key==='stato'?arrow(dashBookingSort.dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setDashBookingSort('data')">Data ${(window.dashBookingSort||dashBookingSort).key==='data'?arrow((window.dashBookingSort||dashBookingSort).dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setDashBookingSort('targa')">Targa ${(window.dashBookingSort||dashBookingSort).key==='targa'?arrow((window.dashBookingSort||dashBookingSort).dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setDashBookingSort('cliente')">Cliente ${(window.dashBookingSort||dashBookingSort).key==='cliente'?arrow((window.dashBookingSort||dashBookingSort).dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setDashBookingSort('stato')">Stato ${(window.dashBookingSort||dashBookingSort).key==='stato'?arrow((window.dashBookingSort||dashBookingSort).dir):''}</th>
             </tr></thead>
             <tbody id="dash-next-bookings"><tr><td colspan="4" class="text-muted">Caricamento…</td></tr></tbody>
           </table></div>
@@ -562,9 +451,9 @@
           <h5 class="fw-semibold mb-3"><i class="fas fa-id-card me-2"></i>Patenti in scadenza (90 giorni)</h5>
           <div class="table-responsive"><table class="table table-sm align-middle text-white-50">
             <thead><tr>
-              <th style="cursor:pointer" onclick="window.setDashLicenseSort('nome')">Nome ${dashLicenseSort.key==='nome'?arrow(dashLicenseSort.dir):''}</th>
-              <th style="cursor:pointer" onclick="window.setDashLicenseSort('cf')">CF ${dashLicenseSort.key==='cf'?arrow(dashLicenseSort.dir):''}</th>
-              <th style="cursor:pointer" onclick="window.setDashLicenseSort('scadenza')">Scadenza ${dashLicenseSort.key==='scadenza'?arrow(dashLicenseSort.dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setDashLicenseSort('nome')">Nome ${(window.dashLicenseSort||dashLicenseSort).key==='nome'?arrow((window.dashLicenseSort||dashLicenseSort).dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setDashLicenseSort('cf')">CF ${(window.dashLicenseSort||dashLicenseSort).key==='cf'?arrow((window.dashLicenseSort||dashLicenseSort).dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setDashLicenseSort('scadenza')">Scadenza ${(window.dashLicenseSort||dashLicenseSort).key==='scadenza'?arrow((window.dashLicenseSort||dashLicenseSort).dir):''}</th>
             </tr></thead>
             <tbody id="dash-expiring-licenses"><tr><td colspan="3" class="text-muted">Caricamento…</td></tr></tbody>
           </table></div>
@@ -573,21 +462,7 @@
     </div>`;
 
     // Funzioni utili locali
-    const parseDateFlexible = (val) => {
-      if(!val) return null;
-      if(val instanceof Date && !isNaN(val.getTime())) return val;
-      if(typeof val === 'string'){
-        // dd/mm/yyyy -> usa componenti locali (evita timezone)
-        const mIT = val.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-        if(mIT){ const d = new Date(parseInt(mIT[3],10), parseInt(mIT[2],10)-1, parseInt(mIT[1],10)); return isNaN(d.getTime()) ? null : d; }
-        // yyyy-mm-dd -> usa componenti locali (evita timezone)
-        const mISO = val.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        if(mISO){ const d = new Date(parseInt(mISO[1],10), parseInt(mISO[2],10)-1, parseInt(mISO[3],10)); return isNaN(d.getTime()) ? null : d; }
-        // ISO con orario
-        const d2 = new Date(val); return isNaN(d2.getTime()) ? null : d2;
-      }
-      return null;
-    };
+    const parseDateFlexible = (val) => (typeof window.parseDateAny === 'function') ? window.parseDateAny(val) : null;
     const fmtIT = (d) => { const f = window.formatDateIT?.(d) || '-'; return f === '-' ? '' : f; };
 
     // Fetch dati principali in parallelo
@@ -680,9 +555,9 @@
     // Render tabelle: Prossime prenotazioni (top 5)
     const tbBookings = document.getElementById('dash-next-bookings');
     if(tbBookings){
-      const dir = dashBookingSort.dir==='asc'?1:-1;
+      const dir = (window.dashBookingSort||dashBookingSort).dir==='asc'?1:-1;
       const sorted = [...next7].sort((a,b) => {
-        switch(dashBookingSort.key){
+        switch((window.dashBookingSort||dashBookingSort).key){
           case 'data': {
             const da = parseDateFlexible(a.giornoInizio || a.giornoInizioFormatted);
             const db = parseDateFlexible(b.giornoInizio || b.giornoInizioFormatted);
@@ -708,7 +583,7 @@
     const tbLic = document.getElementById('dash-expiring-licenses');
     if(tbLic){
       const limit90 = new Date(); limit90.setMonth(limit90.getMonth()+3);
-      const dirL = dashLicenseSort.dir==='asc'?1:-1;
+      const dirL = (window.dashLicenseSort||dashLicenseSort).dir==='asc'?1:-1;
       const expiring = clienti
         .map(c => {
           const raw = (scadKeyFmt && c[scadKeyFmt] !== undefined) ? c[scadKeyFmt] : c[scadKey];
@@ -717,7 +592,7 @@
         })
         .filter(x => x.d && x.d <= limit90)
         .sort((a,b) => {
-          switch(dashLicenseSort.key){
+          switch((window.dashLicenseSort||dashLicenseSort).key){
             case 'scadenza': return ((a.d?.getTime()||0) - (b.d?.getTime()||0)) * dirL;
             case 'nome': return cmpStr(a.nome, b.nome) * dirL;
             case 'cf': return cmpStr(a.cf, b.cf) * dirL;
@@ -739,220 +614,48 @@
   // =============================
   // ICS IMPORT MODAL
   // =============================
-  window.showICSImportModal = async function(veicoliList){
-    try {
-      // Se non abbiamo veicoli, recuperali
-      let veicoli = Array.isArray(veicoliList) ? veicoliList : [];
-      if (!veicoli.length) {
-        const vResp = await callAPI('getVeicoli');
-        veicoli = vResp?.success ? (vResp.data||[]) : [];
-      }
-      const targhe = veicoli.map(v => v.Targa || v.targa).filter(Boolean);
-      const modalId = 'icsImportModal';
-      if (!qs(modalId)){
-        const optionsTarghe = ['<option value="">(deduci da evento)</option>'].concat(targhe.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`)).join('');
-        const html = `
-          <div class="modal fade" id="${modalId}" tabindex="-1">
-            <div class="modal-dialog modal-lg">
-              <div class="modal-content">
-                <div class="modal-header">
-                  <h5 class="modal-title"><i class="fas fa-file-import me-2"></i>Importa prenotazioni da iCal (ICS)</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                  <div class="row g-3 admin-form-grid">
-                    <div class="admin-form-group" style="grid-column: span 2;">
-                      <label class="form-label">URL ICS (opzionale)</label>
-                      <input type="url" id="ics-url" class="form-control-modern" placeholder="https://…/calendar.ics">
-                      <div class="form-text">Se presente, verrà usato al posto del testo incollato.</div>
-                    </div>
-                    <div class="admin-form-group" style="grid-column: span 2;">
-                      <label class="form-label">Testo ICS (incolla qui)</label>
-                      <textarea id="ics-text" rows="6" class="form-control-modern" placeholder="BEGIN:VCALENDAR\nBEGIN:VEVENT\nDTSTART:20250115T090000Z\nDTEND:20250115T170000Z\nSUMMARY:DN391FW — Cliente Rossi\nLOCATION:Roma\nEND:VEVENT\nEND:VCALENDAR"></textarea>
-                    </div>
-                    <div class="admin-form-group">
-                      <label class="form-label">Targa di default</label>
-                      <select id="ics-targa" class="form-select">${optionsTarghe}</select>
-                      <div class="form-text">Se non trovata nel testo evento, userò questa.</div>
-                    </div>
-                    <div class="admin-form-group">
-                      <label class="form-label">Ora inizio default</label>
-                      <input type="time" id="ics-ora-inizio" class="form-control-modern" value="08:00">
-                    </div>
-                    <div class="admin-form-group">
-                      <label class="form-label">Ora fine default</label>
-                      <input type="time" id="ics-ora-fine" class="form-control-modern" value="22:00">
-                    </div>
-                  </div>
-                </div>
-                <div class="modal-footer">
-                  <button class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
-                  <button class="btn btn-primary" id="ics-import-go"><i class="fas fa-file-import me-2"></i>Importa</button>
-                </div>
-              </div>
-            </div>
-          </div>`;
-        const wrapper = document.createElement('div'); wrapper.innerHTML = html; document.body.appendChild(wrapper);
-      }
-      const modalEl = qs(modalId);
-      const modal = new bootstrap.Modal(modalEl);
-      modal.show();
-
-      qs('ics-import-go').onclick = async () => {
-        const payload = {
-          icsUrl: qs('ics-url')?.value?.trim() || '',
-          icsText: qs('ics-text')?.value?.trim() || '',
-          defaultTarga: qs('ics-targa')?.value || '',
-          defaultOraInizio: qs('ics-ora-inizio')?.value || '08:00',
-          defaultOraFine: qs('ics-ora-fine')?.value || '22:00'
-        };
-        if (!payload.icsUrl && !payload.icsText){
-          window.showToast?.('Inserisci URL o testo ICS', 'warning');
-          return;
-        }
-        try {
-          window.showLoader?.(true, 'Importo prenotazioni ICS…');
-          const resp = await callAPI('importaPrenotazioniICS', payload);
-          window.showLoader?.(false);
-          if (resp?.success){
-            window.showToast?.(`✅ Import completato — creati ${resp.created}, duplicati ${resp.duplicates}`, 'success');
-            modal.hide();
-            loadDashboard();
-          } else {
-            window.showToast?.(`❌ Import fallito: ${resp?.message||'errore'}`, 'danger');
-          }
-        } catch(err){
-          window.showLoader?.(false);
-          console.error('[ICS Import] Errore:', err);
-          window.showToast?.('Errore import ICS', 'danger');
-        }
-      };
-    } catch(e){
-      console.error('[showICSImportModal] Errore:', e);
-      window.showToast?.('Errore apertura modale ICS', 'danger');
-    }
-  };
+  // modali ICS/CSV migrate in admin-ui.js
 
   // =============================
   // CSV/EXCEL IMPORT MODAL
   // =============================
-  window.showCSVImportModal = function(){
-    const modalId = 'csvImportModal';
-    if (!qs(modalId)){
-      const html = `
-        <div class="modal fade" id="${modalId}" tabindex="-1">
-          <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-table me-2"></i>Importa prenotazioni da Excel/CSV</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-              </div>
-              <div class="modal-body">
-                <div class="row g-3 admin-form-grid">
-                  <div class="admin-form-group" style="grid-column: span 2;">
-                    <label class="form-label">Carica file CSV</label>
-                    <input type="file" id="csv-file" class="form-control-modern" accept=".csv,text/csv">
-                    <div class="form-text">Suggerito separatore ";". In alternativa incolla il contenuto sotto.</div>
-                  </div>
-                  <div class="admin-form-group" style="grid-column: span 2;">
-                    <label class="form-label">Oppure incolla CSV</label>
-                    <textarea id="csv-text" rows="6" class="form-control-modern" placeholder="targa;data_inizio;ora_inizio;data_fine;ora_fine;destinazione;cliente"></textarea>
-                  </div>
-                  <div class="admin-form-group">
-                    <label class="form-label">Anteprima righe</label>
-                    <div id="csv-preview" class="small text-muted">(nessuna)</div>
-                  </div>
-                </div>
-              </div>
-              <div class="modal-footer">
-                <button class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
-                <button class="btn btn-warning" id="csv-import-go"><i class="fas fa-upload me-2"></i>Importa</button>
-              </div>
-            </div>
-          </div>
-        </div>`;
-      const wrapper = document.createElement('div'); wrapper.innerHTML = html; document.body.appendChild(wrapper);
-    }
-    const modalEl = qs(modalId); const modal = new bootstrap.Modal(modalEl); modal.show();
-
-    const parseCSV = (text) => {
-      if (!text) return { headers: [], rows: [] };
-      const raw = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').filter(l => l.trim().length);
-      if (!raw.length) return { headers: [], rows: [] };
-      const delim = raw[0].indexOf(';')>=0 ? ';' : ',';
-      const headers = raw[0].split(delim).map(h => h.trim());
-      const rows = raw.slice(1).map(line => line.split(delim).map(c => c.trim()));
-      return { headers, rows };
-    };
-    const mapRow = (headers, values) => {
-      const H = headers.map(h => h.toLowerCase());
-      const idx = (names) => {
-        for (let n of names){ const i = H.findIndex(h => h.includes(n)); if (i>=0) return i; }
-        return -1;
-      };
-      // Supporto esplicito alle intestazioni Excel: Title, Location, StartDate, StartTime, EndDate, EndTime
-      const idTarga = idx(['targa','plate','veicolo']);
-      const idGI = idx(['startdate','giorno_inizio','data_inizio','inizio','start','dal','data']);
-      const idGF = idx(['enddate','giorno_fine','data_fine','fine','end','al']);
-      const idOI = idx(['starttime','ora_inizio','orario_inizio','from','inizio']);
-      const idOF = idx(['endtime','ora_fine','orario_fine','to','fine']);
-      const idDest = idx(['location','destinazione','luogo','meta']);
-      const idCli = idx(['title','cliente','autista','nome']);
-      return {
-        targa: idTarga>=0 ? values[idTarga] : '',
-        giornoInizio: idGI>=0 ? values[idGI] : '',
-        giornoFine: idGF>=0 ? values[idGF] : values[idGI],
-        oraInizio: idOI>=0 ? values[idOI] : '',
-        oraFine: idOF>=0 ? values[idOF] : '',
-        destinazione: idDest>=0 ? values[idDest] : '',
-        nomeAutista: idCli>=0 ? values[idCli] : ''
-      };
-    };
-
-    const previewEl = qs('csv-preview');
-    const updatePreview = (parsed) => {
-      const { headers, rows } = parsed; if (!rows.length){ previewEl.textContent = '(nessuna riga)'; return; }
-      const sample = rows.slice(0,5).map(r => JSON.stringify(mapRow(headers, r))).join('\n');
-      previewEl.textContent = sample;
-    };
-
-    qs('csv-file')?.addEventListener('change', (e) => {
-      const file = e.target.files?.[0]; if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => { const parsed = parseCSV(reader.result); updatePreview(parsed); modalEl.dataset.csvParsed = JSON.stringify(parsed); };
-      reader.readAsText(file);
-    });
-    qs('csv-text')?.addEventListener('input', (e) => {
-      const parsed = parseCSV(e.target.value); updatePreview(parsed); modalEl.dataset.csvParsed = JSON.stringify(parsed);
-    });
-
-    qs('csv-import-go').onclick = async () => {
-      try {
-        const parsed = modalEl.dataset.csvParsed ? JSON.parse(modalEl.dataset.csvParsed) : { headers:[], rows:[] };
-        const rows = parsed.rows.map(r => mapRow(parsed.headers, r)).filter(x => x.targa && x.giornoInizio);
-        if (!rows.length){ window.showToast?.('CSV vuoto o colonne non riconosciute', 'warning'); return; }
-        window.showLoader?.(true, 'Importo prenotazioni CSV…');
-        const resp = await callAPI('importaPrenotazioniCSV', { rows });
-        window.showLoader?.(false);
-        if (resp?.success){ window.showToast?.(`✅ Import CSV completato — creati ${resp.created}, duplicati ${resp.duplicates}, saltati ${resp.skipped}`, 'success'); modal.hide(); loadDashboard(); }
-        else { window.showToast?.(`❌ Import CSV fallito: ${resp?.message||'errore'}`, 'danger'); }
-      } catch(err){
-        window.showLoader?.(false);
-        console.error('[CSV Import] Errore:', err);
-        window.showToast?.('Errore import CSV', 'danger');
-      }
-    };
-  };
+  // modali ICS/CSV migrate in admin-ui.js
 
   async function loadPrenotazioni() {
     const root = qs('admin-root');
     if (!root) return;
     
     // Check if admin-prenotazioni.js module is loaded (support both function names)
-    const loadFn = typeof window.loadPrenotazioniSection === 'function'
+    let loadFn = typeof window.loadPrenotazioniSection === 'function'
       ? window.loadPrenotazioniSection
       : (typeof window.caricaSezionePrenotazioni === 'function' ? window.caricaSezionePrenotazioni : null);
+    // Lazy load script if not yet present
+    if (!loadFn) {
+      const existing = document.querySelector('script[data-admin-prenotazioni]');
+      if (!existing) {
+        const s = document.createElement('script');
+        s.src = 'admin-prenotazioni.js?v=' + Math.floor(Date.now()/1000);
+        s.defer = true;
+        s.setAttribute('data-admin-prenotazioni','1');
+        s.onload = () => {
+          try {
+            const fn = typeof window.loadPrenotazioniSection === 'function'
+              ? window.loadPrenotazioniSection
+              : (typeof window.caricaSezionePrenotazioni === 'function' ? window.caricaSezionePrenotazioni : null);
+            if (fn) fn();
+          } catch(e){ console.error('[ADMIN] Errore avvio prenotazioni (onload):', e); }
+        };
+        s.onerror = () => {
+          console.error('[ADMIN] Caricamento admin-prenotazioni.js fallito');
+          window.showToast?.('Errore caricamento modulo prenotazioni','danger');
+        };
+        document.body.appendChild(s);
+      }
+    }
 
+    loadFn = typeof window.loadPrenotazioniSection === 'function'
+      ? window.loadPrenotazioniSection
+      : (typeof window.caricaSezionePrenotazioni === 'function' ? window.caricaSezionePrenotazioni : null);
     if (loadFn) {
       console.log('[ADMIN] Caricamento sezione prenotazioni...');
       try { loadFn(); } catch(e){ console.error('[ADMIN] Errore avvio prenotazioni:', e); }
@@ -1001,14 +704,14 @@
         <div class="table-responsive">
           <table class="table table-dark table-hover align-middle" id="legacy-table">
             <thead><tr>
-              <th style="cursor:pointer" onclick="window.setLegacySort('di')">Data Inizio ${legacySort.key==='di'?arrow(legacySort.dir):''}</th>
-              <th style="cursor:pointer" onclick="window.setLegacySort('oi')">Ora ${legacySort.key==='oi'?arrow(legacySort.dir):''}</th>
-              <th style="cursor:pointer" onclick="window.setLegacySort('df')">Data Fine ${legacySort.key==='df'?arrow(legacySort.dir):''}</th>
-              <th style="cursor:pointer" onclick="window.setLegacySort('of')">Ora ${legacySort.key==='of'?arrow(legacySort.dir):''}</th>
-              <th style="cursor:pointer" onclick="window.setLegacySort('targa')">Targa ${legacySort.key==='targa'?arrow(legacySort.dir):''}</th>
-              <th style="cursor:pointer" onclick="window.setLegacySort('nome')">Nome (Title) ${legacySort.key==='nome'?arrow(legacySort.dir):''}</th>
-              <th style="cursor:pointer" onclick="window.setLegacySort('cell')">Cellulare ${legacySort.key==='cell'?arrow(legacySort.dir):''}</th>
-              <th style="cursor:pointer" onclick="window.setLegacySort('dest')">Destinazione ${legacySort.key==='dest'?arrow(legacySort.dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setLegacySort('di')">Data Inizio ${(window.legacySort||legacySort).key==='di'?arrow((window.legacySort||legacySort).dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setLegacySort('oi')">Ora ${(window.legacySort||legacySort).key==='oi'?arrow((window.legacySort||legacySort).dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setLegacySort('df')">Data Fine ${(window.legacySort||legacySort).key==='df'?arrow((window.legacySort||legacySort).dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setLegacySort('of')">Ora ${(window.legacySort||legacySort).key==='of'?arrow((window.legacySort||legacySort).dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setLegacySort('targa')">Targa ${(window.legacySort||legacySort).key==='targa'?arrow((window.legacySort||legacySort).dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setLegacySort('nome')">Nome (Title) ${(window.legacySort||legacySort).key==='nome'?arrow((window.legacySort||legacySort).dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setLegacySort('cell')">Cellulare ${(window.legacySort||legacySort).key==='cell'?arrow((window.legacySort||legacySort).dir):''}</th>
+              <th style="cursor:pointer" onclick="window.setLegacySort('dest')">Destinazione ${(window.legacySort||legacySort).key==='dest'?arrow((window.legacySort||legacySort).dir):''}</th>
               <th class="text-end">Azioni</th>
             </tr></thead>
             <tbody id="legacy-tbody"><tr><td colspan="99" class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>Caricamento…</td></tr></tbody>
@@ -1029,10 +732,11 @@
         const d = (window.parseDateAny ? window.parseDateAny(raw) : parseDateFlexible(raw) || new Date(raw));
         return (!d || isNaN(d.getTime())) ? null : d;
       };
-      const dir = legacySort.dir === 'asc' ? 1 : -1;
+      const srt = window.legacySort || legacySort;
+      const dir = srt.dir === 'asc' ? 1 : -1;
       const sortedLegacy = [...legacy].sort((a,b) => {
         let cmp = 0;
-        switch(legacySort.key){
+        switch((window.legacySort||legacySort).key){
           case 'di': cmp = cmpDate(a.giornoInizio || a.giornoInizioFormatted, b.giornoInizio || b.giornoInizioFormatted); break;
           case 'df': cmp = cmpDate(a.giornoFine || a.giornoFineFormatted, b.giornoFine || b.giornoFineFormatted); break;
           case 'oi': cmp = cmpStr(a.oraInizio, b.oraInizio); break;
@@ -1223,28 +927,8 @@
   }
 
   // Parsing robusto di date da Date, ISO o 'gg/mm/aaaa'
-  function parseDateFlexible(val){
-    if(!val) return null;
-    if(val instanceof Date && !isNaN(val.getTime())) return val;
-    if(typeof val === 'string'){
-      // dd/mm/yyyy
-      const mIT = val.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-      if(mIT) {
-        const d = new Date(parseInt(mIT[3],10), parseInt(mIT[2],10)-1, parseInt(mIT[1],10));
-        return isNaN(d.getTime()) ? null : d;
-      }
-      // yyyy-mm-dd
-      const mISO = val.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if(mISO) {
-        const d = new Date(parseInt(mISO[1],10), parseInt(mISO[2],10)-1, parseInt(mISO[3],10));
-        return isNaN(d.getTime()) ? null : d;
-      }
-      // ISO con tempo
-      const d2 = new Date(val);
-      return isNaN(d2.getTime()) ? null : d2;
-    }
-    return null;
-  }
+  // Usa parser globale
+  const parseDateFlexible = (val) => (typeof window.parseDateAny === 'function') ? window.parseDateAny(val) : null;
 
   function withinExpiryFilter(c, months){
     if(!months) return true;
@@ -1260,72 +944,13 @@
   }
 
   function renderClienti(data){
-    const tbody = qs('clienti-tbody'); const thead = qs('clienti-thead'); if(!tbody || !thead) return;
-    const term = qs('clienti-search')?.value?.trim()||'';
-    const months = qs('clienti-filter-scadenza')?.value||'';
-    const rawHeaders = (data && data.length) ? Object.keys(data[0]) : (window._clientiHeaders||[]);
-    // Nascondi colonne duplicate '...Formatted' ma mantieni i valori formattati per la visualizzazione
-    const headers = (window._clientiHeaders = rawHeaders.filter(h => !/formatted$/i.test(h)));
-    // Header cliccabili + Azioni
-    thead.innerHTML = headers.map(h => `<th style="cursor:pointer" data-key="${escapeHtml(h)}">${escapeHtml(h)} ${window._clientiSort.key===h ? arrow(window._clientiSort.dir) : ''}</th>`).join('') + '<th class="text-end">Azioni</th>';
-
-    const cfKey = window._clientiCFKey || (window._clientiCFKey = findKey(headers, 'CODICE.*FISCALE|CF'));
-
-    // Prepara dataset filtrato
-    let rowsData = (data||[])
-      .filter(c => headers.some(h => String(c[h]||'').trim() !== ''))
-      .filter(c => matchesSearch(c, term))
-      .filter(c => withinExpiryFilter(c, months))
-    // Sorting se definito
-    if(window._clientiSort.key){
-      const key = window._clientiSort.key; const dir = window._clientiSort.dir==='asc'?1:-1;
-      rowsData = rowsData.sort((a,b) => {
-        const av = a[key+'Formatted'] ?? a[key];
-        const bv = b[key+'Formatted'] ?? b[key];
-        // prova date, poi numeri, poi stringhe
-        const dcmp = cmpDate(av,bv); if(dcmp !== 0) return dcmp * dir;
-        const ncmp = cmpNum(av,bv); if(ncmp !== 0) return ncmp * dir;
-        return cmpStr(av,bv) * dir;
-      });
+    if (window.adminRenderer && typeof window.adminRenderer.renderClienti === 'function') {
+      window.adminRenderer.renderClienti(data);
     }
-    tbody.innerHTML = '';
-    if (!rowsData.length) {
-      tbody.innerHTML = `<tr><td colspan="${headers.length+1}" class="text-center text-muted">Nessun cliente</td></tr>`;
-    } else {
-      const chunkSize = 200;
-      let index = 0;
-      const renderChunk = () => {
-        const frag = document.createDocumentFragment();
-        for (let i = 0; i < chunkSize && index < rowsData.length; i++, index++) {
-          const c = rowsData[index];
-          const tr = document.createElement('tr');
-          let html = '';
-          for (let h of headers) {
-            const fmtKey = h + 'Formatted';
-            const value = c[fmtKey] ?? c[h];
-            const asDate = parseDateFlexible(value);
-            const display = asDate ? (window.formatDateIT?.(asDate) || '') : (value ?? '');
-            html += `<td>${escapeHtml(display)}</td>`;
-          }
-          const cf = cfKey ? String(c[cfKey]||'') : '';
-          html += `<td class="text-end"><button class="btn btn-sm btn-outline-light" data-action="edit" data-cf="${escapeHtml(cf)}"><i class="fas fa-edit me-1"></i>Modifica</button></td>`;
-          tr.innerHTML = html;
-          frag.appendChild(tr);
-        }
-        tbody.appendChild(frag);
-        if (index < rowsData.length) {
-          requestAnimationFrame(renderChunk);
-        } else {
-          tbody.querySelectorAll('button[data-action="edit"]').forEach(btn => btn.addEventListener('click', () => openClienteModal(btn.dataset.cf)));
-        }
-      };
-      requestAnimationFrame(renderChunk);
-    }
-    // Bind sort header clicks
-    thead.querySelectorAll('th[data-key]').forEach(th => { th.addEventListener('click', () => window.setClientiSort(th.dataset.key)); });
   }
 
-  function escapeHtml(s){ return String(s||'').replace(/[&<>"\']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m])); }
+  // Usa escapeHtml globale
+  const escapeHtml = (s) => (typeof window.escapeHtml === 'function') ? window.escapeHtml(s) : String(s||'');
 
   async function syncClienti(){
     const btn = qs('clienti-sync'); if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Sincronizzo…'; }
@@ -1430,6 +1055,7 @@
       qs('cli-salva')?.addEventListener('click', () => saveCliente(cf, modal));
     } catch(err){ window.showToast?.('Errore apertura cliente: ' + (err.message||err), 'error'); }
   }
+  window.openClienteModal = openClienteModal;
 
   async function saveCliente(cf, modal){
     const codiceFiscaleInput = qs('cli-cf')?.value || cf || '';
@@ -1535,55 +1161,9 @@
     }
 
     function renderFlottaTable(flotta){
-      const tb = document.getElementById('flotta-tbody'); if(!tb) return;
-      if(!flotta?.length){ tb.innerHTML = `<tr><td colspan="6" class="text-center py-4">Nessun veicolo in flotta</td></tr>`; return; }
-      const dir = flottaSort.dir==='asc'?1:-1;
-      const sorted = [...flotta].sort((a,b) => {
-        let cmp = 0;
-        switch(flottaSort.key){
-          case 'targa': cmp = cmpStr(a.Targa, b.Targa); break;
-          case 'mm': cmp = cmpStr(`${a.Marca||''} ${a.Modello||''}`, `${b.Marca||''} ${b.Modello||''}`); break;
-          case 'posti': cmp = cmpNum(a.Posti, b.Posti); break;
-          case 'stato': {
-            const sa = a.InManutenzioneOggi ? 'In manutenzione' : 'Disponibile';
-            const sb = b.InManutenzioneOggi ? 'In manutenzione' : 'Disponibile';
-            cmp = cmpStr(sa, sb); break;
-          }
-          case 'man': cmp = cmpStr(a.StatoManutenzione, b.StatoManutenzione); break;
-          default: cmp = cmpStr(a.Targa, b.Targa);
-        }
-        return cmp * dir;
-      });
-      tb.innerHTML = sorted.map(v => {
-        const stato = v.InManutenzioneOggi ? 'In manutenzione' : 'Disponibile';
-        const statoBadge = v.InManutenzioneOggi
-          ? '<span class="pill-action pill-danger">Manutenzione attiva</span>'
-          : '<span class="pill-action pill-success">Disponibile</span>';
-        const manInfo = v.StatoManutenzione && v.StatoManutenzione !== '-' 
-          ? `<span class="chip chip-muted"><i class="fas fa-tools me-1"></i>${v.StatoManutenzione}</span>`
-          : `<span class="text-muted small">—</span>`;
-        return `<tr>
-          <td class="fw-semibold text-white">${v.Targa}</td>
-          <td>${v.Marca} ${v.Modello}</td>
-          <td>${v.Posti}</td>
-          <td>${statoBadge}</td>
-          <td>${manInfo}</td>
-          <td class="text-end">
-            <button class="btn action-btn action-secondary me-1" data-action="manutenzioni" data-targa="${v.Targa}" title="Gestisci manutenzioni"><i class="fas fa-tools"></i></button>
-            <button class="btn action-btn action-warning me-1" data-action="modifica" data-targa="${v.Targa}" title="Modifica veicolo"><i class="fas fa-edit"></i></button>
-            <button class="btn action-btn action-danger" data-action="elimina" data-targa="${v.Targa}" title="Elimina veicolo"><i class="fas fa-trash"></i></button>
-          </td>
-        </tr>`;
-      }).join('');
-
-      // bind azioni
-      tb.querySelectorAll('button[data-action]').forEach(btn => {
-        const act = btn.getAttribute('data-action');
-        const targa = btn.getAttribute('data-targa');
-        if(act==='modifica') btn.addEventListener('click',()=> openVehicleModal(targa));
-        if(act==='elimina') btn.addEventListener('click',()=> deleteVehicle(targa));
-        if(act==='manutenzioni') btn.addEventListener('click',()=> openMaintenanceModal(targa));
-      });
+      if (window.adminRenderer && typeof window.adminRenderer.renderFlottaTable === 'function') {
+        window.adminRenderer.renderFlottaTable(flotta);
+      }
     }
 
     function openVehicleModal(targa){
@@ -1893,6 +1473,9 @@
       loadManList();
     }
 
+    window.openVehicleModal = openVehicleModal;
+    window.deleteVehicle = deleteVehicle;
+    window.openMaintenanceModal = openMaintenanceModal;
     // Bind header buttons
     qs('btn-add-vehicle').onclick = ()=> openVehicleModal('');
     qs('btn-reload-flotta').onclick = ()=> fetchFlotta();
@@ -1905,6 +1488,8 @@
   window.handleAdminCheckAvailability = handleAdminCheckAvailability;
   function showAdminGate(show){ const gate = qs('admin-login-gate'); if (!gate) return; try{ if (show && hasAdminSessionPresent()){ gate.classList.add('d-none'); gate.classList.remove('d-flex'); return; } }catch(_){} if (show){ gate.classList.remove('d-none'); gate.classList.add('d-flex'); } else { gate.classList.add('d-none'); gate.classList.remove('d-flex'); } }
   function hasAdminSessionPresent(){ try{ if (sessionStorage.getItem('imbriani_admin_session')) return true; }catch(_){ } try{ const m = document.cookie.match(/(?:^|; )imbriani_admin_session=([^;]*)/); if (m && m[1]) return true; }catch(_){ } return false; }
+  window.showAdminGate = showAdminGate;
+  window.hasAdminSessionPresent = hasAdminSessionPresent;
   function hideAdminGatePermanent(){ const gate = qs('admin-login-gate'); if (gate && gate.parentNode){ gate.style.display = 'none'; try{ gate.parentNode.removeChild(gate); }catch(_){ } } }
   function setAdminSessionCookie(session){ try{ const payload = btoa(unescape(encodeURIComponent(JSON.stringify(session)))); document.cookie = `imbriani_admin_session=${payload}; path=/; max-age=${60*60*24}; SameSite=Lax`; }catch(_){ } }
   function setAdminSession(session){ try{ sessionStorage.setItem('imbriani_admin_session', JSON.stringify(session)); }catch(_){ } setAdminSessionCookie(session); try{ setWindowNameSession(session); }catch(_){ } }
@@ -1919,7 +1504,28 @@
   async function requestAdminOTP(){ const name = document.getElementById('admin-name')?.value || 'Antonio'; try{ const res = await (window.securePost ? window.securePost('requestAdminOTP', { name }) : Promise.resolve({ success:false })); if (res && res.success){ window.showToast?.('OTP inviato su Telegram','info'); } else { window.showToast?.('Errore invio OTP','error'); } }catch(err){ console.warn('requestAdminOTP error', err); window.showToast?.('Errore invio OTP','error'); } }
   async function handleAdminLogin(){ const name = document.getElementById('admin-name')?.value || ''; const otp = document.getElementById('admin-otp')?.value || ''; const btn = document.getElementById('admin-login-btn'); if (!name || !otp){ window.showToast?.('Inserisci nome ed OTP','warning'); return; } if (btn){ btn.disabled = true; const original = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Accesso...'; try{ const res = await (window.securePost ? window.securePost('adminLogin', { name, otp }) : Promise.resolve({ success:false })); if (res && res.success && res.token){ const session = { name: res.name||name, token: res.token, role: res.role||'admin', exp: res.exp, timestamp: Date.now() }; setAdminSession(session); window.showToast?.('Accesso admin riuscito','success'); hideAdminGatePermanent(); if (window.loadAdminSection) { loadAdminSection('dashboard'); } } else { window.showToast?.('OTP non valido o scaduto','error'); } }catch(err){ console.error('adminLogin error', err); window.showToast?.('Errore accesso','error'); } finally { btn.disabled = false; btn.innerHTML = original; } } }
   async function handleAdminLogout(){ const btn = document.getElementById('admin-logout-btn'); if (btn){ btn.disabled = true; const original = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Logout...'; try{ if (window.securePost){ try{ await window.securePost('revokeSession', {}); }catch(_){ } } try{ sessionStorage.removeItem('imbriani_admin_session'); }catch(_){ } try{ sessionStorage.removeItem('imbriani_session'); }catch(_){ } window.showToast?.('Logout effettuato','success'); location.reload(); } finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-out-alt me-1"></i> Logout admin'; } } }
-  function initAdminPage(){ document.getElementById('sidebar-toggle')?.addEventListener('click', () => { const sidebar = document.getElementById('sidebar'); const main = document.getElementById('mainContent'); if (window.innerWidth < 992){ sidebar.classList.toggle('show'); } else { const collapsed = sidebar.classList.toggle('collapsed'); main.classList.toggle('collapsed', collapsed); try{ localStorage.setItem('adminSidebarCollapsed', collapsed ? '1' : '0'); }catch(e){} } }); document.querySelectorAll('.sidebar-nav .nav-link').forEach(link => { link.addEventListener('click', (e) => { e.preventDefault(); document.querySelectorAll('.sidebar-nav .nav-link').forEach(l => l.classList.remove('active')); link.classList.add('active'); const titles = { dashboard:'Dashboard', prenotazioni:'Gestione Prenotazioni', legacy:'Prenotazioni Legacy', clienti:'Gestione Clienti', flotta:'Gestione Flotta', statistiche:'Statistiche', settings:'Impostazioni' }; document.getElementById('page-title').textContent = titles[link.dataset.section] || 'Dashboard'; const hasSession = hasAdminSessionPresent(); if (window.loadAdminSection && hasSession){ loadAdminSection(link.dataset.section); } else { window.showToast?.('Effettua il login admin per accedere','warning'); showAdminGate(true); } if (window.innerWidth < 992){ document.getElementById('sidebar').classList.remove('show'); } }); }); window.addEventListener('DOMContentLoaded', async () => { (function(){ try{ const isLocal = ['localhost','127.0.0.1'].includes(location.hostname); if (!isLocal) return; if (hasAdminSessionPresent()) return; const token = (window.CONFIG && (window.CONFIG.AUTH_TOKEN || window.CONFIG.TOKEN)) || 'imbriani_secret_2025'; const session = { name:'DevAdmin', token, role:'admin', exp:null, timestamp: Date.now() }; try{ sessionStorage.setItem('imbriani_admin_session', JSON.stringify(session)); }catch(_){ } setAdminSessionCookie(session); }catch(_){ } })(); restoreAdminSessionFromCookie(); restoreAdminSessionFromWindowName(); prefetchCritical(); await ensureAdminGateState(); const hasAdminSession = hasAdminSessionPresent(); showAdminGate(!hasAdminSession); try{ const isLocal = ['localhost','127.0.0.1'].includes(location.hostname); const devBtn = document.getElementById('admin-dev-login-btn'); if (devBtn && !isLocal) devBtn.classList.add('d-none'); }catch(_){ } document.getElementById('admin-request-otp')?.addEventListener('click', requestAdminOTP); document.getElementById('admin-login-btn')?.addEventListener('click', handleAdminLogin); document.getElementById('admin-logout-btn')?.addEventListener('click', handleAdminLogout); document.getElementById('admin-logout-btn')?.addEventListener('click', () => { clearAdminSessionAll(); }); if (hasAdminSession){ try{ const raw = sessionStorage.getItem('imbriani_admin_session'); if (raw) setWindowNameSession(JSON.parse(raw)); }catch(_){ } } if (window.loadAdminSection && hasAdminSession){ loadAdminSection('dashboard'); } try{ const persisted = localStorage.getItem('adminSidebarCollapsed') === '1'; if (persisted && window.innerWidth >= 992){ document.getElementById('sidebar').classList.add('collapsed'); document.getElementById('mainContent').classList.add('collapsed'); } }catch(e){} if (window.loadAdminSection && hasAdminSession){ loadAdminSection('dashboard'); } document.getElementById('refresh-all')?.addEventListener('click', () => { const activeSection = document.querySelector('.sidebar-nav .nav-link.active')?.dataset.section || 'dashboard'; const hasSession = hasAdminSessionPresent(); if (window.loadAdminSection && hasSession){ loadAdminSection(activeSection); } else { window.showToast?.('Sessione admin mancante. Accedi per continuare.','warning'); showAdminGate(true); } }); }); }
+  function initAdminPage(){
+    try{ if (typeof window.initAdminUIBindings === 'function') window.initAdminUIBindings(); }catch(_){ }
+    window.addEventListener('DOMContentLoaded', async () => {
+      (function(){ try{ const isLocal = ['localhost','127.0.0.1'].includes(location.hostname); if (!isLocal) return; if (hasAdminSessionPresent()) return; const token = (window.CONFIG && (window.CONFIG.AUTH_TOKEN || window.CONFIG.TOKEN)) || 'imbriani_secret_2025'; const session = { name:'DevAdmin', token, role:'admin', exp:null, timestamp: Date.now() }; try{ sessionStorage.setItem('imbriani_admin_session', JSON.stringify(session)); }catch(_){ } setAdminSessionCookie(session); }catch(_){ } })();
+      restoreAdminSessionFromCookie();
+      restoreAdminSessionFromWindowName();
+      prefetchCritical();
+      await ensureAdminGateState();
+      const hasAdminSession = hasAdminSessionPresent();
+      showAdminGate(!hasAdminSession);
+      try{ const isLocal = ['localhost','127.0.0.1'].includes(location.hostname); const devBtn = document.getElementById('admin-dev-login-btn'); if (devBtn && !isLocal) devBtn.classList.add('d-none'); }catch(_){ }
+      document.getElementById('admin-request-otp')?.addEventListener('click', requestAdminOTP);
+      document.getElementById('admin-login-btn')?.addEventListener('click', handleAdminLogin);
+      document.getElementById('admin-logout-btn')?.addEventListener('click', handleAdminLogout);
+      document.getElementById('admin-logout-btn')?.addEventListener('click', () => { clearAdminSessionAll(); });
+      if (hasAdminSession){ try{ const raw = sessionStorage.getItem('imbriani_admin_session'); if (raw) setWindowNameSession(JSON.parse(raw)); }catch(_){ } }
+      if (window.loadAdminSection && hasAdminSession){ loadAdminSection('dashboard'); }
+      try{ const persisted = localStorage.getItem('adminSidebarCollapsed') === '1'; if (persisted && window.innerWidth >= 992){ document.getElementById('sidebar').classList.add('collapsed'); document.getElementById('mainContent').classList.add('collapsed'); } }catch(e){}
+      if (window.loadAdminSection && hasAdminSession){ loadAdminSection('dashboard'); }
+      document.getElementById('refresh-all')?.addEventListener('click', () => { const activeSection = document.querySelector('.sidebar-nav .nav-link.active')?.dataset.section || 'dashboard'; const hasSession = hasAdminSessionPresent(); if (window.loadAdminSection && hasSession){ loadAdminSection(activeSection); } else { window.showToast?.('Sessione admin mancante. Accedi per continuare.','warning'); showAdminGate(true); } });
+    });
+  }
   initAdminPage();
   
   console.log(`[ADMIN-SCRIPTS] v${ADMIN_CONFIG.VERSION} loaded - Authorization header fixed`);
