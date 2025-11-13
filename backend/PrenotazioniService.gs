@@ -40,8 +40,7 @@ function getPrenotazioni() {
       var t = r[CONFIG.PRENOTAZIONI_COLS.TARGA - 1];
       var cf = r[CONFIG.PRENOTAZIONI_COLS.CODICE_FISCALE_AUTISTA_1 - 1];
       var statoRow = String(r[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE - 1] || '').trim().toLowerCase();
-      // Mostra sempre le prenotazioni Legacy anche se mancano targa e CF
-      if (!t && !cf && statoRow !== 'legacy') continue;
+      
       
       out.push({
         id: i,

@@ -16,10 +16,10 @@
       "purpose": "any maskable"
     },
     {
-      "src": "icons/android-icon-512x512.png",
-      "sizes": "512x512",
+      "src": "icons/android-icon-144x144.png",
+      "sizes": "144x144",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ],
   "categories": ["business", "productivity"],

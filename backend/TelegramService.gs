@@ -10,6 +10,7 @@
  */
 function inviaNotificaTelegram(pren) {
   try {
+    if (!CONFIG.TELEGRAM.BOT_TOKEN || !CONFIG.TELEGRAM.CHAT_ID) { Logger.log('[inviaNotificaTelegram] Config Telegram mancante, skip invio'); return; }
     var msg = [
       '🚐 NUOVA PRENOTAZIONE IN ATTESA',
       '',
@@ -57,6 +58,7 @@ function inviaNotificaTelegram(pren) {
  */
 function inviaOTPAdmin(name, code){
   try{
+    if (!CONFIG.TELEGRAM.BOT_TOKEN || !CONFIG.TELEGRAM.CHAT_ID) { Logger.log('[inviaOTPAdmin] Config Telegram mancante, skip invio'); return; }
     var ttlMin = CONFIG && CONFIG.SECURITY && CONFIG.SECURITY.OTP_TTL_MINUTES ? CONFIG.SECURITY.OTP_TTL_MINUTES : 5;
     var msg = [
       '🔐 OTP Admin — Imbriani Noleggio',
@@ -89,6 +91,7 @@ function inviaOTPAdmin(name, code){
 
 function deleteTelegramMessage(chatId, messageId){
   try{
+    if (!CONFIG.TELEGRAM.BOT_TOKEN) { Logger.log('[deleteTelegramMessage] Config Telegram mancante, skip delete'); return; }
     var url = 'https://api.telegram.org/bot' + CONFIG.TELEGRAM.BOT_TOKEN + '/deleteMessage';
     var payload = { chat_id: chatId, message_id: messageId };
     UrlFetchApp.fetch(url, { method:'post', contentType:'application/json', payload: JSON.stringify(payload), muteHttpExceptions:true });

@@ -13,13 +13,13 @@
   <meta property="og:description" content="Verifica disponibilità dei pulmini 9 posti e seleziona il veicolo.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://xdren98.github.io/imbriani-stefano-noleggio/veicoli.html">
-  <meta property="og:image" content="https://xdren98.github.io/imbriani-stefano-noleggio/pwa/icons/android-icon-192x192.png">
+  <meta property="og:image" content="pwa/icons/android-icon-192x192.png">
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Veicoli disponibili – Imbriani Stefano Noleggio">
   <meta name="twitter:description" content="Trova subito il primo slot disponibile e scegli il veicolo.">
-  <meta name="twitter:image" content="https://xdren98.github.io/imbriani-stefano-noleggio/pwa/icons/android-icon-192x192.png">
-  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚐</text></svg>">
+  <meta name="twitter:image" content="pwa/icons/android-icon-192x192.png">
+  <link rel="apple-touch-icon" href="pwa/icons/apple-icon-180x180.png">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" integrity="sha512-RXf+QSDCUQs6b4v5A9R2v6KUVKp1R9+XcMgy7pYzFSHLn3U4a8gE9F7R5C3XxR28Z59TLEEqzvvR1vpuYeIRsA==" crossorigin="anonymous">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -400,10 +400,14 @@
             dataFine: dfISO,
             oraInizio: selectedDates.oraRitiro,
             oraFine: selectedDates.oraRiconsegna,
-            // passa l’elenco targhe per ridurre il set al parco corrente
             targhe: (allVehicles || []).map(v => v.Targa).join(',')
           };
-          // Usa secureGet: aggiunge token in query e gestisce fallback
+          // Validazione parametri obbligatori: evita pending
+          if (!params.dataInizio || !params.dataFine) {
+            if (spinner) spinner.classList.add('d-none');
+            if (textEl) textEl.textContent = 'Seleziona le date per calcolare la fascia utile';
+          } else {
+          // Usa secureGet: invoca solo con parametri validi
           window.secureGet('firstAvailableSlot', params).then(res => {
             if (!banner) return;
             const spinner2 = document.getElementById('first-slot-spinner');
@@ -433,6 +437,7 @@
               if (text3) text3.textContent = 'Impossibile calcolare la prima fascia utile';
             }
           });
+          }
         } catch (e) {
           console.warn('Banner prima fascia utile non disponibile', e);
         }
@@ -448,7 +453,13 @@
           oraInizio: selectedDates.oraRitiro,
           oraFine: selectedDates.oraRiconsegna
         };
-        const bulkResp = await window.secureGet('bulkCheckDisponibilita', bulkParams).catch(err => { console.error('Errore bulk check:', err); return { success:false, results:[] }; });
+        // Validazione parametri bulk
+        let bulkResp = { success:false, results:[] };
+        if (bulkParams.targhe && bulkParams.dataInizio && bulkParams.dataFine) {
+          bulkResp = await window.secureGet('bulkCheckDisponibilita', bulkParams).catch(err => { console.error('Errore bulk check:', err); return { success:false, results:[] }; });
+        } else {
+          console.warn('Parametri bulkCheckDisponibilita mancanti, salto chiamata');
+        }
         const results = (bulkResp && bulkResp.success && Array.isArray(bulkResp.results)) ? bulkResp.results : [];
         // memorizza risultati per suggerimenti (compatibilità struttura precedente)
         window.lastCheckResults = results.map(r => ({ v: allVehicles.find(v => String(v.Targa) === String(r.targa)), checkResp: { success:true, disponibile:r.disponibile } }));
@@ -505,13 +516,7 @@
     // Suggerimenti di disponibilità vicine
     const FRONTEND_FASCE_ORARIE = ["08:00","10:00","12:00","14:00","16:00","18:00","20:00","22:00"];
     function toISODate(d){
-      try{
-        if (typeof d === 'string') return d;
-        const y = d.getFullYear();
-        const m = String(d.getMonth()+1).padStart(2,'0');
-        const day = String(d.getDate()).padStart(2,'0');
-        return `${y}-${m}-${day}`;
-      }catch(_){ return ''; }
+      try{ return window.toISO ? window.toISO(d) : ''; }catch(_){ return ''; }
     }
     function makeDate(dateStr, timeStr){ return new Date(`${dateStr}T${timeStr}:00`); }
     function addDaysISO(dateStr, days){ const d = new Date(`${dateStr}T00:00:00`); d.setDate(d.getDate()+days); return toISODate(d); }

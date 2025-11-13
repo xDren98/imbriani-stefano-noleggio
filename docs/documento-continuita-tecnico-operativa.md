@@ -47,7 +47,7 @@ Data: 2025‑11‑13
     - TTL cache: `getVeicoli` e `getPrenotazioni` 120s; snapshot 120s; `getCliente` 60s
   - Frontend Admin:
     - Caricamento `shared-utils.js` + `dist/admin.bundle.js` (ESM)
-    - `diagnostics.html` con pannello Riepilogo (KPI tempi/cache/pass/fail)
+  - `docs/diagnostics.html` con pannello Riepilogo (KPI tempi/cache/pass/fail)
 
 ## 2. Punti di Ripristino
 - Punto esatto da cui riprendere
@@ -82,7 +82,7 @@ Data: 2025‑11‑13
 
 - Procedure di verifica post‑migrazione
   - Frontend:
-    - Aprire `diagnostics.html` e lanciare “Esegui tutti i test”
+    - Aprire `docs/diagnostics.html` e lanciare “Esegui tutti i test”
     - Verificare KPI in “Riepilogo” (tempi medi, cache HIT/STALE/MISS, pass/fail)
   - Backend:
     - Testare endpoint `health`, `version`, `debugAuth`, `search` (clienti/veicoli/prenotazioni)
@@ -96,7 +96,7 @@ Data: 2025‑11‑13
   - Codice backend: `backend/*` (Apps Script), inclusi `Auth.gs`, `Helpers.gs`, `EndpointsGet.gs`, `EndpointsPost.gs`, servizi
   - Proxy: `proxy-worker.js` (se migra l’infrastruttura Workers)
   - Frontend admin: `admin.html`, `shared-utils.js`, moduli (`admin-validation.js`, `admin-api.js`, `admin-ui.js`, `admin-scripts.js`), bundle `dist/admin.bundle.js`
-  - Diagnostica: `diagnostics.html`
+  - Diagnostica: `docs/diagnostics.html`
   - Configurazioni: Script Properties (`SPREADSHEET_ID`, `TOKEN`, `TOKENS`), `vercel.json` se usato, `.clasp.json`
   - Dati: fogli Google (`PRENOTAZIONI`, `CLIENTI`, `PULMINI`, `MANUTENZIONI`)
 

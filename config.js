@@ -13,9 +13,8 @@
     VERSION: '8.9',
     // Usa sempre il proxy per evitare preflight CORS verso Apps Script
   API_URL: ENDPOINTS.PROXY,
-  TOKEN: 'imbriani_secret_2025',
-  // Mantieni compatibilità con shared-utils (usa AUTH_TOKEN)
-  AUTH_TOKEN: 'imbriani_secret_2025',
+  TOKEN: '',
+  AUTH_TOKEN: '',
     SHEETS_ID: '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns',
     PHONE_NUMBER: '+393286589618',
     WHATSAPP_NUMBER: '+393286589618'

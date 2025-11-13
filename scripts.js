@@ -22,7 +22,7 @@
           else alert('Inserisci un CF di 16 caratteri'); 
           return; 
         }
-        const token = (window.CONFIG && window.CONFIG.AUTH_TOKEN) ? window.CONFIG.AUTH_TOKEN : 'imbriani_secret_2025';
+        const token = (window.CONFIG && window.CONFIG.AUTH_TOKEN) ? window.CONFIG.AUTH_TOKEN : '';
         const url = (window.CONFIG && window.CONFIG.API_URL) ? window.CONFIG.API_URL : 'https://imbriani-proxy.dreenhd.workers.dev';
         console.log('[LOGIN] Invio richiesta...', { url, token: token ? '***' : '(vuoto)' });
         

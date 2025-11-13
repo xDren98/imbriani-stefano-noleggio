@@ -48,62 +48,18 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - serve from cache, fallback to network
-self.addEventListener('fetch', (event) => {
-  const req = event.request;
-  const acceptHeader = req.headers.get('accept') || '';
-
-  // Network-first per le pagine HTML per evitare contenuti obsoleti
-  if (req.mode === 'navigate' || acceptHeader.includes('text/html')) {
-    event.respondWith(
-      fetch(req)
-        .then((networkResp) => {
-          // Cache copia per fallback offline
-          const respClone = networkResp.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(req, respClone));
-          return networkResp;
-        })
-        .catch(() => {
-          // Fallback: pagina dalla cache o index
-          return caches.match(req).then((cached) => cached || caches.match('./index.html'));
-        })
-    );
-    return;
+try {
+  importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.5.4/workbox-sw.js');
+  if (self.workbox) {
+    workbox.setConfig({ debug: false });
+    workbox.core.skipWaiting();
+    workbox.core.clientsClaim();
+    workbox.routing.registerRoute(({request}) => request.mode === 'navigate', new workbox.strategies.NetworkFirst({ cacheName:'html', networkTimeoutSeconds:3 }));
+    workbox.routing.registerRoute(({url, request}) => request.method === 'GET' && url.hostname === 'imbriani-proxy.dreenhd.workers.dev', new workbox.strategies.StaleWhileRevalidate({ cacheName:'api', plugins:[ new workbox.expiration.ExpirationPlugin({ maxEntries:200, maxAgeSeconds:60 }) ] }));
+    workbox.routing.registerRoute(({request}) => ['style','script','image'].includes(request.destination), new workbox.strategies.CacheFirst({ cacheName:'assets', plugins:[ new workbox.cacheableResponse.CacheableResponsePlugin({ statuses:[0,200] }), new workbox.expiration.ExpirationPlugin({ maxEntries:300, maxAgeSeconds:604800 }) ] }));
+    workbox.routing.registerRoute(({url}) => url.origin.startsWith('https://fonts.googleapis.com') || url.origin.startsWith('https://fonts.gstatic.com'), new workbox.strategies.StaleWhileRevalidate({ cacheName:'fonts' }));
   }
-
-  // Cache-first per asset statici
-  event.respondWith(
-    caches.match(req).then((cached) => {
-      if (cached) return cached;
-      // API caching: stale-while-revalidate per GET verso proxy
-      try {
-        const isApi = req.method === 'GET' && (req.url.startsWith('https://imbriani-proxy.dreenhd.workers.dev'));
-        if (isApi) {
-          return caches.match(req).then((apiCached) => {
-            const networkFetch = fetch(req).then((networkResp) => {
-              if (networkResp && networkResp.status === 200) {
-                const respClone = networkResp.clone();
-                caches.open(CACHE_NAME).then((cache) => cache.put(req, respClone));
-              }
-              return networkResp;
-            }).catch(() => apiCached || Promise.reject('network-error'));
-            return apiCached ? apiCached : networkFetch;
-          });
-        }
-      } catch(_) { }
-      return fetch(req)
-        .then((networkResp) => {
-          if (!networkResp || networkResp.status !== 200 || networkResp.type !== 'basic') {
-            return networkResp;
-          }
-          const respClone = networkResp.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(req, respClone));
-          return networkResp;
-        })
-        .catch(() => caches.match('./index.html'));
-    })
-  );
-});
+} catch(_) { }
 
 // Push notification event handler
 self.addEventListener('push', (event) => {

@@ -24,13 +24,13 @@ function getScriptProp(key, fallback) {
 }
 
 const CONFIG = {
-  VERSION: '8.9.6',
-  SPREADSHEET_ID: getScriptProp('SPREADSHEET_ID', '1VAUJNVwxX8OLrkQVJP7IEGrqLIrDjJjrhfr7ABVqtns'),
-  TOKEN: getScriptProp('TOKEN', 'imbriani_secret_2025'),
+  VERSION: '8.9.7',
+  SPREADSHEET_ID: getScriptProp('SPREADSHEET_ID', null),
+  TOKEN: getScriptProp('TOKEN', null),
   // Elenco token consentiti per rotazione; supporta CSV o JSON in Script Properties (chiave: TOKENS)
   TOKENS: (function(){
     var raw = getScriptProp('TOKENS', null);
-    if (!raw || String(raw).trim() === '') return [getScriptProp('TOKEN', 'imbriani_secret_2025')];
+    if (!raw || String(raw).trim() === '') return [];
     try {
       var parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed.map(String);
@@ -131,24 +131,22 @@ const CONFIG = {
   
   GOOGLE: {
     // API Key per Google Cloud Vision (OCR documenti)
-    // Costi: ~$1.50 per 1000 immagini
-    // Dashboard: https://console.cloud.google.com/apis/credentials
-    VISION_API_KEY: getScriptProp('GOOGLE_VISION_API_KEY', 'AIzaSyA0xqCwwA3ywzW8rOIErg1WS6CnjQeUU2Y')
+    VISION_API_KEY: getScriptProp('GOOGLE_VISION_API_KEY', null)
   },
   
   TELEGRAM: {
-    BOT_TOKEN: getScriptProp('TELEGRAM_BOT_TOKEN', '8029941478:AAGR808kmlCeyw5j5joJn0T_MLKL25qwM0o'),
-    CHAT_ID: getScriptProp('TELEGRAM_CHAT_ID', '203195623')
+    BOT_TOKEN: getScriptProp('TELEGRAM_BOT_TOKEN', null),
+    CHAT_ID: getScriptProp('TELEGRAM_CHAT_ID', null)
   },
   
   EMAIL: {
     FROM_NAME: getScriptProp('EMAIL_FROM_NAME', 'Imbriani Stefano Noleggio'),
-    FROM_EMAIL: getScriptProp('EMAIL_FROM_EMAIL', 'imbrianistefanonoleggio@gmail.com')
+    FROM_EMAIL: getScriptProp('EMAIL_FROM_EMAIL', null)
   },
   
   PDF: {
-    TEMPLATE_DOC_ID: getScriptProp('PDF_TEMPLATE_DOC_ID', '1JEpqJZq9SnmmBWAucrRQ-CAzditSK3fL7HXKbWe-kcM'),
-    PDF_FOLDER_ID: getScriptProp('PDF_FOLDER_ID', '1bYLuvfydAUaKsZpZVrFq-H3uRT66oo98'),
+    TEMPLATE_DOC_ID: getScriptProp('PDF_TEMPLATE_DOC_ID', null),
+    PDF_FOLDER_ID: getScriptProp('PDF_FOLDER_ID', null),
     TIMEZONE: 'Europe/Rome',
     VEICOLI: {
       'DN391FW': { marca: 'Fiat', modello: 'Ducato' },
@@ -168,3 +166,18 @@ const CONFIG = {
     DEBUG_OTP: String(getScriptProp('DEBUG_OTP', 'false')) === 'true' // mostra OTP in risposta per test
   }
 };
+function setConfigProps(post){
+  var allowed=['SPREADSHEET_ID','GOOGLE_VISION_API_KEY','TELEGRAM_BOT_TOKEN','TELEGRAM_CHAT_ID','EMAIL_FROM_EMAIL','EMAIL_FROM_NAME','PDF_TEMPLATE_DOC_ID','PDF_FOLDER_ID','SESSION_TTL_MINUTES','JWT_SECRET'];
+  var p=PropertiesService.getScriptProperties();
+  var body=post||{};
+  var setList=[];
+  for(var i=0;i<allowed.length;i++){
+    var k=allowed[i];
+    if(body.hasOwnProperty(k)){
+      var v=String(body[k]||'').trim();
+      p.setProperty(k,v);
+      setList.push(k);
+    }
+  }
+  return createJsonResponse({success:true,updated:setList});
+}

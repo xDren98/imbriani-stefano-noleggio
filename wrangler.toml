@@ -1,0 +1,5 @@
+name = "imbriani-proxy"
+main = "proxy-worker.js"
+compatibility_date = "2025-11-13"
+workers_dev = true
+

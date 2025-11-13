@@ -379,7 +379,7 @@
     async function runDevLogin(){
       try {
         if (!isLocalHost()) { appendResult('Dev login', { message: 'Disponibile solo su localhost' }, false); return; }
-        const token = (window.CONFIG && (window.CONFIG.AUTH_TOKEN || window.CONFIG.TOKEN)) || 'imbriani_secret_2025';
+        const token = (window.CONFIG && (window.CONFIG.AUTH_TOKEN || window.CONFIG.TOKEN)) || 'dev_token_local';
         const name = document.getElementById('admin-name')?.value || 'DevAdmin';
         const session = { name, token, role: 'admin', exp: new Date(Date.now()+60*60*1000).toISOString(), timestamp: Date.now() };
         try { localStorage.setItem('imbriani_admin_session', JSON.stringify(session)); } catch(_){}

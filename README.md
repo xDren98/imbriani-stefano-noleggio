@@ -112,8 +112,9 @@ npx http-server -p 8000 -c-1
 ```
 
 #### Produzione
-- Deploy su hosting statico (GitHub Pages, Vercel, Netlify)
-- Configura proxy Cloudflare Worker per CORS
+- Hosting statico (GitHub Pages / qualsiasi CDN)
+- Proxy Cloudflare Worker per CORS e cookie HttpOnly
+- API URL puntato al Worker (es. `https://imbriani-proxy.dreenhd.workers.dev`)
 
 ---
 
@@ -130,14 +131,20 @@ CONFIG.PDF.TEMPLATE_DOC_ID = 'YOUR_TEMPLATE_ID'
 ### **Frontend (`config.js`)**
 ```javascript
 const CONFIG = {
-  API_URL: 'https://your-proxy.workers.dev',
+  API_URL: 'https://imbriani-proxy.dreenhd.workers.dev',
   TOKEN: 'YOUR_SECRET_TOKEN',
   SHEETS_ID: 'YOUR_SPREADSHEET_ID'
 };
 ```
 
 ### **Proxy Cloudflare Worker**
-Vedi: [`proxy-worker.js`](docs/proxy-setup.md) per configurazione CORS
+Vedi: [`docs/proxy-setup.md`](docs/proxy-setup.md) per configurazione CORS e pubblicazione.
+Comandi utili:
+```bash
+npm run proxy:publish   # deploy Worker
+npm run gas:push        # push backend
+npm run gas:deploy-auto # aggiorna deployment GAS senza cambiare URL
+```
 
 ---
 
@@ -148,7 +155,7 @@ Vedi: [`proxy-worker.js`](docs/proxy-setup.md) per configurazione CORS
 GET /exec?action=health
 GET /exec?action=getVeicoli&token=XXX
 GET /exec?action=getPrenotazioni&token=XXX
-GET /exec?action=checkDisponibilita&targa=XX&dataInizio=YY&dataFine=ZZ
+GET /exec?action=disponibilita&targa=XX&dataInizio=YY&dataFine=ZZ
 ```
 
 ### **POST**

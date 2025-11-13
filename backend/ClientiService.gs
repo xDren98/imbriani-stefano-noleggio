@@ -474,7 +474,10 @@ function login(post){
       inizioValiditaPatente: val('DATA_INIZIO_PATENTE')||'',
       scadenzaPatente: val('SCADENZA_PATENTE')||''
     };
-    return createJsonResponse({ success:true, user:user });
+    var exp = nowSec() + (CONFIG && CONFIG.SECURITY ? (CONFIG.SECURITY.SESSION_TTL_MINUTES||1440)*60 : 86400);
+    var payload = { cf: cf, role: 'user', exp: exp, iat: nowSec() };
+    var jwt = createJWT(payload);
+    return createJsonResponse({ success:true, user:user, token: jwt, exp: new Date(exp*1000).toISOString() });
   }catch(err){
     return createJsonResponse({ success:false, message:'Errore login: ' + err.message, errorCode:'GENERIC_ERROR' }, 500);
   }

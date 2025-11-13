@@ -70,9 +70,9 @@ Tutti i Services usano:
 
 ---
 
-## 🛠️ Setup su Google Apps Script
+## 🛠️ Setup e Deploy
 
-### **Metodo 1: Copia Manuale**
+### **Metodo 1: Copia Manuale (GAS)**
 
 1. Apri [Google Apps Script](https://script.google.com)
 2. Crea nuovo progetto "Imbriani Backend v8.9"
@@ -81,7 +81,7 @@ Tutti i Services usano:
    - Copia il contenuto dal file GitHub
    - Incolla nell'editor
    - Salva con stesso nome (es. `Config`)
-4. Deploy come Web App
+4. Deploy come Web App (Who has access: Anyone)
 
 ### **Metodo 2: clasp (CLI)**
 
@@ -100,6 +100,13 @@ cp backend/*.gs ./
 
 # Push su Apps Script
 clasp push
+
+# Crea nuova versione
+clasp version "auto-deploy"
+
+# Aggiorna la deployment esistente senza cambiare URL
+# (sostituisci DEPLOYMENT_ID con l'ID dell'URL in uso)
+clasp deploy -i DEPLOYMENT_ID -V <versionNumber>
 ```
 
 ---
@@ -160,14 +167,10 @@ POST {
 
 ## 🧪 Testing
 
-### **Test Endpoint Health**
+### **Test tramite Proxy**
 ```bash
-curl "https://script.google.com/.../exec?action=health"
-```
-
-### **Test Autenticazione**
-```bash
-curl "https://script.google.com/.../exec?action=version"
+curl "https://<tuo-worker>.workers.dev/?action=health"
+curl "https://<tuo-worker>.workers.dev/?action=version"
 ```
 
 ### **Test con Token**

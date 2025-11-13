@@ -6,7 +6,7 @@
   <title>Area Personale — Imbriani Stefano Noleggio</title>
   <meta name="description" content="Area riservata clienti - Imbriani Stefano Noleggio">
   <meta name="theme-color" content="#0066FF">
-  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚐</text></svg>">
+  <link rel="apple-touch-icon" href="pwa/icons/apple-icon-180x180.png">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" integrity="sha512-RXf+QSDCUQs6b4v5A9R2v6KUVKp1R9+XcMgy7pYzFSHLn3U4a8gE9F7R5C3XxR28Z59TLEEqzvvR1vpuYeIRsA==" crossorigin="anonymous">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -346,7 +346,6 @@
 
     // 🇮🇹 Helper per formattare date in formato italiano in tutta la pagina
     function fmtDateIT(d) {
-      if (!d) return 'N/A';
       try {
         const out = (window.formatDateIT ? window.formatDateIT(d) : new Date(d).toLocaleDateString('it-IT'));
         return out || 'N/A';
@@ -355,39 +354,17 @@
 
     // Parsing robusto per stringhe dd/mm/yyyy o ISO yyyy-mm-dd
     function parseDateAny(value){
-      if (!value) return null;
-      if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
-      const s = String(value);
-      if (s.indexOf('/') > -1) {
-        const m = s.match(/^([0-3]?\d)\/([0-1]?\d)\/(\d{4})$/);
-        if (m) {
-          const d = parseInt(m[1],10), mo = parseInt(m[2],10)-1, y = parseInt(m[3],10);
-          const dt = new Date(y, mo, d);
-          return isNaN(dt.getTime()) ? null : dt;
-        }
-      }
-      const dt2 = new Date(s);
-      return isNaN(dt2.getTime()) ? null : dt2;
+      return window.parseDateAny ? window.parseDateAny(value) : null;
     }
 
     async function loadProfile(){
       const profileEl = document.getElementById('user-profile');
       function parseItalianDate(str){
         if (!str || typeof str !== 'string') return null;
-        const m = str.match(/^([0-3]?\d)\/([0-1]?\d)\/(\d{4})$/);
-        if (!m) return null;
-        const d = parseInt(m[1], 10), mo = parseInt(m[2], 10) - 1, y = parseInt(m[3], 10);
-        const dt = new Date(y, mo, d);
-        return isNaN(dt.getTime()) ? null : dt;
+        return window.parseDateAny ? window.parseDateAny(str) : null;
       }
       function tryParseDate(raw, formatted){
-        let d = null;
-        if (raw) {
-          d = (window.parseDateAny ? parseDateAny(raw) : new Date(raw));
-          if (!d || isNaN(d.getTime())) d = null;
-        }
-        if (!d && formatted) d = parseItalianDate(formatted);
-        return d;
+        return window.parseDateAny ? window.parseDateAny(raw || formatted) : null;
       }
       function splitAddress(addr){
         if (!addr || typeof addr !== 'string') return { via:'', civico:'' };

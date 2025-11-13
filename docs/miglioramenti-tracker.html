@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tracker Miglioramenti – Imbriani Stefano Noleggio</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+body{background:#ffffff;color:#0f172a;font-family:Inter,system-ui,Segoe UI,Roboto,sans-serif}
+.container{max-width:1100px}
+.card{background:#ffffff;border:1px solid #e5e7eb;border-radius:12px}
+.badge-area{background:#eef2ff;color:#1e3a8a}
+.badge-status{background:#f1f5f9;color:#0f172a}
+.badge-priority{background:#dbeafe;color:#1e40af}
+.filter-bar{gap:.75rem}
+.item-card{margin-bottom:1rem}
+.ref{font-family:monospace;font-size:.9em;color:#334155}
+.hidden{display:none}
+input.form-control,select.form-select{background:#ffffff;border:1px solid #cbd5e1;color:#0f172a}
+input.form-control::placeholder{color:#64748b}
+</style>
+</head>
+<body>
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+      <h1 class="h4 fw-bold mb-1">Tracker Miglioramenti</h1>
+      <div class="text-muted">Riferimento ufficiale per aperture task e stato avanzamento</div>
+    </div>
+    <div class="text-end">
+      <div class="small">Versione documento: <span id="doc-version">-</span></div>
+      <div class="small">Ultimo aggiornamento: <span id="doc-updated">-</span></div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="d-flex flex-wrap filter-bar">
+        <div class="flex-grow-1">
+          <input id="filter-search" class="form-control form-control-sm" placeholder="Cerca titolo/descrizione/note">
+        </div>
+        <select id="filter-area" class="form-select form-select-sm" style="max-width:180px"></select>
+        <select id="filter-priority" class="form-select form-select-sm" style="max-width:160px"></select>
+        <select id="filter-status" class="form-select form-select-sm" style="max-width:180px"></select>
+        <button id="clear-filters" class="btn btn-outline-light btn-sm">Pulisci filtri</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="items"></div>
+
+  <div class="card mt-4">
+    <div class="card-body">
+      <h2 class="h6 fw-bold">Istruzioni operative</h2>
+      <ul class="small mb-0">
+        <li>Aggiornare stato e note per ogni voce al completamento parziale o totale.</li>
+        <li>Mantenere lo storico modifiche indicando data e autore; ogni aggiornamento crea una nuova entry di storico.</li>
+        <li>Collegare la voce ai task aperti inserendo identificativi o link nel campo "tasks".</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script type="application/json" id="tracker-data">
+{
+  "version": "1.5.2",
+  "updated_at": "2025-11-13",
+  "items": [
+    {
+      "id": "SEC-001",
+      "area": "Sicurezza",
+      "title": "Rimuovere segreti dal codice e centralizzare su Script Properties",
+      "priority": "Alta",
+      "status": "Completato",
+      "identified_at": "2025-11-13",
+      "description": "Eliminare chiavi/API token dal repo e dal frontend. Leggere segreti da Script Properties lato Apps Script. Introdurre rotazione e scadenze delle chiavi.",
+      "technical_notes": "Sostituire fallback hardcoded in Config.gs con lettura obbligatoria da PropertiesService; rimuovere AUTH_TOKEN da config.js e passare a sessioni firmate.",
+      "references": [
+        {"path":"backend/Config.gs","line":136},
+        {"path":"backend/Config.gs","line":139},
+        {"path":"backend/Config.gs","line":146},
+        {"path":"backend/Config.gs","line":150},
+        {"path":"config.js","line":16}
+      ],
+      "complexity_estimate": "Media",
+      "tasks": [],
+      "history": [
+        {"date":"2025-11-13","author":"Antonio","change":"Rimossi token statici dal client e non più propagati in query/body; fallback token reso nullo","version":"1.0.2"},
+        {"date":"2025-11-13","author":"Antonio","change":"Rimossi fallback di segreti in backend/Config.gs (API key, token, chat id, pdf ids, spreadsheet id)","version":"1.5.0"}
+        ,{"date":"2025-11-13","author":"Antonio","change":"Aggiunti endpoint setConfigProps (POST, admin) e configStatus (GET) per gestione e verifica Script Properties","version":"1.5.2"}
+      ]
+    },
+    {
+      "id": "SEC-002",
+      "area": "Sicurezza",
+      "title": "Rafforzare autenticazione e gestione sessioni (JWT + cookie HttpOnly)",
+      "priority": "Alta",
+      "status": "Da fare",
+      "identified_at": "2025-11-13",
+      "description": "Introdurre JWT con scadenza e ruoli; memorizzazione via cookie HttpOnly/SameSite; rimuovere token statico lato client. Validazione lato proxy e backend.",
+      "technical_notes": "Generare token su adminLogin, firmare con chiave; il proxy inoltra solo richieste con token valido. Il frontend non deve leggere/gestire il cookie.",
+      "references": [
+        {"path":"admin-scripts.js","line":1485},
+        {"path":"backend/Auth.gs","line":1}
+      ],
+      "complexity_estimate": "Alta",
+      "tasks": [],
+      "history": [
+        {"date":"2025-11-13","author":"Antonio","change":"Abilitato gating admin su azioni di scrittura (EndpointsPost)","version":"1.0.3"},
+        {"date":"2025-11-13","author":"Antonio","change":"Aggiunto supporto JWT firmati (Auth.gs) e cookie HttpOnly via proxy per adminLogin/login","version":"1.1.0"},
+        {"date":"2025-11-13","author":"Antonio","change":"Login cliente ora ritorna JWT (ClientiService.login)","version":"1.1.1"},
+        {"date":"2025-11-13","author":"Antonio","change":"Proxy richiede credenziali per scritture e gating utente su aggiornaAutistiPubblico","version":"1.4.0"}
+      ]
+    },
+    {
+      "id": "SEC-003",
+      "area": "Sicurezza",
+      "title": "Rimuovere fallback JSONP e script injection",
+      "priority": "Alta",
+      "status": "Da fare",
+      "identified_at": "2025-11-13",
+      "description": "Eliminare JSONP fallback su client e risposte callback su backend GET. Mantenere unicamente risposte JSON via proxy con CORS gestito.",
+      "technical_notes": "Rimuovere secureGetDirectFallback e path callback in EndpointsGet; adeguare CSP. Testare tutte le azioni GET su proxy.",
+      "references": [
+        {"path":"shared-utils.js","line":474},
+        {"path":"backend/EndpointsGet.gs","line":2}
+      ],
+      "complexity_estimate": "Media",
+      "tasks": [],
+      "history": [
+        {"date":"2025-11-13","author":"Antonio","change":"Disabilitato fallback JSONP in secureGet (client)","version":"1.0.1"},
+        {"date":"2025-11-13","author":"Antonio","change":"Rimossi callback JSONP lato backend (EndpointsGet)","version":"1.4.0"}
+      ]
+    },
+    {
+      "id": "CORE-001",
+      "area": "Refactoring",
+      "title": "Centralizzare utilità data/ora e formattazione",
+      "priority": "Media",
+      "status": "Da fare",
+      "identified_at": "2025-11-13",
+      "description": "Creare modulo unico per parse/format/normalize date; rimuovere duplicati in admin/frontend e uniformare timezone.",
+      "technical_notes": "Estrarre parseDateAny, formatDateIT, toISO in modulo riusabile e importarlo nei punti critici (admin-scripts, veicoli.html, dati-autisti.html).",
+      "references": [
+        {"path":"shared-utils.js","line":85},
+        {"path":"shared-utils.js","line":193},
+        {"path":"admin-scripts.js","line":357}
+      ],
+      "complexity_estimate": "Media",
+      "tasks": [],
+      "history": [
+        {"date":"2025-11-13","author":"Antonio","change":"Unificato normalizzazione date/toISO in dati-autisti.html usando shared utils","version":"1.0.4"},
+        {"date":"2025-11-13","author":"Antonio","change":"Esteso refactoring date utils in area-personale.html e veicoli.html","version":"1.0.5"},
+        {"date":"2025-11-13","author":"Antonio","change":"Allineate funzioni date (fmtDateIT/toISODate) in admin-scripts.js a shared utils","version":"1.0.6"}
+      ]
+    },
+    {
+      "id": "CORE-002",
+      "area": "Refactoring",
+      "title": "Ridurre uso di globals e accoppiamento tra moduli",
+      "priority": "Media",
+      "status": "Da fare",
+      "identified_at": "2025-11-13",
+      "description": "Passare a moduli ES con import/exports per renderer, store, UI; evitare window.* e dispatch custom non tipizzato.",
+      "technical_notes": "Modularizzare admin-renderer, admin-store; definire interfacce minime; introdurre factory per store/event bus.",
+      "references": [
+        {"path":"admin-store.js","line":1},
+        {"path":"admin-renderer.js","line":1},
+        {"path":"admin-scripts.js","line":1478}
+      ],
+      "complexity_estimate": "Media",
+      "tasks": [],
+      "history": []
+    },
+    {
+      "id": "PERF-001",
+      "area": "Performance",
+      "title": "Migliorare strategia cache su proxy e dataset",
+      "priority": "Media",
+      "status": "Da fare",
+      "identified_at": "2025-11-13",
+      "description": "Introdurre ETag/Cache-Control lato Apps Script per GET idempotenti; normalizzare invalidazioni nel proxy su eventi di scrittura.",
+      "technical_notes": "Aggiungere intestazioni di validazione; riscrivere purgeCacheFor per target preciso; gestire revalidate asincrono.",
+      "references": [
+        {"path":"proxy-worker.js","line":110},
+        {"path":"proxy-worker.js","line":235}
+      ],
+      "complexity_estimate": "Media",
+      "tasks": [],
+      "history": [
+        {"date":"2025-11-13","author":"Antonio","change":"Introdotta gestione ETag/304 nel proxy, TTL dinamici per azioni e purge mirato delle cache","version":"1.2.0"}
+      ]
+    },
+    {
+      "id": "PWA-001",
+      "area": "PWA",
+      "title": "Completare push notifications (VAPID + backend salvataggio)",
+      "priority": "Media",
+      "status": "Da fare",
+      "identified_at": "2025-11-13",
+      "description": "Generare chiavi VAPID, endpoint per salvataggio subscription e routing notifiche su eventi prenotazione.",
+      "technical_notes": "Aggiornare VAPID_PUBLIC_KEY, creare azione saveSubscription su Apps Script, associare utente/CF alla subscription.",
+      "references": [
+        {"path":"pwa/push-notifications.js","line":6}
+      ],
+      "complexity_estimate": "Media",
+      "tasks": [],
+      "history": []
+    },
+    {
+      "id": "PWA-002",
+      "area": "PWA",
+      "title": "Rivedere strategie cache SW con Workbox",
+      "priority": "Media",
+      "status": "Da fare",
+      "identified_at": "2025-11-13",
+      "description": "App Shell per documenti, runtime caching su API con stale-while-revalidate, precache revisionato.",
+      "technical_notes": "Integrare Workbox build; mantenere network-first su HTML; definire route su proxy per GET cache.",
+      "references": [
+        {"path":"pwa/service-worker.js","line":51}
+      ],
+      "complexity_estimate": "Media",
+      "tasks": [],
+      "history": [
+        {"date":"2025-11-13","author":"Antonio","change":"Integrato Workbox nel service worker: NetworkFirst per HTML, StaleWhileRevalidate per API proxy, CacheFirst per assets","version":"1.3.0"}
+      ]
+    },
+    {
+      "id": "UX-001",
+      "area": "UI/UX",
+      "title": "Accessibilità e SEO: ARIA, alt, contrasto e struttura",
+      "priority": "Bassa",
+      "status": "Da fare",
+      "identified_at": "2025-11-13",
+      "description": "Audit e adeguamenti di accessibilità; aggiungere ruoli ARIA a modali/toast; testi alt e heading coerenti.",
+      "technical_notes": "Usare axe/Lighthouse; aggiornare componenti principali e admin sidebar; validare contrasto attuale.",
+      "references": [
+        {"path":"index.html","line":1},
+        {"path":"admin.html","line":1}
+      ],
+      "complexity_estimate": "Bassa",
+      "tasks": [],
+      "history": []
+    },
+    {
+      "id": "BUILD-001",
+      "area": "Performance",
+      "title": "Minify e splitting bundle Admin",
+      "priority": "Bassa",
+      "status": "Da fare",
+      "identified_at": "2025-11-13",
+      "description": "Aggiungere minificazione Rollup e suddividere moduli admin per caricamento lazily.",
+      "technical_notes": "Integrare plugin terser; creare più entry points; controllare integrity e sourcemaps.",
+      "references": [
+        {"path":"rollup.config.js","line":3},
+        {"path":"package.json","line":7}
+      ],
+      "complexity_estimate": "Bassa",
+      "tasks": [],
+      "history": []
+    },
+    {
+      "id": "UX-002",
+      "area": "UI/UX",
+      "title": "Sistema di messaggistica unificato per toast/loader",
+      "priority": "Bassa",
+      "status": "Da fare",
+      "identified_at": "2025-11-13",
+      "description": "Uniformare livelli/severità e codici errore per le notifiche utente in tutto il sito e admin.",
+      "technical_notes": "Creare message bus con livelli standard; sostituire showToast locali con wrapper comune.",
+      "references": [
+        {"path":"shared-utils.js","line":136},
+        {"path":"admin-scripts.js","line":770}
+      ],
+      "complexity_estimate": "Bassa",
+      "tasks": [],
+      "history": []
+    }
+  ]
+}
+</script>
+
+<script>
+const el = document.getElementById('tracker-data');
+const data = JSON.parse(el.textContent);
+const itemsEl = document.getElementById('items');
+const fArea = document.getElementById('filter-area');
+const fPriority = document.getElementById('filter-priority');
+const fStatus = document.getElementById('filter-status');
+const fSearch = document.getElementById('filter-search');
+document.getElementById('doc-version').textContent = data.version;
+document.getElementById('doc-updated').textContent = data.updated_at;
+const areas = [...new Set(data.items.map(i=>i.area))];
+const prios = [...new Set(data.items.map(i=>i.priority))];
+const stats = [...new Set(data.items.map(i=>i.status))];
+function fillSelect(sel, placeholder, values){ sel.innerHTML = ''; const o = document.createElement('option'); o.value=''; o.textContent=placeholder; sel.appendChild(o); values.forEach(v=>{ const opt=document.createElement('option'); opt.value=v; opt.textContent=v; sel.appendChild(opt); }); }
+fillSelect(fArea,'Area',areas); fillSelect(fPriority,'Priorità',prios); fillSelect(fStatus,'Stato',stats);
+function matchText(i, q){ if(!q) return true; q=q.toLowerCase(); const s=[i.title,i.description,i.technical_notes].join(' ').toLowerCase(); return s.includes(q); }
+function render(){ const area=fArea.value, pr=fPriority.value, st=fStatus.value, q=fSearch.value.trim(); const filtered = data.items.filter(i=> (!area||i.area===area) && (!pr||i.priority===pr) && (!st||i.status===st) && matchText(i,q)); itemsEl.innerHTML = filtered.map(i=>{
+  const refs = (i.references||[]).map(r=>`<span class="ref">${r.path}:${r.line}</span>`).join(' • ');
+  const tasks = (i.tasks||[]).map(t=>`<span class="badge bg-secondary me-1">${t}</span>`).join('');
+  const hist = (i.history||[]).map(h=>`<div class="small">${h.date} — ${h.author}: ${h.change} (v${h.version})</div>`).join('') || '<div class="small text-muted">Nessuna modifica</div>';
+  return `
+    <div class="card item-card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div class="fw-bold">${i.id} — ${i.title}</div>
+          <div class="d-flex flex-wrap gap-2">
+            <span class="badge badge-area">${i.area}</span>
+            <span class="badge badge-priority">${i.priority}</span>
+            <span class="badge badge-status">${i.status}</span>
+          </div>
+        </div>
+        <div class="small text-muted mb-2">Identificato il ${i.identified_at} • Complessità: ${i.complexity_estimate}</div>
+        <div class="mb-2">${i.description}</div>
+        <div class="mb-2"><strong>Note tecniche:</strong> ${i.technical_notes}</div>
+        <div class="mb-2"><strong>Riferimenti:</strong> ${refs}</div>
+        <div class="mb-2"><strong>Task collegati:</strong> ${tasks||'<span class="text-muted">Nessuno</span>'}</div>
+        <button class="btn btn-outline-light btn-sm" data-toggle="hist">Storico modifiche</button>
+        <div class="hist hidden mt-2">${hist}</div>
+      </div>
+    </div>`;
+}).join('');
+Array.from(itemsEl.querySelectorAll('button[data-toggle="hist"]')).forEach(b=>{ b.onclick=()=>{ const n=b.nextElementSibling; n.classList.toggle('hidden'); }; }); }
+render();
+[fArea,fPriority,fStatus].forEach(s=> s.onchange=render);
+fSearch.oninput=render;
+document.getElementById('clear-filters').onclick = ()=>{ fArea.value=''; fPriority.value=''; fStatus.value=''; fSearch.value=''; render(); };
+</script>
+</body>
+</html>

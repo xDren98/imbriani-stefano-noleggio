@@ -1,5 +1,7 @@
 const POST_ACTIONS = new Set([
-  'setManutenzione','setVeicolo','eliminaVeicolo','creaPrenotazione','aggiornaPrenotazione','aggiornaPrenotazioneCompleta','eliminaPrenotazione','aggiornaStato','confermaPrenotazione','aggiornaCliente','creaCliente','importaPrenotazioniICS','importaPrenotazioniCSV','aggiornaStatoPrenotazione'
+  'setManutenzione','setVeicolo','eliminaVeicolo','creaPrenotazione','aggiornaPrenotazione','aggiornaPrenotazioneCompleta','eliminaPrenotazione','aggiornaStato','confermaPrenotazione','aggiornaCliente','creaCliente','importaPrenotazioniICS','importaPrenotazioniCSV','aggiornaStatoPrenotazione','setConfigProps',
+  // Sessione/admin
+  'requestAdminOTP','adminLogin','devLogin','revokeSession'
 ]);
 
 async function callAPI(action, params={}){
@@ -32,4 +34,5 @@ async function callAPI(action, params={}){
 }
 
 window.adminApi = { callAPI, POST_ACTIONS };
+window.callAPI = callAPI;
 export { callAPI, POST_ACTIONS };

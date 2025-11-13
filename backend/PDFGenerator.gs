@@ -13,6 +13,9 @@ function generaPDFContratto(idPrenotazione) {
   Logger.log('[generaPDFContratto] ID: ' + idPrenotazione);
   
   try {
+    if (!CONFIG.PDF.TEMPLATE_DOC_ID || !CONFIG.PDF.PDF_FOLDER_ID || !CONFIG.SPREADSHEET_ID) {
+      throw new Error('Configurazione PDF/Spreadsheet mancante');
+    }
     var sh = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID)
       .getSheetByName(CONFIG.SHEETS.PRENOTAZIONI);
     var data = sh.getDataRange().getValues();
