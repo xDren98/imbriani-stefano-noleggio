@@ -5,6 +5,24 @@
  */
 
 /**
+ * Sanitizza i valori per prevenire formula injection in Google Sheets
+ * @param {string} value - Valore da sanitizzare
+ * @return {string} Valore sanitizzato
+ */
+function sanitizeSheetValue(value) {
+  if (value === null || value === undefined) return '';
+  var str = String(value).trim();
+  
+  // Se il valore inizia con caratteri pericolosi per le formule, aggiungi uno spazio davanti
+  var dangerousPrefixes = /^[=+\-@]/;
+  if (dangerousPrefixes.test(str)) {
+    return ' ' + str;
+  }
+  
+  return str;
+}
+
+/**
  * Crea una risposta JSON standardizzata
  * @param {Object} data - Dati da restituire
  * @param {number} status - Codice HTTP status (default 200)
@@ -246,3 +264,8 @@ function dbg(msg){
     if (CONFIG && CONFIG.DEBUG_LOGS) Logger.log(msg);
   } catch (_) {}
 }
+
+function incFailedLogin(name){try{var k='FAILED_LOGIN:'+String(name||'').trim().toUpperCase();var p=getProps();var v=parseInt(p.getProperty(k)||'0',10);if(isNaN(v))v=0;p.setProperty(k,String(v+1));}catch(_){}}
+function logAdminAction(token,action,data){try{var s=getSession(token);var who=s?(s.name||'admin'):'unknown';var k='ADMIN_LOG:'+new Date().toISOString()+':'+action;var payload={who:who,action:action,ts:new Date().toISOString()};var p=getProps();p.setProperty(k,JSON.stringify(payload));}catch(_){}}
+function logSecurityEvent(type,data){try{var k='SEC_EVENT:'+new Date().toISOString()+':'+type;var p=getProps();p.setProperty(k,JSON.stringify({type:type,ts:new Date().toISOString()}));}catch(_){}}
+function logAccess(method,action,ip){try{var k='ACCESS:'+new Date().toISOString()+':'+method+':'+(action||'');var p=getProps();p.setProperty(k,JSON.stringify({m:method,a:action,ip:ip,ts:new Date().toISOString()}));}catch(_){}}

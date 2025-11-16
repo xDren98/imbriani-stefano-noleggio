@@ -86,17 +86,17 @@ function importaPrenotazioniICS(post){
       row[CONFIG.PRENOTAZIONI_COLS.TIMESTAMP-1] = new Date();
       // Usa il SUMMARY (Title) come nome completo grezzo
       var titolo = String(ev.summary||'').trim();
-      row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1-1] = titolo || 'Import Legacy';
-      row[CONFIG.PRENOTAZIONI_COLS.TARGA-1] = foundTarga;
-      row[CONFIG.PRENOTAZIONI_COLS.ORA_INIZIO-1] = oraInizio;
-      row[CONFIG.PRENOTAZIONI_COLS.ORA_FINE-1] = oraFine;
+      row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1-1] = sanitizeSheetValue(titolo || 'Import Legacy');
+      row[CONFIG.PRENOTAZIONI_COLS.TARGA-1] = sanitizeSheetValue(foundTarga);
+      row[CONFIG.PRENOTAZIONI_COLS.ORA_INIZIO-1] = sanitizeSheetValue(oraInizio);
+      row[CONFIG.PRENOTAZIONI_COLS.ORA_FINE-1] = sanitizeSheetValue(oraFine);
       row[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO-1] = start;
       row[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE-1] = end;
-      row[CONFIG.PRENOTAZIONI_COLS.DESTINAZIONE-1] = (ev.location||ev.summary||'').trim();
+      row[CONFIG.PRENOTAZIONI_COLS.DESTINAZIONE-1] = sanitizeSheetValue((ev.location||ev.summary||'').trim());
       // Se nel titolo è presente un numero di telefono, estrailo e salva
       var cellulareEstratto = extractPhoneFromText(titolo);
-      if (cellulareEstratto) row[CONFIG.PRENOTAZIONI_COLS.CELLULARE-1] = cellulareEstratto;
-      row[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE-1] = 'Legacy';
+      if (cellulareEstratto) row[CONFIG.PRENOTAZIONI_COLS.CELLULARE-1] = sanitizeSheetValue(cellulareEstratto);
+      row[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE-1] = sanitizeSheetValue('Legacy');
       row[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE-1] = generaNuovoIdBooking();
 
       shPren.appendRow(row);

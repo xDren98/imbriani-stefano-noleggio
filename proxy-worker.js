@@ -278,6 +278,15 @@ async function handleRequest(request) {
       if (cookieToken && !authHeader) {
         originalParams.set('Authorization', 'Bearer ' + cookieToken);
       }
+      try{
+        const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || '';
+        const now = Date.now();
+        const key = ip + ':POST_ADMIN';
+        const b = rateBuckets.get(key) || { start: now, count: 0 };
+        if (now - b.start > RATE_LIMIT_WINDOW_MS) { b.start = now; b.count = 0; }
+        b.count += 1;
+        rateBuckets.set(key, b);
+      }catch(_){ }
     }
 
     const appsScriptRequest = new Request(APPS_SCRIPT_URL + searchParams, {

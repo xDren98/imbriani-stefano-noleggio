@@ -4,6 +4,130 @@
 
   const DEFAULTS = {
     API_URL: 'https://imbriani-proxy.dreenhd.workers.dev'
+  }
+
+  /**
+   * 🔐 Internal secureGet implementation with fallback logic
+   */
+  async function secureGetInternal(action, params, ck, url) {
+    // Try proxy first, fallback to direct Apps Script if proxy fails
+    let res;
+    let timeoutId;
+    
+    try {
+      // Attempt proxy connection with timeout
+      const controller = new AbortController();
+      timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      
+      res = await fetch(url.toString(), { 
+        method:'GET', 
+        mode:'cors', 
+        cache:'no-cache', 
+        credentials:'include',
+        signal: controller.signal 
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!res.ok && res.status >= 500) {
+        throw new Error('Proxy server error');
+      }
+      
+    } catch (proxyError) {
+      console.warn('[secureGetInternal] Proxy failed, falling back to direct Apps Script:', proxyError.message);
+      
+      // Fallback to direct Apps Script endpoint
+      const fallbackUrl = new URL('https://script.google.com/macros/s/AKfycbx8vOsfdliS4e5odoRMkvCwaWY7SowSkgtW0zTuvqDIu4R99sUEixlLSW7Y9MyvNWk/exec');
+      fallbackUrl.searchParams.set('action', action);
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined && params[key] !== null) {
+          fallbackUrl.searchParams.set(key, String(params[key]));
+        }
+      });
+      
+      try {
+        const controller = new AbortController();
+        timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout for direct
+        
+        res = await fetch(fallbackUrl.toString(), { 
+          method:'GET', 
+          mode:'cors', 
+          cache:'no-cache', 
+          credentials:'include',
+          signal: controller.signal 
+        });
+        
+        clearTimeout(timeoutId);
+      } catch (directError) {
+        if (timeoutId) clearTimeout(timeoutId);
+        throw new Error('Both proxy and direct connection failed');
+      }
+    }
+
+    const data = await toJSONSafe(res);
+    const isNonJson = data && String(data.message||'').toLowerCase().includes('risposta non json');
+    console.log('[secureGetInternal] Response check - Status:', res.status, 'isNonJson:', isNonJson, 'ok:', res.ok);
+    
+    if (isNonJson) {
+      const u2 = new URL(url.toString());
+      u2.searchParams.set('diag','1');
+      u2.searchParams.set('nocache','1');
+      try {
+        const res3 = await fetch(u2.toString(), { method:'GET', mode:'cors', cache:'no-cache', credentials:'include' });
+        const data3 = await toJSONSafe(res3);
+        if (data3 && data3.success !== undefined) {
+          if (ck) { try { clientCachePut(ck, data3); } catch (e) { } }
+          return data3;
+        }
+      } catch (e) { }
+    }
+    
+    if (!res.ok) {
+      if (res.status === 429) {
+        await new Promise(r => setTimeout(r, 600));
+        const res2 = await fetch(url.toString(), { method:'GET', mode:'cors', cache:'no-cache', credentials:'include' });
+        const data2 = await toJSONSafe(res2);
+        if (!res2.ok || (data2 && data2.success === false)) {
+          const msg2 = (data2 && (data2.message || data2.error)) ? (data2.message || data2.error) : ('Errore API: ' + res2.status);
+          showError(msg2);
+        }
+        if (ck) { try{ clientCachePut(ck, data2); }catch(_){ } }
+        return data2;
+      }
+      const msg = (data && (data.message || data.error)) ? (data.message || data.error) : ('Errore API: ' + res.status);
+      showError(msg);
+    }
+    
+    if (ck) { try{ clientCachePut(ck, data); }catch(_){ } }
+    return data;
+  }
+
+  /**
+   * 🔄 Retry helper with exponential backoff
+   */
+  async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
+    let lastError;
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error;
+        
+        // Don't retry on certain errors
+        if (error.name === 'AbortError' || error.message.includes('Both proxy and direct')) {
+          throw error;
+        }
+        
+        // Calculate delay with exponential backoff
+        const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000;
+        console.log(`[retryWithBackoff] Attempt ${attempt + 1} failed, retrying in ${Math.round(delay)}ms:`, error.message);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    throw lastError;
   };
 
   function cfg(key){
@@ -361,46 +485,47 @@
         const hit = clientCacheGet(ck);
         if (hit && hit.success === true) { return hit; }
       }
-      // Prova prima con il proxy
-      const res = await fetch(url.toString(), { method:'GET', mode:'cors', cache:'no-cache', credentials:'include' });
-
-      const data = await toJSONSafe(res);
-      const isNonJson = data && String(data.message||'').toLowerCase().includes('risposta non json');
-      console.log('[secureGet] Response check - Status:', res.status, 'isNonJson:', isNonJson, 'ok:', res.ok);
-      if (isNonJson) {
-        const u2 = new URL(url.toString());
-        u2.searchParams.set('diag','1');
-        u2.searchParams.set('nocache','1');
-        try {
-          const res3 = await fetch(u2.toString(), { method:'GET', mode:'cors', cache:'no-cache', credentials:'include' });
-          const data3 = await toJSONSafe(res3);
-          if (data3 && data3.success !== undefined) {
-            if (ck) { try { clientCachePut(ck, data3); } catch (e) { } }
-            return data3;
-          }
-        } catch (e) { }
-      }
-      if (!res.ok) {
-        if (res.status === 429) {
-          await new Promise(r => setTimeout(r, 600));
-          const res2 = await fetch(url.toString(), { method:'GET', mode:'cors', cache:'no-cache', credentials:'include' });
-          const data2 = await toJSONSafe(res2);
-          if (!res2.ok || (data2 && data2.success === false)) {
-            const msg2 = (data2 && (data2.message || data2.error)) ? (data2.message || data2.error) : ('Errore API: ' + res2.status);
-            showError(msg2);
-          }
-          if (ck) { try{ clientCachePut(ck, data2); }catch(_){ } }
-          return data2;
-        }
-        const msg = (data && (data.message || data.error)) ? (data.message || data.error) : ('Errore API: ' + res.status);
-        showError(msg);
-      }
-      if (ck) { try{ clientCachePut(ck, data); }catch(_){ } }
-      return data;
+      
+      // Use retry logic for the actual API call
+      return await retryWithBackoff(async () => {
+        return await secureGetInternal(action, params, ck, url);
+      }, 2, 1500); // 2 retries with 1.5s base delay
     } catch (err) {
       console.warn('[secureGet] Errore rete', err.message);
-      showError('Errore di rete: ' + err.message);
-      return { success:false, message: err.message };
+      
+      // Enhanced error handling with offline detection
+      let errorMessage = 'Errore di rete: ';
+      let errorType = 'network_error';
+      
+      if (err.name === 'AbortError') {
+        errorMessage += 'Timeout di connessione';
+        errorType = 'timeout_error';
+      } else if (err.message.includes('Failed to fetch')) {
+        errorMessage += 'Connessione non disponibile';
+        errorType = 'connection_error';
+      } else if (err.message.includes('Both proxy and direct')) {
+        errorMessage += 'Servizio temporaneamente non disponibile';
+        errorType = 'service_unavailable';
+      } else {
+        errorMessage += err.message;
+      }
+      
+      // Check if we're offline
+      if (!navigator.onLine) {
+        errorMessage = 'Sei offline. Controlla la tua connessione internet.';
+        errorType = 'offline_error';
+      }
+      
+      showError(errorMessage);
+      
+      // Return structured error for better handling
+      return { 
+        success: false, 
+        message: errorMessage,
+        error_type: errorType,
+        offline: !navigator.onLine,
+        timestamp: new Date().toISOString()
+      };
     }
   }
 
@@ -416,9 +541,65 @@
     // Includi token sia in header che nel body per massima compatibilità
     const body = { action: action, ...payload };
 
+    // 🔐 Aggiungi CSRF token se disponibile
+    const csrfToken = sessionStorage.getItem('csrfToken');
+    if (csrfToken) {
+      body.csrfToken = csrfToken;
+    }
+
     try {
       const headers = { 'Content-Type': 'application/json' };
-      const res = await fetch(url, { method:'POST', mode:'cors', cache:'no-cache', credentials:'include', headers, body: JSON.stringify(body) });
+      // Try proxy first, fallback to direct Apps Script if proxy fails
+      let res;
+      let timeoutId;
+      
+      try {
+        // Attempt connection with timeout
+        const controller = new AbortController();
+        timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout for POST
+        
+        res = await fetch(url, { 
+          method:'POST', 
+          mode:'cors', 
+          cache:'no-cache', 
+          credentials:'include', 
+          headers, 
+          body: JSON.stringify(body),
+          signal: controller.signal 
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!res.ok && res.status >= 500) {
+          throw new Error('Server error');
+        }
+        
+      } catch (fetchError) {
+        console.warn('[securePost] Connection failed:', fetchError.message);
+        
+        // Fallback to direct Apps Script endpoint
+        const fallbackUrl = 'https://script.google.com/macros/s/AKfycbx8vOsfdliS4e5odoRMkvCwaWY7SowSkgtW0zTuvqDIu4R99sUEixlLSW7Y9MyvNWk/exec';
+        
+        try {
+          const controller = new AbortController();
+          timeoutId = setTimeout(() => controller.abort(), 12000); // 12 second timeout for direct POST
+          
+          res = await fetch(fallbackUrl, { 
+            method:'POST', 
+            mode:'cors', 
+            cache:'no-cache', 
+            credentials:'include', 
+            headers, 
+            body: JSON.stringify(body),
+            signal: controller.signal 
+          });
+          
+          clearTimeout(timeoutId);
+        } catch (directError) {
+          if (timeoutId) clearTimeout(timeoutId);
+          throw new Error('Both proxy and direct connection failed');
+        }
+      }
 
       const data = await toJSONSafe(res);
       if (!res.ok || (data && data.success === false)) {
@@ -428,8 +609,40 @@
       return data;
     } catch (err) {
       console.warn('[securePost] Errore rete', err.message);
-      showError('Errore di rete: ' + err.message);
-      return { success:false, message: err.message };
+      
+      // Enhanced error handling with offline detection
+      let errorMessage = 'Errore di rete: ';
+      let errorType = 'network_error';
+      
+      if (err.name === 'AbortError') {
+        errorMessage += 'Timeout di connessione';
+        errorType = 'timeout_error';
+      } else if (err.message.includes('Failed to fetch')) {
+        errorMessage += 'Connessione non disponibile';
+        errorType = 'connection_error';
+      } else if (err.message.includes('Both proxy and direct')) {
+        errorMessage += 'Servizio temporaneamente non disponibile';
+        errorType = 'service_unavailable';
+      } else {
+        errorMessage += err.message;
+      }
+      
+      // Check if we're offline
+      if (!navigator.onLine) {
+        errorMessage = 'Sei offline. Controlla la tua connessione internet.';
+        errorType = 'offline_error';
+      }
+      
+      showError(errorMessage);
+      
+      // Return structured error for better handling
+      return { 
+        success: false, 
+        message: errorMessage,
+        error_type: errorType,
+        offline: !navigator.onLine,
+        timestamp: new Date().toISOString()
+      };
     }
   }
 
@@ -444,22 +657,112 @@
     // DUAL TOKEN SUPPORT: includi token sia in header che nel body per massima compatibilità
     const payload = { ...body };
 
+    // 🔐 Aggiungi CSRF token se disponibile
+    const csrfToken = sessionStorage.getItem('csrfToken');
+    if (csrfToken) {
+      payload.csrfToken = csrfToken;
+    }
+
     try{
       const isAppsScript = typeof url === 'string' && url.includes('script.google.com');
       const headers = isAppsScript ? { 'Content-Type': 'text/plain' } : { 'Content-Type':'application/json' };
       if (!isAppsScript && token && String(token).trim()) headers['Authorization'] = 'Bearer ' + token;
 
-      const res = await fetch(url, { method:'POST', mode:'cors', cache:'no-cache', credentials:'include', headers, body: JSON.stringify(payload) });
+      // Try connection with timeout and better error handling
+      let res;
+      let timeoutId;
+      
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
+        res = await fetch(url, { 
+          method:'POST', 
+          mode:'cors', 
+          cache:'no-cache', 
+          credentials:'include', 
+          headers, 
+          body: JSON.stringify(payload),
+          signal: controller.signal 
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!res.ok && res.status >= 500) {
+          throw new Error('Server error');
+        }
+        
+      } catch (fetchError) {
+        console.warn('[call] Connection failed:', fetchError.message);
+        
+        // Try fallback to direct Apps Script endpoint
+        const fallbackUrl = 'https://script.google.com/macros/s/AKfycbx8vOsfdliS4e5odoRMkvCwaWY7SowSkgtW0zTuvqDIu4R99sUEixlLSW7Y9MyvNWk/exec';
+        
+        try {
+          const controller = new AbortController();
+          timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout for fallback
+          
+          const fallbackHeaders = { 'Content-Type': 'text/plain' };
+          if (token && String(token).trim()) fallbackHeaders['Authorization'] = 'Bearer ' + token;
+          
+          res = await fetch(fallbackUrl, { 
+            method:'POST', 
+            mode:'cors', 
+            cache:'no-cache', 
+            credentials:'include', 
+            headers: fallbackHeaders, 
+            body: JSON.stringify(payload),
+            signal: controller.signal 
+          });
+          
+          clearTimeout(timeoutId);
+        } catch (directError) {
+          clearTimeout(timeoutId);
+          throw new Error('Both proxy and direct connection failed');
+        }
+      }
       const data = await toJSONSafe(res);
       if (!res.ok || data.success === false){
         const msg = (data && (data.message || data.error)) ? (data.message || data.error) : ('Errore API: ' + res.status);
         showError(msg);
       }
       return data;
-    }catch(err){
+    } catch(err) {
       console.warn('[call] Errore rete', err.message);
-      showError('Errore di rete: ' + err.message);
-      return { success:false, message: err.message };
+      
+      // Enhanced error handling with offline detection
+      let errorMessage = 'Errore di rete: ';
+      let errorType = 'network_error';
+      
+      if (err.name === 'AbortError') {
+        errorMessage += 'Timeout di connessione';
+        errorType = 'timeout_error';
+      } else if (err.message.includes('Failed to fetch')) {
+        errorMessage += 'Connessione non disponibile';
+        errorType = 'connection_error';
+      } else if (err.message.includes('Both proxy and direct')) {
+        errorMessage += 'Servizio temporaneamente non disponibile';
+        errorType = 'service_unavailable';
+      } else {
+        errorMessage += err.message;
+      }
+      
+      // Check if we're offline
+      if (!navigator.onLine) {
+        errorMessage = 'Sei offline. Controlla la tua connessione internet.';
+        errorType = 'offline_error';
+      }
+      
+      showError(errorMessage);
+      
+      // Return structured error for better handling
+      return { 
+        success: false, 
+        message: errorMessage,
+        error_type: errorType,
+        offline: !navigator.onLine,
+        timestamp: new Date().toISOString()
+      };
     }
   }
 
@@ -475,6 +778,7 @@
   window.escapeHtml = escapeHtml;      // 🔐 Export global escape
   window.parseDateAny = parseDateAny;  // 📅 Export parser date
   window.toISO = toISO;
+  window.retryWithBackoff = retryWithBackoff; // 🔄 Export retry helper
   document.addEventListener('DOMContentLoaded', initDatePickersItalian);
   document.addEventListener('DOMContentLoaded', () => {
     setTimeout(async () => {
@@ -488,4 +792,75 @@
   });
   
   console.log('[SHARED-UTILS] v8.9 loaded - formatDateIT added for Italian dates (gg/mm/aaaa)');
+  
+  // ===== FUNZIONI DI SICUREZZA AGGIUNTE =====
+  
+  /**
+   * Sanitizza una stringa per l'uso sicuro in HTML
+   * @param {string} str - Stringa da sanitizzare
+   * @returns {string} Stringa sanitizzata
+   */
+  window.escapeHtml = function(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;')
+      .replace(/\//g, '&#x2F;');
+  };
+
+  /**
+   * Sanitizza attributi HTML per prevenire XSS
+   * @param {string} str - Stringa da sanitizzare
+   * @returns {string} Stringa sanitizzata per attributi
+   */
+  window.escapeAttr = function(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;')
+      .replace(/\n/g, '&#10;')
+      .replace(/\r/g, '&#13;')
+      .replace(/\t/g, '&#9;');
+  };
+
+  /**
+   * Sanitizza stringhe per JavaScript inline
+   * @param {string} str - Stringa da sanitizzare
+   * @returns {string} Stringa sicura per JS
+   */
+  window.escapeJs = function(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"')
+      .replace(/'/g, "\\'")
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '\\r')
+      .replace(/\t/g, '\\t')
+      .replace(/</g, '\\x3c')
+      .replace(/>/g, '\\x3e');
+  };
+
+  /**
+   * Previene formula injection in Google Sheets
+   * @param {string} str - Stringa da sanitizzare
+   * @returns {string} Stringa sicura per Sheets
+   */
+  window.escapeSheetsFormula = function(str) {
+    if (str == null) return '';
+    str = String(str).trim();
+    // Se inizia con =, +, -, @, aggiungi apostrofo
+    if (/^[\=\+\-\@]/.test(str)) {
+      return "'" + str;
+    }
+    return str;
+  };
+  
+  console.log('[SHARED-UTILS] Security functions added: escapeHtml, escapeAttr, escapeJs, escapeSheetsFormula');
 })();

@@ -8,6 +8,10 @@ async function callAPI(action, params={}){
   const isWrite = POST_ACTIONS.has(action);
   try {
     if (isWrite) {
+      const csrfToken = sessionStorage.getItem('csrfToken');
+      if (csrfToken) {
+        params.csrfToken = csrfToken;
+      }
       if (typeof window.securePost === 'function') {
         const result = await window.securePost(action, params);
         return result;

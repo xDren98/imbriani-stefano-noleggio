@@ -42,34 +42,77 @@
 imbriani-stefano-noleggio/
 ├── 📂 backend/              # Backend modulare Google Apps Script
 │   ├── Config.gs           # Configurazione globale
-│   ├── Main.gs             # Entry point
-│   ├── Auth.gs             # Autenticazione
-│   ├── EndpointsGet.gs     # GET routing
-│   ├── EndpointsPost.gs    # POST routing
+│   ├── Main.gs             # Entry point (doGet/doPost)
+│   ├── Auth.gs             # Autenticazione/JWT/CSRF
+│   ├── EndpointsGet.gs     # Routing GET con cache
+│   ├── EndpointsPost.gs    # Routing POST e operazioni protette
 │   ├── DateUtils.gs        # Utility date
-│   ├── Helpers.gs          # Helper generici
-│   └── README.md           # Documentazione backend
+│   ├── Helpers.gs          # Helper generici e caching
+│   ├── ClientiService.gs   # Gestione clienti
+│   ├── PrenotazioniService.gs # CRUD prenotazioni e stati
+│   ├── VeicoliService.gs   # Gestione flotta e disponibilità
+│   ├── ManutenzioniService.gs # Calendario manutenzioni
+│   ├── EmailService.gs     # Invio email
+│   ├── TelegramService.gs  # Notifiche Telegram
+│   ├── PDFGenerator.gs     # Generazione/gestione PDF
+│   ├── OCRService.gs       # OCR documenti
+│   ├── CSVImportService.gs # Import CSV
+│   ├── ICSImportService.gs # Import ICS
+│   ├── SecurityConfig.gs   # Config sicurezza
+│   ├── SecurityUtils.gs    # Util sicurezza
+│   └── appsscript.json     # Manifest GAS
 │
 ├── 🎨 Frontend HTML/CSS/JS
 │   ├── index.html          # Homepage
 │   ├── admin.html          # Dashboard admin
 │   ├── area-personale.html # Area clienti
 │   ├── veicoli.html        # Gestione flotta
+│   ├── dati-autisti.html   # Inserimento autisti
+│   ├── richiesta-preventivo.html
+│   ├── riepilogo-prenotazione.html
 │   ├── config.js           # Configurazione frontend
+│   ├── shared-utils.js     # Utility condivise
+│   ├── booking-submit.js   # Invio prenotazioni
+│   ├── scripts.js          # Script principali
 │   ├── styles.css          # Stili globali
-│   └── admin-*.js/css      # Admin specifici
+│   ├── admin-*.js/css      # Moduli admin
+│   └── dist/admin.bundle.js # Bundle Rollup per admin
 │
 ├── 📧 Email Templates
 │   ├── email-template-conferma.html
 │   ├── email-template-approvazione.html
 │   └── email-template-reminder.html
 │
-├── 🛠️ scripts/            # Script utilità
-│   └── download-backend.ps1
+├── ☁️ Cloudflare Worker
+│   ├── proxy-worker.js     # Proxy CORS/Rate limit/cache
+│   └── wrangler.toml       # Config deploy Worker
 │
-├── 💾 backup/             # Backup storici
-├── 📦 pwa/                # Progressive Web App
-└── 📄 code.gs             # Backup originale monolitico
+├── 🛠️ scripts/            # Script utilità
+│   ├── download-backend.ps1
+│   └── scripts/gas-deploy.js
+│
+├── 📦 pwa/                 # Progressive Web App
+│   ├── manifest.json
+│   ├── service-worker.js
+│   └── push-notifications.js
+│
+├── 🧪 tests/               # Test
+│   └── shared-utils.test.js
+│
+├── 🩹 patches/             # Fix di contrasto/accessibilità
+│   └── contrast-fixes.css
+│
+├── 📄 Docs                 # Documentazione
+│   ├── docs/proxy-setup.md
+│   ├── docs/setup-props.html
+│   ├── docs/diagnostics.html
+│   └── docs/miglioramenti-tracker.html
+└── 🧾 Varie
+    ├── package.json
+    ├── eslint.config.js
+    ├── jsconfig.json
+    ├── rollup.config.js
+    └── .clasp.json
 ```
 
 ---
@@ -138,7 +181,7 @@ const CONFIG = {
 ```
 
 ### **Proxy Cloudflare Worker**
-Vedi: [`docs/proxy-setup.md`](docs/proxy-setup.md) per configurazione CORS e pubblicazione.
+Vedi: `docs/proxy-setup.md` per configurazione CORS e pubblicazione.
 Comandi utili:
 ```bash
 npm run proxy:publish   # deploy Worker
@@ -173,7 +216,7 @@ POST {
 }
 ```
 
-**Vedi**: [API Documentation](docs/API.md) per elenco completo
+Per ulteriori dettagli vedi `backend/README.md` e `docs/diagnostics.html`.
 
 ---
 
@@ -231,10 +274,11 @@ Google Apps Script Backend
 
 ## 📚 Documentazione
 
-- 📝 [Backend Modulare](backend/README.md)
-- 📡 [API Reference](docs/API.md)
-- ⚙️ [Setup Guide](docs/SETUP.md)
-- 🔧 [Troubleshooting](docs/TROUBLESHOOTING.md)
+- 📝 Backend Modulare: `backend/README.md`
+- ☁️ Proxy setup: `docs/proxy-setup.md`
+- ⚙️ Proprietà GAS: `docs/setup-props.html`
+- 🔧 Diagnostica: `docs/diagnostics.html`
+- 📈 Miglioramenti pianificati: `docs/miglioramenti-tracker.html`
 
 ---
 

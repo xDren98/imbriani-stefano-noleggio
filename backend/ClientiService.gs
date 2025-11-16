@@ -32,17 +32,17 @@ function aggiornaCliente(post) {
     var lastCol = sh.getLastColumn();
     var row = sh.getRange(idxRow, 1, 1, lastCol).getValues()[0];
     var C = CONFIG.CLIENTI_COLS;
-    function upd(key, val){ if (val !== undefined && val !== null) { row[C[key]-1] = val; } }
+    function upd(key, val){ if (val !== undefined && val !== null) { row[C[key]-1] = sanitizeSheetValue(val); } }
     upd('NOME', post.nome || post.nomeCompleto);
     upd('LUOGO_NASCITA', post.luogoNascita);
     upd('COMUNE_RESIDENZA', post.comuneResidenza);
     upd('VIA_RESIDENZA', post.viaResidenza);
     upd('CIVICO_RESIDENZA', post.civicoResidenza);
-    upd('NUMERO_PATENTE', post.numeroPatente);
-    upd('DATA_INIZIO_PATENTE', post.inizioValiditaPatente || post.dataInizioPatente);
-    upd('SCADENZA_PATENTE', post.scadenzaPatente);
-    upd('CELLULARE', post.cellulare);
-    upd('EMAIL', post.email);
+    upd('NUMERO_PATENTE', sanitizeSheetValue(post.numeroPatente));
+    upd('DATA_INIZIO_PATENTE', sanitizeSheetValue(post.inizioValiditaPatente || post.dataInizioPatente));
+    upd('SCADENZA_PATENTE', sanitizeSheetValue(post.scadenzaPatente));
+    upd('CELLULARE', sanitizeSheetValue(post.cellulare));
+    upd('EMAIL', sanitizeSheetValue(post.email));
     sh.getRange(idxRow, 1, 1, lastCol).setValues([row]);
     invalidateIndex('CLIENTI');
     
@@ -102,7 +102,7 @@ function sincronizzaClienti() {
       
       function updateCell(colKey, val) {
         if (val !== undefined && val !== null && val !== '') {
-          shC.getRange(rowIndex, CONFIG.CLIENTI_COLS[colKey]).setValue(val);
+          shC.getRange(rowIndex, CONFIG.CLIENTI_COLS[colKey]).setValue(sanitizeSheetValue(val));
         }
       }
       
@@ -111,16 +111,16 @@ function sincronizzaClienti() {
         var row = new Array(Object.keys(CONFIG.CLIENTI_COLS).length);
         for (var k = 0; k < row.length; k++) row[k] = '';
         
-        row[CONFIG.CLIENTI_COLS.NOME - 1] = data.nomeCompleto || data.nome || '';
+        row[CONFIG.CLIENTI_COLS.NOME - 1] = sanitizeSheetValue(data.nomeCompleto || data.nome || '');
         row[CONFIG.CLIENTI_COLS.DATA_NASCITA - 1] = data.dataNascita || '';
-        row[CONFIG.CLIENTI_COLS.LUOGO_NASCITA - 1] = data.luogoNascita || '';
-        row[CONFIG.CLIENTI_COLS.CODICE_FISCALE - 1] = cf;
-        row[CONFIG.CLIENTI_COLS.COMUNE_RESIDENZA - 1] = data.comuneResidenza || '';
-        row[CONFIG.CLIENTI_COLS.VIA_RESIDENZA - 1] = data.viaResidenza || '';
-        row[CONFIG.CLIENTI_COLS.CIVICO_RESIDENZA - 1] = data.civicoResidenza || '';
-        row[CONFIG.CLIENTI_COLS.NUMERO_PATENTE - 1] = data.numeroPatente || '';
-        row[CONFIG.CLIENTI_COLS.DATA_INIZIO_PATENTE - 1] = data.inizioValiditaPatente || data.dataInizioPatente || '';
-        row[CONFIG.CLIENTI_COLS.SCADENZA_PATENTE - 1] = data.scadenzaPatente || '';
+        row[CONFIG.CLIENTI_COLS.LUOGO_NASCITA - 1] = sanitizeSheetValue(data.luogoNascita || '');
+        row[CONFIG.CLIENTI_COLS.CODICE_FISCALE - 1] = sanitizeSheetValue(cf);
+        row[CONFIG.CLIENTI_COLS.COMUNE_RESIDENZA - 1] = sanitizeSheetValue(data.comuneResidenza || '');
+        row[CONFIG.CLIENTI_COLS.VIA_RESIDENZA - 1] = sanitizeSheetValue(data.viaResidenza || '');
+        row[CONFIG.CLIENTI_COLS.CIVICO_RESIDENZA - 1] = sanitizeSheetValue(data.civicoResidenza || '');
+        row[CONFIG.CLIENTI_COLS.NUMERO_PATENTE - 1] = sanitizeSheetValue(data.numeroPatente || '');
+        row[CONFIG.CLIENTI_COLS.DATA_INIZIO_PATENTE - 1] = sanitizeSheetValue(data.inizioValiditaPatente || data.dataInizioPatente || '');
+        row[CONFIG.CLIENTI_COLS.SCADENZA_PATENTE - 1] = sanitizeSheetValue(data.scadenzaPatente || '');
         
         if (isPrimary) {
           row[CONFIG.CLIENTI_COLS.CELLULARE - 1] = data.cellulare || '';
@@ -245,7 +245,7 @@ function upsertClienteInCreaPrenotazione(cliente, isPrimary) {
   function setValue(colKey, val) {
     if (val !== undefined && val !== null && val !== '') {
       if (idx > 0) {
-        shC.getRange(idx + 1, CONFIG.CLIENTI_COLS[colKey]).setValue(val);
+        shC.getRange(idx + 1, CONFIG.CLIENTI_COLS[colKey]).setValue(sanitizeSheetValue(val));
       } else {
         return val;
       }
@@ -328,18 +328,18 @@ function creaCliente(post) {
     var row = new Array(Object.keys(CONFIG.CLIENTI_COLS).length);
     for (var k = 0; k < row.length; k++) row[k] = '';
 
-    row[CONFIG.CLIENTI_COLS.NOME - 1] = post.nomeCompleto || post.nome || '';
+    row[CONFIG.CLIENTI_COLS.NOME - 1] = sanitizeSheetValue(post.nomeCompleto || post.nome || '');
     row[CONFIG.CLIENTI_COLS.DATA_NASCITA - 1] = post.dataNascita || '';
-    row[CONFIG.CLIENTI_COLS.LUOGO_NASCITA - 1] = post.luogoNascita || '';
-    row[CONFIG.CLIENTI_COLS.CODICE_FISCALE - 1] = cf;
-    row[CONFIG.CLIENTI_COLS.COMUNE_RESIDENZA - 1] = post.comuneResidenza || '';
-    row[CONFIG.CLIENTI_COLS.VIA_RESIDENZA - 1] = post.viaResidenza || '';
-    row[CONFIG.CLIENTI_COLS.CIVICO_RESIDENZA - 1] = post.civicoResidenza || '';
-    row[CONFIG.CLIENTI_COLS.NUMERO_PATENTE - 1] = post.numeroPatente || '';
+    row[CONFIG.CLIENTI_COLS.LUOGO_NASCITA - 1] = sanitizeSheetValue(post.luogoNascita || '');
+    row[CONFIG.CLIENTI_COLS.CODICE_FISCALE - 1] = sanitizeSheetValue(cf);
+    row[CONFIG.CLIENTI_COLS.COMUNE_RESIDENZA - 1] = sanitizeSheetValue(post.comuneResidenza || '');
+    row[CONFIG.CLIENTI_COLS.VIA_RESIDENZA - 1] = sanitizeSheetValue(post.viaResidenza || '');
+    row[CONFIG.CLIENTI_COLS.CIVICO_RESIDENZA - 1] = sanitizeSheetValue(post.civicoResidenza || '');
+    row[CONFIG.CLIENTI_COLS.NUMERO_PATENTE - 1] = sanitizeSheetValue(post.numeroPatente || '');
     row[CONFIG.CLIENTI_COLS.DATA_INIZIO_PATENTE - 1] = post.inizioValiditaPatente || post.dataInizioPatente || '';
     row[CONFIG.CLIENTI_COLS.SCADENZA_PATENTE - 1] = post.scadenzaPatente || '';
-    row[CONFIG.CLIENTI_COLS.CELLULARE - 1] = post.cellulare || '';
-    row[CONFIG.CLIENTI_COLS.EMAIL - 1] = post.email || '';
+    row[CONFIG.CLIENTI_COLS.CELLULARE - 1] = sanitizeSheetValue(post.cellulare || '');
+    row[CONFIG.CLIENTI_COLS.EMAIL - 1] = sanitizeSheetValue(post.email || '');
 
     sh.appendRow(row);
     invalidateIndex('CLIENTI');
@@ -477,7 +477,8 @@ function login(post){
     var exp = nowSec() + (CONFIG && CONFIG.SECURITY ? (CONFIG.SECURITY.SESSION_TTL_MINUTES||1440)*60 : 86400);
     var payload = { cf: cf, role: 'user', exp: exp, iat: nowSec() };
     var jwt = createJWT(payload);
-    return createJsonResponse({ success:true, user:user, token: jwt, exp: new Date(exp*1000).toISOString() });
+    var csrfToken = generateCSRFToken(jwt);
+    return createJsonResponse({ success:true, user:user, token: jwt, csrfToken: csrfToken, exp: new Date(exp*1000).toISOString() });
   }catch(err){
     return createJsonResponse({ success:false, message:'Errore login: ' + err.message, errorCode:'GENERIC_ERROR' }, 500);
   }

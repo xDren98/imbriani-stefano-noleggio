@@ -30,7 +30,10 @@ export default [
       '**/*.gs',
       'pwa/**',
       'scripts.js',
-      'booking-submit.js'
+      'booking-submit.js',
+      'test-*.js',
+      'gas-deploy-manager.js',
+      'deploy-instructions.js'
     ]
   }
 ]

@@ -9,8 +9,17 @@
  * @param {string} idPrenotazione - ID prenotazione
  * @return {Object} Oggetto con risultato generazione
  */
-function generaPDFContratto(idPrenotazione) {
+function generaPDFContratto(idPrenotazione, sessionToken) {
   Logger.log('[generaPDFContratto] ID: ' + idPrenotazione);
+  
+  // Verifica autorizzazione - solo admin possono generare PDF
+  if (!sessionToken || !isAdmin(sessionToken)) {
+    Logger.log('[generaPDFContratto] Accesso negato - admin richiesto');
+    return {
+      success: false,
+      message: 'Admin richiesto per generare PDF'
+    };
+  }
   
   try {
     if (!CONFIG.PDF.TEMPLATE_DOC_ID || !CONFIG.PDF.PDF_FOLDER_ID || !CONFIG.SPREADSHEET_ID) {
@@ -98,6 +107,14 @@ function generaPDFContratto(idPrenotazione) {
     
     Logger.log('[generaPDFContratto] Veicolo: ' + targa + ' -> ' + veicolo.marca + ' ' + veicolo.modello);
     
+    // Se esiste un PDF precedente, eliminalo
+    var prevUrl = String(prenotazione[CONFIG.PRENOTAZIONI_COLS.PDF_URL - 1] || '').trim();
+    if (prevUrl && prevUrl.indexOf('/d/') > -1) {
+      try {
+        var prevId = prevUrl.split('/d/')[1].split('/')[0];
+        DriveApp.getFileById(prevId).setTrashed(true);
+      } catch (ePrev) { /* ignore */ }
+    }
     // Crea copia template
     var template = DriveApp.getFileById(CONFIG.PDF.TEMPLATE_DOC_ID);
     var tempDoc = template.makeCopy();
@@ -125,7 +142,8 @@ function generaPDFContratto(idPrenotazione) {
     // Salva in cartella
     var folder = DriveApp.getFolderById(CONFIG.PDF.PDF_FOLDER_ID);
     var pdfFile = folder.createFile(pdfBlob).setName(nomePdf);
-    pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    // Rimuovi condivisione pubblica per sicurezza - solo utenti autorizzati possono accedere
+    // pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     
     // Elimina documento temporaneo
     DriveApp.getFileById(tempDoc.getId()).setTrashed(true);
@@ -151,8 +169,17 @@ function generaPDFContratto(idPrenotazione) {
  * Elimina PDF associato a prenotazione
  * @param {string} idPrenotazione - ID prenotazione
  */
-function eliminaPDFPrenotazione(idPrenotazione) {
+function eliminaPDFPrenotazione(idPrenotazione, sessionToken) {
   Logger.log('[eliminaPDFPrenotazione] ID: ' + idPrenotazione);
+  
+  // Verifica autorizzazione - solo admin possono eliminare PDF
+  if (!sessionToken || !isAdmin(sessionToken)) {
+    Logger.log('[eliminaPDFPrenotazione] Accesso negato - admin richiesto');
+    return {
+      success: false,
+      message: 'Admin richiesto per eliminare PDF'
+    };
+  }
   
   try {
     var sh = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID)
@@ -274,6 +301,62 @@ function censisciPDFEsistenti() {
       success: false,
       message: 'Errore censimento: ' + err.message
     }, 500);
+  }
+}
+
+/**
+ * Genera un PDF manuale partendo dall'ultima riga di un foglio
+ * Sostituisce i tag nel template con i valori della riga (supporta <<TAG>> e {{TAG}})
+ * @param {Object} params { sheetName?: string }
+ * @return {Object} { success, url, pdfId, nomeFile }
+ */
+function generaPdfUltimaRiga(params) {
+  try {
+    var sheetName = (params && params.sheetName) || CONFIG.SHEETS.PRENOTAZIONI;
+    if (!CONFIG.PDF.TEMPLATE_DOC_ID || !CONFIG.PDF.PDF_FOLDER_ID || !CONFIG.SPREADSHEET_ID) {
+      throw new Error('Configurazione PDF/Spreadsheet mancante');
+    }
+    var ss = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+    var sh = ss.getSheetByName(sheetName);
+    if (!sh) throw new Error('Foglio non trovato: ' + sheetName);
+    var lr = sh.getLastRow();
+    var lc = sh.getLastColumn();
+    if (lr < 2) throw new Error('Nessun dato nel foglio');
+    var headers = sh.getRange(1, 1, 1, lc).getValues()[0];
+    var row = sh.getRange(lr, 1, 1, lc).getValues()[0];
+    var map = {};
+    for (var i = 0; i < headers.length; i++) {
+      var key = String(headers[i] || '').trim();
+      if (!key) continue;
+      var val = row[i];
+      if (val instanceof Date && !isNaN(val.getTime())) {
+        val = Utilities.formatDate(val, CONFIG.PDF.TIMEZONE, 'dd/MM/yyyy');
+      }
+      map[key] = val;
+      map[key.toUpperCase()] = val;
+      map[key.replace(/\s+/g, '_')] = val;
+    }
+    // Crea copia del template e sostituisci
+    var template = DriveApp.getFileById(CONFIG.PDF.TEMPLATE_DOC_ID);
+    var tempDoc = template.makeCopy('Manual_'+new Date().toISOString(), DriveApp.getFolderById(CONFIG.PDF.PDF_FOLDER_ID));
+    var doc = DocumentApp.openById(tempDoc.getId());
+    var body = doc.getBody();
+    var keys = Object.keys(map);
+    for (var k = 0; k < keys.length; k++) {
+      var tag = keys[k];
+      var value = String(map[tag] || '');
+      try { body.replaceText('<<'+tag+'>>', value); } catch (e) {}
+      try { body.replaceText('{{'+tag+'}}', value); } catch (e2) {}
+    }
+    doc.saveAndClose();
+    var pdfBlob = DriveApp.getFileById(tempDoc.getId()).getAs(MimeType.PDF);
+    var pdfFile = DriveApp.getFolderById(CONFIG.PDF.PDF_FOLDER_ID).createFile(pdfBlob).setName(tempDoc.getName()+'.pdf');
+    // PDF access restricted to organization only - removed public sharing for security
+    // elimina il doc temporaneo
+    DriveApp.getFileById(tempDoc.getId()).setTrashed(true);
+    return { success:true, url: pdfFile.getUrl(), pdfId: pdfFile.getId(), nomeFile: pdfFile.getName() };
+  } catch (err) {
+    return { success:false, message: err.message };
   }
 }
 

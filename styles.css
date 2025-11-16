@@ -151,3 +151,11 @@ select.form-select:focus option, select.form-select:hover option { color: #0f172
 .form-text, .text-muted, .text-white-50 { color: rgba(255, 255, 255, 0.88) !important; text-shadow: 0 0 8px rgba(0, 0, 0, .35); font-weight: 500; }
 .form-text i, .small i, .text-muted i { color: rgba(255, 255, 255, 0.92) !important; filter: drop-shadow(0 0 6px rgba(0,0,0,.4)); opacity: 1; }
 #cf-input + i + div.form-text { margin-top: 6px; }
+/* Accessibilità: focus visibile e skip link */
+.skip-link{position:absolute;left:-999px;top:-999px;background:#000;color:#fff;padding:8px 12px;border-radius:6px;z-index:2000}
+.skip-link:focus{left:12px;top:12px}
+:focus-visible{outline:3px solid #0066FF;outline-offset:2px}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:0.001ms !important;animation-iteration-count:1 !important;transition-duration:0.001ms !important;scroll-behavior:auto !important}
+}

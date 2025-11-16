@@ -473,3 +473,26 @@ input[type="date"].form-control-modern::-webkit-calendar-picker-indicator { posi
   outline: 2px solid rgba(255,255,255,0.6);
   outline-offset: 2px;
 }
+.filter-bar{border:1px solid rgba(255,255,255,.08);padding:.75rem;border-radius:.75rem;background:rgba(255,255,255,.03)}
+.btn-filter{border-radius:999px}
+.btn-filter.active{background:#0d6efd;color:#fff;border-color:#0d6efd}
+.input-group .form-control-modern{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:#cfd8e3}
+.table-dark.table-hover tbody tr:hover{background:rgba(13,110,253,.06)}
+.badge-status{border-radius:999px;padding:.35rem .6rem;font-weight:600}
+.badge-status.status-completata{background:rgba(25,135,84,.15);color:#25a05a}
+.badge-status.status-in\ corso{background:rgba(13,110,253,.15);color:#2f71e0}
+.badge-status.status-programmata{background:rgba(102,16,242,.15);color:#7a3df0}
+.badge-status.status-in\ attesa{background:rgba(255,193,7,.15);color:#e0a800}
+.badge-status.status-legacy{background:rgba(108,117,125,.15);color:#9aa0a6}
+.input-mask-hint{font-size:.8rem;color:#9aa0a6}
+.date-wrap{position:relative}
+.date-overlay{position:absolute;z-index:9999;top:calc(100% + 4px);left:0;background:#111827;color:#cfd8e3;border:1px solid rgba(255,255,255,.12);border-radius:.5rem;padding:.25rem}
+.cal-panel{position:absolute;z-index:9999;top:calc(100% + 4px);left:0;background:#111827;border:1px solid rgba(255,255,255,.12);border-radius:.5rem;padding:.5rem;width:280px}
+.cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem}
+.cal-head .btn{padding:.15rem .4rem}
+.cal-title{font-weight:600;color:#cfd8e3}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:.25rem}
+.cal-cell{padding:.35rem .25rem;text-align:center;border-radius:.35rem;cursor:pointer;color:#cfd8e3}
+.cal-cell:hover{background:rgba(13,110,253,.15)}
+.cal-dow{font-size:.75rem;color:#9aa0a6}
+.cal-selected{background:rgba(13,110,253,.25)}

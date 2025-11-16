@@ -48,15 +48,15 @@ function importaPrenotazioniCSV(post){
 
       var row = new Array(46).fill('');
       row[CONFIG.PRENOTAZIONI_COLS.TIMESTAMP-1] = new Date();
-      row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1-1] = nomeAutista || 'Import Excel';
-      row[CONFIG.PRENOTAZIONI_COLS.TARGA-1] = targa;
-      row[CONFIG.PRENOTAZIONI_COLS.ORA_INIZIO-1] = oraStart;
-      row[CONFIG.PRENOTAZIONI_COLS.ORA_FINE-1] = oraEnd;
+      row[CONFIG.PRENOTAZIONI_COLS.NOME_AUTISTA_1-1] = sanitizeSheetValue(nomeAutista || 'Import Excel');
+      row[CONFIG.PRENOTAZIONI_COLS.TARGA-1] = sanitizeSheetValue(targa);
+      row[CONFIG.PRENOTAZIONI_COLS.ORA_INIZIO-1] = sanitizeSheetValue(oraStart);
+      row[CONFIG.PRENOTAZIONI_COLS.ORA_FINE-1] = sanitizeSheetValue(oraEnd);
       row[CONFIG.PRENOTAZIONI_COLS.GIORNO_INIZIO-1] = dStart;
       row[CONFIG.PRENOTAZIONI_COLS.GIORNO_FINE-1] = dEnd;
-      row[CONFIG.PRENOTAZIONI_COLS.DESTINAZIONE-1] = destinazione;
-      if (cellulareEstratto) row[CONFIG.PRENOTAZIONI_COLS.CELLULARE-1] = cellulareEstratto;
-      row[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE-1] = 'Legacy';
+      row[CONFIG.PRENOTAZIONI_COLS.DESTINAZIONE-1] = sanitizeSheetValue(destinazione);
+      if (cellulareEstratto) row[CONFIG.PRENOTAZIONI_COLS.CELLULARE-1] = sanitizeSheetValue(cellulareEstratto);
+      row[CONFIG.PRENOTAZIONI_COLS.STATO_PRENOTAZIONE-1] = sanitizeSheetValue('Legacy');
       row[CONFIG.PRENOTAZIONI_COLS.ID_PRENOTAZIONE-1] = generaNuovoIdBooking();
 
       shPren.appendRow(row);

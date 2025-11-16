@@ -23,7 +23,7 @@ Questa cartella contiene il backend modulare per Google Apps Script, diviso in f
 
 | File | Righe | Descrizione |
 |------|-------|-------------|
-| `Auth.gs` | ~110 | Autenticazione e validazione token |
+| `Auth.gs` | ~150 | Autenticazione, validazione token e CSRF |
 | `EndpointsGet.gs` | ~150 | Routing endpoint GET |
 | `EndpointsPost.gs` | ~120 | Routing endpoint POST |
 
@@ -215,6 +215,47 @@ CONFIG.PDF.*          // Template e folder PDF
 - Google Drive (PDF generation)
 - Gmail (email sending)
 - UrlFetch (Telegram API)
+
+---
+
+## 🔐 Sicurezza
+
+### **Configurazione Sicurezza Avanzata**
+
+Il backend include sistemi di sicurezza avanzati configurabili tramite `SecurityConfig.gs`:
+
+#### **Controllo Accessi**
+- `ALLOWED_IPS`: Lista IP autorizzati (es: "192.168.1.1, 10.0.0.0/24")
+- `ALLOWED_DOMAINS`: Lista domini autorizzati (es: "imbriani.it, noleggi-imbriani.it")
+- `WEBAPP_ACCESS`: Configurato su "DOMAIN" (accesso limitato al dominio)
+
+#### **Rate Limiting**
+- `MAX_REQUESTS_PER_MINUTE`: Limite richieste per IP (default: 60)
+- Protezione contro attacchi DDoS e bruteforce
+
+#### **CSRF Protection**
+- Token CSRF generati per ogni sessione
+- Validazione automatica su tutti gli endpoint POST
+- Timeout token: 1 ora
+
+#### **Formula Injection Protection**
+- Sanitizzazione automatica dei dati prima della scrittura su Google Sheets
+- Protezione contro formule maligne (=,+,-,@)
+
+#### **Session Management**
+- JWT con HMAC-SHA256
+- Session timeout: 24 ore
+- Protezione contro session hijacking
+
+### **Impostazioni Raccomandate per Produzione**
+
+```javascript
+// In SecurityConfig.gs
+ALLOWED_IPS: '192.168.1.0/24, 10.0.0.0/16' // Solo IP aziendali
+ALLOWED_DOMAINS: 'imbriani.it, www.imbriani.it' // Solo domini ufficiali
+MAX_REQUESTS_PER_MINUTE: 30 // Più restrittivo
+DEBUG_MODE: false // Disabilita debug in produzione
+```
 
 ---
 

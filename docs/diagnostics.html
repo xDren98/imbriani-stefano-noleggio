@@ -103,10 +103,11 @@
     function isLocalHost() { return ['localhost','127.0.0.1'].includes(location.hostname); }
 
     function setAdminSessionCookie(session){
-      try{
-        const payload = btoa(unescape(encodeURIComponent(JSON.stringify(session))));
-        document.cookie = `imbriani_admin_session=${payload}; path=/; max-age=${60*60*24}; SameSite=Lax`;
-      }catch(_){ }
+      // RIMOSSO: Cookie disabilitati per sicurezza. Usare solo sessionStorage.
+      // try{
+      //   const payload = btoa(unescape(encodeURIComponent(JSON.stringify(session))));
+      //   document.cookie = `imbriani_admin_session=${payload}; path=/; max-age=${60*60*24}; SameSite=Lax`;
+      // }catch(_){ }
     }
 
     function tokenPreview() {

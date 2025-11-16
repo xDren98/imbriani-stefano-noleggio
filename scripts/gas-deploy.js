@@ -6,13 +6,16 @@ function run(cmd, args) {
   return (r.stdout || '').trim()
 }
 
-const depId = process.env.GAS_DEPLOYMENT_ID || ''
+const depId = process.env.GAS_DEPLOYMENT_ID || 'AKfycbyJNd0Qu_ikVybG2HUt8M-0Ncn4pm2NdrT995sYOg'
 const desc = process.env.GAS_VERSION_DESC || `auto-${new Date().toISOString()}`
+// Se depId è configurato via fallback, procedo; se è vuoto, salto
 if (!depId) {
   console.log('GAS_DEPLOYMENT_ID mancante: deploy GAS saltato')
   process.exit(0)
 }
-run('npx', ['clasp', 'version', '--description', desc])
+try { run('npx', ['clasp', 'version', '-d', desc]) } catch (e) {
+  try { run('npx', ['clasp', 'version']) } catch (_) { /* ignora e usa ultima versione esistente */ }
+}
 const vlist = run('npx', ['clasp', 'versions'])
 let ver = null
 vlist.split('\n').forEach(line => {

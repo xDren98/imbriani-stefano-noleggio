@@ -97,6 +97,10 @@
           }));
           // --- FIX AUTO COMPILAZIONE ---
           sessionStorage.setItem('userData', JSON.stringify(userData));
+          // --- SALVA TOKEN CSRF ---
+          if (res.csrfToken) {
+            sessionStorage.setItem('csrfToken', res.csrfToken);
+          }
           
           if (window.showToast) {
             showToast(`Benvenuto ${userData.nome || 'Cliente'}!`, 'success');

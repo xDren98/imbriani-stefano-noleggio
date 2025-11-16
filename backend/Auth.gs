@@ -3,7 +3,7 @@ function getProps(){return PropertiesService.getScriptProperties()}
 function nowSec(){return Math.floor(Date.now()/1000)}
 function base64urlEncode(bytes){var s=Utilities.base64Encode(bytes).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');return s}
 function base64urlEncodeString(str){return base64urlEncode(Utilities.newBlob(str).getBytes())}
-function getJWTSecret(){var s=getProps().getProperty('JWT_SECRET');return s&&String(s).trim()?s:'change_me_secret'}
+function getJWTSecret(){var s=getProps().getProperty('JWT_SECRET');if(!s||!String(s).trim()){throw new Error('JWT_SECRET non configurato. Impostare JWT_SECRET in ScriptProperties prima di utilizzare il sistema.')}return s}
 function createJWT(payload){var header={alg:'HS256',typ:'JWT'};var h=base64urlEncodeString(JSON.stringify(header));var p=base64urlEncodeString(JSON.stringify(payload));var data=h+'.'+p;var sig=Utilities.computeHmacSha256Signature(data,getJWTSecret());var s=base64urlEncode(sig);return data+'.'+s}
 function verifyJWT(token){try{var parts=String(token||'').split('.');if(parts.length!==3)return null;var h=parts[0],p=parts[1],s=parts[2];var data=h+'.'+p;var sig=Utilities.computeHmacSha256Signature(data,getJWTSecret());var s2=base64urlEncode(sig);if(s!==s2)return null;var json=Utilities.newBlob(Utilities.base64Decode(p)).getDataAsString();var payload=JSON.parse(json);if(payload&&payload.exp&&payload.exp<nowSec())return null;return payload}catch(_){return null}}
 function putSession(token,session){if(!token)return false;var p=getProps();p.setProperty('SESSION:'+token,JSON.stringify(session));return true}
@@ -12,4 +12,29 @@ function revokeSession(token){if(!token)return false;getProps().deleteProperty('
 function getSession(token){if(!token)return null;var jwt=verifyJWT(token);if(jwt)return jwt;return getSessionLegacy(token)}
 function isAdmin(token){var s=getSession(token);return !!(s&&String(s.role||'')==='admin')}
 function getSessionInfo(token){var s=getSession(token);return{sessionValid:!!s,sessionRole:s?(s.role||'user'):'none'}}
+
+function generateCSRFToken(sessionToken){
+  if(!sessionToken)return null;
+  var session=getSession(sessionToken);
+  if(!session)return null;
+  var timestamp=nowSec();
+  var data=sessionToken+':'+timestamp;
+  var signature=Utilities.computeHmacSha256Signature(data,getJWTSecret());
+  var token=base64urlEncode(signature)+':'+timestamp;
+  return token;
+}
+
+function validateCSRFToken(sessionToken,csrfToken){
+  if(!sessionToken||!csrfToken)return false;
+  var session=getSession(sessionToken);
+  if(!session)return false;
+  var parts=String(csrfToken).split(':');
+  if(parts.length!==2)return false;
+  var sig=parts[0],timestamp=parseInt(parts[1],10);
+  if(!timestamp||isNaN(timestamp))return false;
+  if(timestamp<(nowSec()-3600))return false;
+  var data=sessionToken+':'+timestamp;
+  var expectedSig=base64urlEncode(Utilities.computeHmacSha256Signature(data,getJWTSecret()));
+  return sig===expectedSig;
+}
 function json(o,code){var t=ContentService.createTextOutput(JSON.stringify(o));t.setMimeType(ContentService.MimeType.JSON);if(code&&t.setStatusCode)t.setStatusCode(code);return t}

@@ -6,7 +6,7 @@
   <title>Admin — Imbriani Stefano Noleggio</title>
   <meta name="theme-color" content="#0066FF">
   <meta name="referrer" content="no-referrer">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://script.google.com https://script.googleusercontent.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data:; connect-src 'self' https://imbriani-proxy.dreenhd.workers.dev https://script.google.com https://script.googleusercontent.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com https://r2cdn.perplexity.ai; object-src 'none'; base-uri 'self';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com https://script.google.com https://script.googleusercontent.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data:; connect-src 'self' https://imbriani-proxy.dreenhd.workers.dev https://script.google.com https://script.googleusercontent.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com https://r2cdn.perplexity.ai; object-src 'none'; base-uri 'self';">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" integrity="sha512-Avb2QiuDEEvB4bZJYdft2mNjVShBftLdPG8FJ0V7irTLQ8Uo0qcPxh4Plq7G5tGm0rU+1SPhVotteLpBERwTkw==" crossorigin="anonymous">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,6 +18,7 @@
   <script src="scripts/perf-monitor.js" defer></script>
 </head>
 <body class="h-100">
+  <a href="#mainContent" class="skip-link">Salta al contenuto</a>
   <!-- Gate di login admin (OTP Telegram) -->
   <div id="admin-login-gate" class="position-fixed top-0 start-0 w-100 h-100 d-none align-items-center justify-content-center bg-dark bg-opacity-75" style="z-index:1060;">
     <div class="card shadow" style="max-width: 420px; width: 92%;">
@@ -53,7 +54,7 @@
     </div>
   </div>
   <!-- SIDEBAR aggiornata -->
-  <nav class="admin-sidebar" id="sidebar">
+  <nav class="admin-sidebar" id="sidebar" role="navigation" aria-label="Navigazione amministratore">
     <div class="sidebar-header">
       <h5 class="mb-0">🚐 Imbriani — Admin</h5>
       <small class="text-white-50">Dashboard Gestionale</small>
@@ -69,6 +70,7 @@
       <a class="nav-link" data-section="legacy" href="#"><i class="fas fa-hourglass-half me-2"></i>Legacy</a>
       <a class="nav-link" data-section="clienti" href="#"><i class="fas fa-users me-2"></i>Clienti</a>
       <a class="nav-link" data-section="flotta" href="#"><i class="fas fa-car me-2"></i>Flotta</a>
+      <a class="nav-link" data-section="manutenzioni" href="#"><i class="fas fa-tools me-2"></i>Manutenzioni</a>
       <div class="nav-divider"></div>
       <a class="nav-link" data-section="statistiche" href="#"><i class="fas fa-chart-pie me-2"></i>Statistiche</a>
       <a class="nav-link" data-section="settings" href="#"><i class="fas fa-cog me-2"></i>Impostazioni</a>
@@ -76,7 +78,7 @@
   </nav>
 
   <!-- MAIN CONTENT -->
-  <main class="main-content" id="mainContent">
+  <main class="main-content" id="mainContent" role="main" aria-live="polite">
     <header class="px-4 py-3 sticky-top d-flex justify-content-between align-items-center">
       <div class="d-flex align-items-center">
         <button class="btn btn-link text-secondary me-2" id="sidebar-toggle" aria-label="Mostra/Nascondi sidebar"><i class="fas fa-bars"></i></button>
@@ -105,6 +107,7 @@
   <script src="shared-utils.js?v=20251113"></script>
   <script src="admin-prenotazioni.js?v=20251113"></script>
   <script type="module" src="dist/admin.bundle.js?v=20251113"></script>
+  <link rel="stylesheet" href="patches/contrast-fixes.css?v=101">
 
   <!-- Inline admin script rimosso: ora gestito in admin-scripts.js
     function showAdminGate(show){
@@ -135,10 +138,11 @@
       try{
         if (sessionStorage.getItem('imbriani_admin_session')) return true;
       }catch(_){}
-      try{
-        const m = document.cookie.match(/(?:^|; )imbriani_admin_session=([^;]*)/);
-        if (m && m[1]) return true;
-      }catch(_){}
+      // RIMOSSO: Controllo cookie disabilitato per sicurezza
+      // try{
+      //   const m = document.cookie.match(/(?:^|; )imbriani_admin_session=([^;]*)/);
+      //   if (m && m[1]) return true;
+      // }catch(_){}
       return false;
     }
 
@@ -152,10 +156,11 @@
     }
     
     function setAdminSessionCookie(session){
-      try{
-        const payload = btoa(unescape(encodeURIComponent(JSON.stringify(session))));
-        document.cookie = `imbriani_admin_session=${payload}; path=/; max-age=${60*60*24}; SameSite=Lax`;
-      }catch(_){ }
+      // RIMOSSO: Cookie disabilitati per sicurezza. Usare solo sessionStorage.
+      // try{
+      //   const payload = btoa(unescape(encodeURIComponent(JSON.stringify(session))));
+      //   document.cookie = `imbriani_admin_session=${payload}; path=/; max-age=${60*60*24}; SameSite=Lax`;
+      // }catch(_){ }
     }
 
     // Util centralizzato per persistere la sessione admin su tutti i canali
@@ -166,10 +171,11 @@
     }
 
     function clearAdminSessionCookie(){
-      try{
-        // Invalida il cookie impostando Max-Age a 0
-        document.cookie = 'imbriani_admin_session=; path=/; max-age=0; SameSite=Lax';
-      }catch(_){ }
+      // RIMOSSO: Cookie disabilitati per sicurezza
+      // try{
+      //   // Invalida il cookie impostando Max-Age a 0
+      //   document.cookie = 'imbriani_admin_session=; path=/; max-age=0; SameSite=Lax';
+      // }catch(_){ }
     }
     
     function getCookie(name){
@@ -180,17 +186,18 @@
     function restoreAdminSessionFromCookie(){
       const hasLocal = !!localStorage.getItem('imbriani_admin_session');
       if (hasLocal) return true;
-      try{
-        const raw = getCookie('imbriani_admin_session');
-        if (!raw) return false;
-        const json = decodeURIComponent(escape(atob(raw)));
-        const sess = JSON.parse(json);
-        if (sess && sess.token){
-          sessionStorage.setItem('imbriani_admin_session', JSON.stringify(sess));
-          try { sessionStorage.setItem('imbriani_session', JSON.stringify(sess)); } catch(_){}
-          return true;
-        }
-      }catch(_){ }
+      // RIMOSSO: Recupero da cookie disabilitato per sicurezza
+      // try{
+      //   const raw = getCookie('imbriani_admin_session');
+      //   if (!raw) return false;
+      //   const json = decodeURIComponent(escape(atob(raw)));
+      //   const sess = JSON.parse(json);
+      //   if (sess && sess.token){
+      //     sessionStorage.setItem('imbriani_admin_session', JSON.stringify(sess));
+      //     try { sessionStorage.setItem('imbriani_session', JSON.stringify(sess)); } catch(_){}
+      //     return true;
+      //   }
+      // }catch(_){ }
       return false;
     }
 

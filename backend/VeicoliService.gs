@@ -823,12 +823,12 @@ function setVeicolo(post) {
 
     // Prepara i valori
     var values = [];
-    values[CONFIG.PULMINI_COLS.TARGA - 1] = targa;
-    values[CONFIG.PULMINI_COLS.MARCA - 1] = marca;
-    values[CONFIG.PULMINI_COLS.MODELLO - 1] = modello;
+    values[CONFIG.PULMINI_COLS.TARGA - 1] = sanitizeSheetValue(targa);
+    values[CONFIG.PULMINI_COLS.MARCA - 1] = sanitizeSheetValue(marca);
+    values[CONFIG.PULMINI_COLS.MODELLO - 1] = sanitizeSheetValue(modello);
     values[CONFIG.PULMINI_COLS.POSTI - 1] = posti || 9;
-    values[CONFIG.PULMINI_COLS.STATO - 1] = stato || 'Disponibile';
-    values[CONFIG.PULMINI_COLS.NOTE - 1] = note || '';
+    values[CONFIG.PULMINI_COLS.STATO - 1] = sanitizeSheetValue(stato || 'Disponibile');
+    values[CONFIG.PULMINI_COLS.NOTE - 1] = sanitizeSheetValue(note || '');
 
     var updatedRow = 0;
     var data = sh.getDataRange().getValues();
