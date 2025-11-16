@@ -1,4 +1,4 @@
-// Shared Utils v9.0 - Production-optimized with enhanced error handling for ERR_ABORTED and ERR_FAILED
+// Shared Utils v8.9 - Added formatDateIT for Italian date formatting
 (function(){
   window.api = window.api || {};
 
@@ -211,222 +211,32 @@
   }
 
   /**
-   * 🔐 Production-optimized securePost implementation with enhanced error handling
+   * 🔄 Retry helper with exponential backoff
    */
-  async function securePost(action, payload = {}) {
-    const url = cfg('API_URL');
-    const token = null;
+  async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
+    let lastError;
     
-    console.log('[securePost]', action, 'payload keys:', Object.keys(payload));
-
-    // Enhanced error categorization for POST requests
-    function categorizePostError(error, url) {
-      const errorInfo = {
-        type: 'unknown',
-        message: error.message || 'Unknown error',
-        url: url,
-        timestamp: new Date().toISOString(),
-        userAgent: navigator.userAgent,
-        online: navigator.onLine,
-        action: action
-      };
-
-      // POST-specific error categorization
-      if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-        errorInfo.type = 'post_failed_fetch';
-        errorInfo.message = 'POST request failed - possible CORS or payload size issue';
-      } else if (error.name === 'AbortError') {
-        errorInfo.type = 'post_timeout';
-        errorInfo.message = 'POST timeout - server may be processing large payload';
-      } else if (error.message.includes('ERR_ABORTED')) {
-        errorInfo.type = 'post_err_aborted';
-        errorInfo.message = 'POST request aborted - network interruption during upload';
-      } else if (error.message.includes('ERR_FAILED')) {
-        errorInfo.type = 'post_err_failed';
-        errorInfo.message = 'POST request failed - server error or network issue';
-      } else if (error.message.includes('Payload too large')) {
-        errorInfo.type = 'payload_too_large';
-        errorInfo.message = 'Payload too large - reduce data size';
-      } else if (!navigator.onLine) {
-        errorInfo.type = 'offline';
-        errorInfo.message = 'Cannot POST while offline';
-      }
-
-      return errorInfo;
-    }
-
-    // Production-grade POST retry mechanism
-    async function postWithRetry(url, body, headers, maxRetries = 2) {
-      let lastError;
-      
-      for (let attempt = 0; attempt < maxRetries; attempt++) {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 
-          attempt === 0 ? 8000 : 15000 // Longer timeouts for POST
-        );
-
-        try {
-          const response = await fetch(url, {
-            method: 'POST',
-            mode: 'cors',
-            credentials: 'include',
-            headers: {
-              ...headers,
-              'Accept': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify(body),
-            signal: controller.signal,
-            // Add cache-busting for production
-            cache: attempt > 0 ? 'reload' : 'no-cache'
-          });
-          
-          clearTimeout(timeoutId);
-          
-          // Handle specific HTTP status codes
-          if (response.status === 413) {
-            throw new Error('Payload too large');
-          }
-          
-          if (response.status === 429) {
-            // Rate limiting - wait longer for POST
-            const retryAfter = response.headers.get('Retry-After') || (attempt + 1) * 3;
-            await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-            continue;
-          }
-          
-          if (response.status >= 500) {
-            throw new Error(`Server error ${response.status}`);
-          }
-          
-          return response;
-          
-        } catch (error) {
-          clearTimeout(timeoutId);
-          lastError = error;
-          
-          const errorInfo = categorizePostError(error, url);
-          console.warn(`[postWithRetry] Attempt ${attempt + 1} failed:`, errorInfo);
-          
-          // Don't retry on certain POST errors
-          if (errorInfo.type === 'payload_too_large' || errorInfo.type === 'offline') {
-            throw error;
-          }
-          
-          // Longer exponential backoff for POST
-          if (attempt < maxRetries - 1) {
-            const delay = Math.min(2000 * Math.pow(2, attempt) + Math.random() * 2000, 15000);
-            console.log(`[postWithRetry] Retrying POST in ${Math.round(delay)}ms...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-          }
-        }
-      }
-      
-      throw lastError;
-    }
-
-    // Prepare POST body with enhanced error handling
-    const body = { action: action, ...payload };
-
-    // 🔐 Aggiungi CSRF token se disponibile
-    const csrfToken = sessionStorage.getItem('csrfToken');
-    if (csrfToken) {
-      body.csrfToken = csrfToken;
-    }
-
-    try {
-      const headers = { 'Content-Type': 'application/json' };
-      
-      // Try proxy first with enhanced POST handling
-      let res;
-      
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        res = await postWithRetry(url, body, headers);
+        return await fn();
+      } catch (error) {
+        lastError = error;
         
-      } catch (postError) {
-        const errorInfo = categorizePostError(postError, url);
-        console.warn('[securePost] Proxy POST failed:', errorInfo);
-        
-        // Production-specific fallback strategy for POST
-        if (errorInfo.type === 'payload_too_large' || errorInfo.type === 'offline') {
-          throw postError; // Don't try fallback for these errors
+        // Don't retry on certain errors
+        if (error.name === 'AbortError' || error.message.includes('Both proxy and direct')) {
+          throw error;
         }
         
-        // Fallback to direct Apps Script endpoint
-        const fallbackUrl = 'https://script.google.com/macros/s/AKfycbx8vOsfdliS4e5odoRMkvCwaWY7SowSkgtW0zTuvqDIu4R99sUEixlLSW7Y9MyvNWk/exec';
+        // Calculate delay with exponential backoff
+        const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000;
+        console.log(`[retryWithBackoff] Attempt ${attempt + 1} failed, retrying in ${Math.round(delay)}ms:`, error.message);
         
-        // Add cache-busting parameter for production
-        body._t = Date.now().toString();
-        
-        try {
-          res = await postWithRetry(fallbackUrl, body, headers, 1); // Single retry for fallback
-          
-        } catch (directError) {
-          const directErrorInfo = categorizePostError(directError, fallbackUrl);
-          console.error('[securePost] Both proxy and direct POST failed:', directErrorInfo);
-          
-          // Enhanced error message for production POST failures
-          let finalErrorMessage = 'Servizio temporaneamente non disponibile';
-          
-          if (directErrorInfo.type === 'offline') {
-            finalErrorMessage = 'Sei offline. Le modifiche verranno salvate quando tornerai online.';
-          } else if (directErrorInfo.type === 'post_timeout') {
-            finalErrorMessage = 'Timeout del server - i dati potrebbero essere stati salvati, verifica più tardi';
-          } else if (directErrorInfo.type === 'post_err_aborted' || directErrorInfo.type === 'post_err_failed') {
-            finalErrorMessage = 'Connessione interrotta durante il salvataggio - riprova';
-          } else if (directErrorInfo.type === 'payload_too_large') {
-            finalErrorMessage = 'I dati sono troppo grandi - riduci la quantità di informazioni';
-          }
-          
-          throw new Error(finalErrorMessage);
-        }
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-
-      const data = await toJSONSafe(res);
-      if (!res.ok || (data && data.success === false)) {
-        const msg = (data && (data.message || data.error)) ? (data.message || data.error) : ('Errore API: ' + res.status);
-        showError(msg);
-      }
-      return data;
-      
-    } catch (err) {
-      console.warn('[securePost] Errore rete', err.message);
-      
-      // Enhanced error handling with offline detection
-      let errorMessage = 'Errore di rete: ';
-      let errorType = 'network_error';
-      
-      if (err.name === 'AbortError') {
-        errorMessage += 'Timeout di connessione';
-        errorType = 'timeout_error';
-      } else if (err.message.includes('Failed to fetch')) {
-        errorMessage += 'Connessione non disponibile';
-        errorType = 'connection_error';
-      } else if (err.message.includes('Both proxy and direct')) {
-        errorMessage += 'Servizio temporaneamente non disponibile';
-        errorType = 'service_unavailable';
-      } else {
-        errorMessage += err.message;
-      }
-      
-      // Check if we're offline
-      if (!navigator.onLine) {
-        errorMessage = 'Sei offline. Controlla la tua connessione internet.';
-        errorType = 'offline_error';
-      }
-      
-      showError(errorMessage);
-      
-      // Return structured error for better handling
-      return { 
-        success: false, 
-        message: errorMessage,
-        error_type: errorType,
-        offline: !navigator.onLine,
-        timestamp: new Date().toISOString()
-      };
     }
-  }
+    
+    throw lastError;
+  };
 
   function cfg(key){
     try{ return (window.CONFIG && window.CONFIG[key]) ? window.CONFIG[key] : DEFAULTS[key]; }
@@ -566,6 +376,59 @@
     return container;
   }
 
+  /**
+   * 🇮🇹 Formatta una data in formato italiano (gg/mm/aaaa)
+   * @param {string|Date} date - Data da formattare
+   * @returns {string} Data formattata in formato italiano o '-' se invalida
+   * @example
+   * formatDateIT('2025-11-08') // '08/11/2025'
+   * formatDateIT(new Date()) // '08/11/2025'
+   * formatDateIT(null) // '-'
+   */
+  function formatDateIT(date) {
+    if (!date) return '-';
+    try {
+      // Gestione esplicita stringhe in formato italiano gg/mm/aaaa
+      if (typeof date === 'string') {
+        const s = date.trim();
+        // Caso: yyyy-mm-dd (senza orario) -> interpreta come data locale evitando timezone
+        const mISO = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (mISO) {
+          const y = parseInt(mISO[1], 10);
+          const m = parseInt(mISO[2], 10) - 1;
+          const d = parseInt(mISO[3], 10);
+          const dt = new Date(y, m, d);
+          if (!isNaN(dt.getTime())) {
+            return dt.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          }
+        }
+        const m = s.match(/^([0-3]?\d)\/([0-1]?\d)\/(\d{4})$/);
+        if (m) {
+          const dNum = parseInt(m[1], 10);
+          const mNum = parseInt(m[2], 10) - 1;
+          const yNum = parseInt(m[3], 10);
+          const d = new Date(yNum, mNum, dNum);
+          if (!isNaN(d.getTime())) {
+            return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          }
+        }
+        // Gestione ISO (yyyy-mm-dd o ISO con tempo)
+        const iso = s;
+        const dIso = new Date(iso);
+        if (!isNaN(dIso.getTime())) {
+          return dIso.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
+        return '-';
+      }
+      // Oggetto Date
+      const d = date;
+      if (isNaN(d.getTime())) return '-';
+      return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    } catch {
+      return '-';
+    }
+  }
+
   // 📅 Datepicker italiano (flatpickr) con valore ISO e visualizzazione d/m/Y
   function loadScriptOnce(src, id){
     return new Promise((resolve, reject) => {
@@ -586,7 +449,7 @@
       }
       const s = String(dateVal).trim();
       if (s.includes('T')) return s.split('T')[0];
-      const mIT = s.match(/^([0-3]?\d)[\/\.\-]([0-1]?\d)[\/\.\-](\d{4})$/);
+      const mIT = s.match(/^([0-3]?\d)[\/.\-]([0-1]?\d)[\/.\-](\d{4})$/);
       if (mIT) return `${mIT[3]}-${String(mIT[2]).padStart(2,'0')}-${String(mIT[1]).padStart(2,'0')}`;
       const mISO = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
       if (mISO) return s;
@@ -709,59 +572,6 @@
     }
   }
 
-  /**
-   * 🇮🇹 Formatta una data in formato italiano (gg/mm/aaaa)
-   * @param {string|Date} date - Data da formattare
-   * @returns {string} Data formattata in formato italiano o '-' se invalida
-   * @example
-   * formatDateIT('2025-11-08') // '08/11/2025'
-   * formatDateIT(new Date()) // '08/11/2025'
-   * formatDateIT(null) // '-'
-   */
-  function formatDateIT(date) {
-    if (!date) return '-';
-    try {
-      // Gestione esplicita stringhe in formato italiano gg/mm/aaaa
-      if (typeof date === 'string') {
-        const s = date.trim();
-        // Caso: yyyy-mm-dd (senza orario) -> interpreta come data locale evitando timezone
-        const mISO = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        if (mISO) {
-          const y = parseInt(mISO[1], 10);
-          const m = parseInt(mISO[2], 10) - 1;
-          const d = parseInt(mISO[3], 10);
-          const dt = new Date(y, m, d);
-          if (!isNaN(dt.getTime())) {
-            return dt.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
-          }
-        }
-        const m = s.match(/^([0-3]?\d)\/([0-1]?\d)\/(\d{4})$/);
-        if (m) {
-          const dNum = parseInt(m[1], 10);
-          const mNum = parseInt(m[2], 10) - 1;
-          const yNum = parseInt(m[3], 10);
-          const d = new Date(yNum, mNum, dNum);
-          if (!isNaN(d.getTime())) {
-            return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
-          }
-        }
-        // Gestione ISO (yyyy-mm-dd o ISO con tempo)
-        const iso = s;
-        const dIso = new Date(iso);
-        if (!isNaN(dIso.getTime())) {
-          return dIso.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
-        }
-        return '-';
-      }
-      // Oggetto Date
-      const d = date;
-      if (isNaN(d.getTime())) return '-';
-      return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    } catch {
-      return '-';
-    }
-  }
-
   // ✅ FIX: Aggiungi funzione secureGet con fallback diretto a Google Apps Script
   async function secureGet(action, params = {}) {
     const url = new URL(cfg('API_URL'));
@@ -784,10 +594,10 @@
         if (hit && hit.success === true) { return hit; }
       }
       
-      // Use enhanced retry logic for production
+      // Use retry logic for the actual API call
       return await retryWithBackoff(async () => {
         return await secureGetInternal(action, params, ck, url);
-      }, 3, 1000); // 3 retries with 1s base delay for production
+      }, 2, 1500); // 2 retries with 1.5s base delay
     } catch (err) {
       console.warn('[secureGet] Errore rete', err.message);
       
@@ -827,47 +637,122 @@
     }
   }
 
-  /**
-   * 🔄 Production-grade retry helper with exponential backoff and enhanced error handling
-   */
-  async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
-    let lastError;
+  // JSONP fallback rimosso per conformità sicurezza
+
+  // ✅ FIX: Aggiungi funzione securePost con fallback diretto
+  async function securePost(action, payload = {}) {
+    const url = cfg('API_URL');
+    const token = null;
     
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
+    console.log('[securePost]', action, 'payload:', payload);
+
+    // Includi token sia in header che nel body per massima compatibilità
+    const body = { action: action, ...payload };
+
+    // 🔐 Aggiungi CSRF token se disponibile
+    const csrfToken = sessionStorage.getItem('csrfToken');
+    if (csrfToken) {
+      body.csrfToken = csrfToken;
+    }
+
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      // Try proxy first, fallback to direct Apps Script if proxy fails
+      let res;
+      let timeoutId;
+      
       try {
-        return await fn();
-      } catch (error) {
-        lastError = error;
+        // Attempt connection with timeout
+        const controller = new AbortController();
+        timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout for POST
         
-        // Enhanced error categorization for retry decisions
-        if (error.name === 'AbortError' || error.message.includes('ERR_ABORTED') || error.message.includes('ERR_FAILED')) {
-          console.warn(`[retryWithBackoff] Network error on attempt ${attempt + 1}:`, error.message);
-          // These errors are often transient, so we retry
-        } else if (error.message.includes('Both proxy and direct')) {
-          console.warn(`[retryWithBackoff] Both connections failed on attempt ${attempt + 1}:`, error.message);
-          // Service unavailable - retry with longer delay
-          const delay = Math.min(baseDelay * Math.pow(2, attempt) + Math.random() * 2000, 20000);
-          console.log(`[retryWithBackoff] Service unavailable, retrying in ${Math.round(delay)}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        } else {
-          // Don't retry on other errors
-          throw error;
+        res = await fetch(url, { 
+          method:'POST', 
+          mode:'cors', 
+          cache:'no-cache', 
+          credentials:'include', 
+          headers, 
+          body: JSON.stringify(body),
+          signal: controller.signal 
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!res.ok && res.status >= 500) {
+          throw new Error('Server error');
         }
         
-        // Exponential backoff with jitter for production
-        if (attempt < maxRetries - 1) {
-          const delay = Math.min(baseDelay * Math.pow(2, attempt) + Math.random() * 1000, 15000);
-          console.log(`[retryWithBackoff] Attempt ${attempt + 1} failed, retrying in ${Math.round(delay)}ms:`, error.message);
-          await new Promise(resolve => setTimeout(resolve, delay));
+      } catch (fetchError) {
+        console.warn('[securePost] Connection failed:', fetchError.message);
+        
+        // Fallback to direct Apps Script endpoint
+        const fallbackUrl = 'https://script.google.com/macros/s/AKfycbx8vOsfdliS4e5odoRMkvCwaWY7SowSkgtW0zTuvqDIu4R99sUEixlLSW7Y9MyvNWk/exec';
+        
+        try {
+          const controller = new AbortController();
+          timeoutId = setTimeout(() => controller.abort(), 12000); // 12 second timeout for direct POST
+          
+          res = await fetch(fallbackUrl, { 
+            method:'POST', 
+            mode:'cors', 
+            cache:'no-cache', 
+            credentials:'include', 
+            headers, 
+            body: JSON.stringify(body),
+            signal: controller.signal 
+          });
+          
+          clearTimeout(timeoutId);
+        } catch (directError) {
+          if (timeoutId) clearTimeout(timeoutId);
+          throw new Error('Both proxy and direct connection failed');
         }
       }
-    }
-    
-    throw lastError;
-  }
 
-  // JSONP fallback rimosso per conformità sicurezza
+      const data = await toJSONSafe(res);
+      if (!res.ok || (data && data.success === false)) {
+        const msg = (data && (data.message || data.error)) ? (data.message || data.error) : ('Errore API: ' + res.status);
+        showError(msg);
+      }
+      return data;
+    } catch (err) {
+      console.warn('[securePost] Errore rete', err.message);
+      
+      // Enhanced error handling with offline detection
+      let errorMessage = 'Errore di rete: ';
+      let errorType = 'network_error';
+      
+      if (err.name === 'AbortError') {
+        errorMessage += 'Timeout di connessione';
+        errorType = 'timeout_error';
+      } else if (err.message.includes('Failed to fetch')) {
+        errorMessage += 'Connessione non disponibile';
+        errorType = 'connection_error';
+      } else if (err.message.includes('Both proxy and direct')) {
+        errorMessage += 'Servizio temporaneamente non disponibile';
+        errorType = 'service_unavailable';
+      } else {
+        errorMessage += err.message;
+      }
+      
+      // Check if we're offline
+      if (!navigator.onLine) {
+        errorMessage = 'Sei offline. Controlla la tua connessione internet.';
+        errorType = 'offline_error';
+      }
+      
+      showError(errorMessage);
+      
+      // Return structured error for better handling
+      return { 
+        success: false, 
+        message: errorMessage,
+        error_type: errorType,
+        offline: !navigator.onLine,
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
 
   // Fallback POST diretto rimosso per conformità sicurezza
 
@@ -897,7 +782,7 @@
       
       try {
         const controller = new AbortController();
-        timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
         
         res = await fetch(url, { 
           method:'POST', 
@@ -1014,7 +899,7 @@
     }, 600);
   });
   
-  console.log('[SHARED-UTILS] v9.0 loaded - Production-optimized with enhanced ERR_ABORTED/ERR_FAILED handling');
+  console.log('[SHARED-UTILS] v8.9 loaded - formatDateIT added for Italian dates (gg/mm/aaaa)');
   
   // ===== FUNZIONI DI SICUREZZA AGGIUNTE =====
   
